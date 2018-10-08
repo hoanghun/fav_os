@@ -1,0 +1,6 @@
+﻿  api.cpp
+  rtl.cpp
+  shell.cpp
+  Generování kódu...
+     Vytváří se knihovna ..\..\compiled\user.lib a objekt ..\..\compiled\user.exp.
+  user.vcxproj -> C:\Users\vastj\source\repos\os\msvc\user\..\..\compiled\user.dll

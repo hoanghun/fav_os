@@ -1,0 +1,9 @@
+﻿  api.cpp
+  cmos.cpp
+  disk.cpp
+  idt.cpp
+  keyboard.cpp
+  main.cpp
+  vga.cpp
+  Generování kódu...
+  boot.vcxproj -> C:\Users\vastj\source\repos\os\msvc\boot\..\..\compiled\boot.exe
