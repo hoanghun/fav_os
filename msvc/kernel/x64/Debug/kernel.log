@@ -1,8 +1,0 @@
-﻿  api.cpp
-  handles.cpp
-  io.cpp
-  kernel.cpp
-  process.cpp
-  thread.cpp
-  Generování kódu...
-  kernel.vcxproj -> C:\Users\vastj\source\repos\os\msvc\kernel\..\..\compiled\kernel.dll
