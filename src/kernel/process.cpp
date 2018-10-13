@@ -1,40 +1,38 @@
 #include <cstring>
 
 #include "process.h"
+#include "common.h"
 
 namespace kiv_process {
-
-#pragma region CPid_Manager
-
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
-			case kiv_os::NOS_Process::Clone:
-				break;
+		case kiv_os::NOS_Process::Clone:
+			break;
 
 			// TODO
-			case kiv_os::NOS_Process::Exit:
-				break;
+		case kiv_os::NOS_Process::Exit:
+			break;
 
-			case kiv_os::NOS_Process::Shutdown:
-				break;
-				
-			case kiv_os::NOS_Process::Wait_For:
-				break;
+		case kiv_os::NOS_Process::Shutdown:
+			break;
+
+		case kiv_os::NOS_Process::Wait_For:
+			break;
 		}
 	}
 
 	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
-			case kiv_os::NClone::Create_Process:
-				kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
-				break;
-		
-			case kiv_os::NClone::Create_Thread:
-				// TODO call to create new thread
-				break;
+		case kiv_os::NClone::Create_Process:
+			kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
+			break;
+
+		case kiv_os::NClone::Create_Thread:
+			// TODO call to create new thread
+			break;
 		}
 	}
-
+#pragma region CPid_Manager
 	bool CPid_Manager::Get_Free_Pid(size_t* pid) {
 		if (!is_full) {
 
