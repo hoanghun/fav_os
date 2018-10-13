@@ -20,11 +20,13 @@ void Shutdown_Kernel() {
 void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 
 	switch (static_cast<kiv_os::NOS_Service_Major>(regs.rax.h)) {
-	
 		case kiv_os::NOS_Service_Major::File_System:		
 			Handle_IO(regs);
 			break;
 
+		case kiv_os::NOS_Service_Major::Process:
+			Handle_Process(regs);
+			break;
 	}
 
 }

@@ -6,8 +6,36 @@ namespace kiv_process {
 
 #pragma region CPid_Manager
 
-	bool CPid_Manager::Get_Free_Pid(size_t* pid) {
+	void Handle_Process(kiv_hal::TRegisters &regs) {
+		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
+			case kiv_os::NOS_Process::Clone:
+				break;
+
+			// TODO
+			case kiv_os::NOS_Process::Exit:
+				break;
+
+			case kiv_os::NOS_Process::Shutdown:
+				break;
+				
+			case kiv_os::NOS_Process::Wait_For:
+				break;
+		}
+	}
+
+	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
+		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
+			case kiv_os::NClone::Create_Process:
+				kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
+				break;
 		
+			case kiv_os::NClone::Create_Thread:
+				// TODO call to create new thread
+				break;
+		}
+	}
+
+	bool CPid_Manager::Get_Free_Pid(size_t* pid) {
 		if (!is_full) {
 
 			last = (last + 1) % pids.size();
@@ -43,9 +71,7 @@ namespace kiv_process {
 			return true;
 		}
 		else {
-
 			return false;
-
 		}
 
 	}
@@ -75,7 +101,6 @@ namespace kiv_process {
 	}
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {
-
 		const char* prog_name = (char*)(context.rdx.r);
 
 		size_t pid;
@@ -130,7 +155,6 @@ namespace kiv_process {
 		}
 
 		return false;
-
 	}
 
 #pragma endregion

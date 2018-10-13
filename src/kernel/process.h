@@ -15,14 +15,11 @@ namespace kiv_process {
 		class CPid_Manager {
 			
 			public:
-
 				static const size_t MAX_PROCESS_COUNT = 1024;
-
 				bool Get_Free_Pid(size_t* pid);
 				bool Release_Pid(size_t pid);
 
 			private:
-
 				std::array<bool, MAX_PROCESS_COUNT> pids{false};
 				size_t last = 0;
 				bool is_full = false;
@@ -30,13 +27,12 @@ namespace kiv_process {
 		
 		
 		enum NProcess_State {
-			RUNNING,
+			RUNNING = 1,
 			BLOCKED,
 			TERMINATED
 		};
 
 		struct TProcess_Control_Block {
-
 			std::string name;
 			size_t pid;
 			size_t ppid;
@@ -54,16 +50,14 @@ namespace kiv_process {
 			friend class kiv_thread::CThread_Manager;
 
 			public:
-
-				static CProcess_Manager & Get_Instance();
+				static CProcess_Manager &Get_Instance();
 				virtual ~CProcess_Manager();
 
 				bool Create_Process(kiv_hal::TRegisters& context);
 				bool Exit_Process(kiv_hal::TRegisters& context);
 
 			private:
-
-				static CProcess_Manager * instance;
+				static CProcess_Manager *instance;
 				CPid_Manager pid_manager;
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
 

@@ -54,8 +54,8 @@ void Handle_IO(kiv_hal::TRegisters &regs) {
 		case kiv_os::NOS_File_System::Read_File: {
 				//viz uvodni komentar u Write_File
 				regs.rax.r = Read_Line_From_Console(reinterpret_cast<char*>(regs.rdi.r), regs.rcx.r);
-				}
-				break;
+		}
+		break;
 
 
 		case kiv_os::NOS_File_System::Write_File: {
@@ -71,8 +71,8 @@ void Handle_IO(kiv_hal::TRegisters &regs) {
 
 					regs.flags.carry |= (registers.rax.r == 0 ? 1 : 0);	//jestli jsme nezapsali zadny znak, tak jiste doslo k nejake chybe
 					regs.rax = registers.rcx;	//VGA BIOS nevraci pocet zapsanych znaku, tak predpokladame, ze zapsal vsechny
-				}
-				break; //Write_File
+		}
+		break; //Write_File
 
 
 	/* Nasledujici dve vetve jsou ukazka, ze starsiho zadani, ktere ukazuji, jak mate mapovat Windows HANDLE na kiv_os handle a zpet, vcetne jejich alokace a uvolneni
