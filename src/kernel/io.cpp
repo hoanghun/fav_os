@@ -4,7 +4,7 @@
 
 size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 	kiv_hal::TRegisters registers;
-	
+
 	size_t pos = 0;
 	while (pos < buffer_size) {
 		//read char

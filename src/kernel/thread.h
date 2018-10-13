@@ -1,17 +1,16 @@
 #pragma once
 
 #include <vector>
+#include <thread>
+#include "..\api\api.h"
 
-namespace kiv_os {
-	namespace process {
+namespace kiv_process {
 
 		struct TProcess_Control_Block;
 
-	}
 }
 
-namespace kiv_os {
-	namespace thread {
+namespace kiv_thread {
 
 		enum NThread_State {
 
@@ -23,8 +22,8 @@ namespace kiv_os {
 
 		struct TThread_Control_Block {
 
-			unsigned int tid;
-			kiv_os::process::TProcess_Control_Block & pcb;
+			std::thread::id tid;
+			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 			NThread_State state;
 
 		};
@@ -37,7 +36,9 @@ namespace kiv_os {
 			static CThread_Manager & Get_Instance();
 			~CThread_Manager();
 
-			bool Create_Thread();
+			bool Create_Thread(const size_t pid, const char* func_name, const kiv_hal::TRegisters& context);
+			bool Create_Thread(const kiv_hal::TRegisters& context);
+
 			bool Exit_Thread();
 
 			
@@ -47,9 +48,6 @@ namespace kiv_os {
 			static CThread_Manager * instance;
 
 			CThread_Manager();
-
-			std::vector<kiv_os::process::TProcess_Control_Block> & Get_Process_Control_Block(int tid);
 	
 		};
-	}
 }
