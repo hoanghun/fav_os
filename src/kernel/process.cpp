@@ -4,19 +4,22 @@
 #include "common.h"
 
 namespace kiv_process {
+
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
 		case kiv_os::NOS_Process::Clone:
+			CProcess_Manager::Get_Instance().Create_Process(regs);
 			break;
-
-			// TODO
 		case kiv_os::NOS_Process::Exit:
+			//TODO
 			break;
 
 		case kiv_os::NOS_Process::Shutdown:
+			//TODO
 			break;
 
 		case kiv_os::NOS_Process::Wait_For:
+			//TODO
 			break;
 		}
 	}
@@ -32,6 +35,7 @@ namespace kiv_process {
 			break;
 		}
 	}
+
 #pragma region CPid_Manager
 	bool CPid_Manager::Get_Free_Pid(size_t* pid) {
 		if (!is_full) {
@@ -81,6 +85,8 @@ namespace kiv_process {
 	CProcess_Manager * CProcess_Manager::instance = NULL;
 
 	CProcess_Manager::CProcess_Manager() {
+		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
+		Create_Sys_Process();
 		pid_manager = CPid_Manager();
 	}
 
@@ -103,7 +109,8 @@ namespace kiv_process {
 
 		size_t pid;
 		if (!pid_manager.Get_Free_Pid(&pid)) {
-			// TODO process cannot be created 
+			// TODO process cannot be created
+			return false;
 		}
 
 		std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
@@ -112,14 +119,13 @@ namespace kiv_process {
 		pcb->state = NProcess_State::RUNNING;
 		// TODO name
 
-		size_t ppid;
-		std::shared_ptr<TProcess_Control_Block> ppcb;
-
-		if (!Get_Pid(std::this_thread::get_id(), &ppid, ppcb)) {
-			//TODO error
+		std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
+		if (!Get_Pcb(std::this_thread::get_id(), ppcb)) {
+			return false;
 		}
 
-		pcb->ppid = ppid;
+		
+		pcb->ppid = ppcb->pid;
 		ppcb->cpids.push_back(pid);
 
 		process_table.push_back(pcb);
@@ -138,14 +144,17 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Get_Pid(std::thread::id tid, size_t* pid, std::shared_ptr<TProcess_Control_Block> pcb) {
+	bool CProcess_Manager::Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb) {
 
 		for(std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
 
-			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : pcb->thread_table) {
+			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
 				if (ttcb->tid == tid) {
-					*pid = tpcb->pid;
-					pcb = tpcb;
+					
+					if (pcb != nullptr) {
+						pcb = tpcb;
+					}
+					
 					return true;
 				}
 			}
@@ -153,6 +162,56 @@ namespace kiv_process {
 		}
 
 		return false;
+	}
+
+	bool CProcess_Manager::Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
+
+		for (std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
+
+			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
+				if (ttcb->tid == tid) {
+
+					if (tcb != nullptr) {
+						tcb = ttcb;
+					}
+
+					return true;
+				}
+			}
+
+		}
+
+		return false;
+
+	}
+
+	void CProcess_Manager::Check_Process_State(size_t pid) {
+		//TODO
+	}
+
+	//  Vytvoøíme systémový init proces
+	void CProcess_Manager::Create_Sys_Process() {
+
+		//Na zaèátku musí být urèitì volný pid, proto nenní potøeba kontrolovat 
+		size_t pid;
+		pid_manager.Get_Free_Pid(&pid);
+		
+		// Nastavíme PCB pro systémový proces
+		std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
+		pcb->name = "system";
+		pcb->pid = pid;
+		pcb->ppid = 0; //TODO negative value could be better, but size_t ....
+		pcb->state = NProcess_State::RUNNING;
+
+		// Nastavíme vlákno pro systémový proces
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb = std::make_shared<kiv_thread::TThread_Control_Block>();
+		tcb->pcb = pcb;
+		tcb->state = kiv_thread::NThread_State::RUNNING;
+		tcb->terminate_handler = nullptr;
+		tcb->tid = std::this_thread::get_id();
+
+		pcb->thread_table.push_back(tcb);
+		process_table.push_back(pcb);
 	}
 
 #pragma endregion

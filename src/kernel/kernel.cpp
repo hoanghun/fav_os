@@ -5,6 +5,7 @@
 #include <Windows.h>
 
 #include "common.h"
+#include "process.h"
 
 HMODULE User_Programs;
 
@@ -25,7 +26,7 @@ void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 			break;
 
 		case kiv_os::NOS_Service_Major::Process:
-			Handle_Process(regs);
+			kiv_process::Handle_Process(regs);
 			break;
 	}
 
@@ -67,14 +68,28 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 		if (regs.rdx.l == 255) break;
 	}
 
+	const char* prog_name = "shell";
+
+
+	kiv_hal::TRegisters sregs;
+
+	sregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
+	sregs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Process);
+
+	sregs.rdx.r = reinterpret_cast<decltype(sregs.rdx.r)>(prog_name);
+	sregs.rdi.r = reinterpret_cast<decltype(sregs.rdx.r)>(nullptr);
+
+
 	//spustime shell - v realnem OS bychom ovsem spousteli login
-	kiv_os::TThread_Proc shell = (kiv_os::TThread_Proc)GetProcAddress(User_Programs, "shell");
-	if (shell) {
+	//kiv_os::TThread_Proc shell = (kiv_os::TThread_Proc)GetProcAddress(User_Programs, "shell");
+	//if (shell) {
 		//spravne se ma shell spustit pres clone!
 		//ale ten v kostre pochopitelne neni implementovan		
-		shell(regs);
-	}
+		//shell(regs);
+	//}
 
+	Sys_Call(sregs);
 
 	Shutdown_Kernel();
 }

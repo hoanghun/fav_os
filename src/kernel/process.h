@@ -10,6 +10,8 @@
 
 namespace kiv_process {
 	
+		void Handle_Process(kiv_hal::TRegisters &regs);
+
 		const int PID_NOT_AVAILABLE = -1;
 		
 		class CPid_Manager {
@@ -62,7 +64,10 @@ namespace kiv_process {
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
 
 				CProcess_Manager();
-				bool Get_Pid(std::thread::id tid, size_t* pid, std::shared_ptr<TProcess_Control_Block> pcb);
+				bool Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb);
+				bool Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
+				void Check_Process_State(size_t pid);
+				void Create_Sys_Process();
 		};
 }
 

@@ -6,7 +6,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 	const kiv_os::THandle std_in = static_cast<kiv_os::THandle>(regs.rax.x);
 	const kiv_os::THandle std_out = static_cast<kiv_os::THandle>(regs.rbx.x);
-
+	
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
 	size_t counter;

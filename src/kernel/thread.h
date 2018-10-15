@@ -25,6 +25,7 @@ namespace kiv_thread {
 			std::thread::id tid;
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 			NThread_State state;
+			kiv_os::TThread_Proc terminate_handler;
 
 		};
 
@@ -40,8 +41,7 @@ namespace kiv_thread {
 			bool Create_Thread(const kiv_hal::TRegisters& context);
 
 			bool Exit_Thread();
-
-			
+			bool Add_Terminate_Handler(kiv_hal::TRegisters& context);
 
 		private:
 
