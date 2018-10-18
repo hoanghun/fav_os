@@ -84,7 +84,8 @@ namespace kiv_os {
 		Clone = 1,			//IN : rcx je NClone hodnota
 							//	Create_Process: rdx je je pointer na null - terminated string udavajici jmeno souboru ke spusteni(tj.retezec pro GetProcAddress v kernelu)
 							//		rdi je pointer na null-termined ANSI char string udavajici argumenty programu
-							//OUT:	ax a bx jsou hodnoty stdin a stdout, stderr pro jednoduchost nepodporujeme
+							//		bx obsahuje 2x THandle na stdin a stdout, tj. bx.e = (stdin << 16) | stdout
+							//OUT - ve spustenem programu:	ax a bx jsou hodnoty stdin a stdout, stderr pro jednoduchost nepodporujeme
 							//
 							//anebo
 							//	Create_Thread a pak rdx je TThread_Proc a rdi jsou *data
@@ -101,7 +102,10 @@ namespace kiv_os {
 		Exit,				//ukonci proces/vlakno
 							//IN: ax je exit code
 
-		Shutdown			//nema parametry, nejprve korektne ukonci vsechny bezici procesy a pak kernel, cimz se preda rizeni do boot.exe, ktery provede simulaci vypnuti pocitace pres ACPI
+		Shutdown,			//nema parametry, nejprve korektne ukonci vsechny bezici procesy a pak kernel, cimz se preda rizeni do boot.exe, ktery provede simulaci vypnuti pocitace pres ACPI
+		Register_Signal_Handler		//IN: rcx NSignal_Id, rdx 
+						//	a) pointer na TThread_Proc, kde pri jeho volani context.rcx bude id signalu
+						//	b) 0 a pak si OS dosadi defualtni obsluhu signalu
 	};
 
 
@@ -119,6 +123,10 @@ namespace kiv_os {
 
 		Unknown_Error = static_cast<uint16_t>(-1)		//doposud neznama chyba		
 	};
+
+	enum class NSignal_Id : uint8_t {
+		Terminate = 15		//SIGTERM
+	}
 
 	//atributy souboru
 	enum class NFile_Attributes : std::uint8_t {
