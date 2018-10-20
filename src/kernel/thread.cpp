@@ -26,7 +26,9 @@ namespace kiv_thread {
 
 		}
 
-		bool CThread_Manager::Create_Thread(const size_t pid, const char* func_name, const kiv_hal::TRegisters& context) {
+		bool CThread_Manager::Create_Thread(const size_t pid, kiv_hal::TRegisters& context) {
+
+			const char* func_name = (char*)(context.rdx.r);
 
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = kiv_process::CProcess_Manager::Get_Instance().process_table[pid];
 
@@ -36,26 +38,28 @@ namespace kiv_thread {
 				return false;
 			}
 	
-			std::thread new_thread(func, context);
-
+			
+			//TODO lock table
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 	
+			tcb->thread = std::thread(func, context);
+
 			tcb->pcb = pcb;
 			tcb->state = NThread_State::RUNNING;
-			tcb->tid = new_thread.get_id();
+			tcb->tid = tcb->thread.get_id();
 			tcb->terminate_handler = nullptr;
 
-			pcb->thread_table.push_back(tcb);
 
-			//CHECK
-			new_thread.join();
+			pcb->thread_table.push_back(tcb);
+			//TODO unlock table
+
+			//TODO REMOVE
+			tcb->thread.join();
 
 			return true;
 		}
 
-		bool  CThread_Manager::Create_Thread(const kiv_hal::TRegisters& context) {
-			
-			const char* func_name = (char*)(context.rdx.r);
+		bool  CThread_Manager::Create_Thread(kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = std::make_shared<kiv_process::TProcess_Control_Block>();
 
@@ -64,12 +68,12 @@ namespace kiv_thread {
 				return false;
 			}
 
-			Create_Thread(pcb->pid, func_name, context);
+			Create_Thread(pcb->pid, context);
 
 			return false;
 		}
 
-		bool CThread_Manager::Exit_Thread() {
+		bool CThread_Manager::Exit_Thread(kiv_hal::TRegisters& context) {
 			
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
@@ -92,7 +96,7 @@ namespace kiv_thread {
 			return true;
 		}
 
-		bool CThread_Manager::Add_Terminate_Handler(kiv_hal::TRegisters& context) {
+		bool CThread_Manager::Add_Terminate_Handler(const kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
@@ -105,4 +109,5 @@ namespace kiv_thread {
 			return true;
 
 		}
+
 }

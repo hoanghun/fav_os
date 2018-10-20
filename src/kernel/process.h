@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <mutex>
 
 #include "thread.h"
 #include "../api/hal.h"
@@ -57,11 +58,17 @@ namespace kiv_process {
 
 				bool Create_Process(kiv_hal::TRegisters& context);
 				bool Exit_Process(kiv_hal::TRegisters& context);
+				void Shutdown();
 
 			private:
+
+				std::mutex ptable;
+
 				static CProcess_Manager *instance;
 				CPid_Manager pid_manager;
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
+
+				inline void Default_Terminate_Handler(std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
 
 				CProcess_Manager();
 				bool Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb);

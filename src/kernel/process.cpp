@@ -3,23 +3,28 @@
 #include "process.h"
 #include "common.h"
 
+
 namespace kiv_process {
 
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
+
 		case kiv_os::NOS_Process::Clone:
 			CProcess_Manager::Get_Instance().Create_Process(regs);
 			break;
 		case kiv_os::NOS_Process::Exit:
-			//TODO
+			kiv_thread::CThread_Manager::Get_Instance().Exit_Thread(regs);
 			break;
 
 		case kiv_os::NOS_Process::Shutdown:
-			//TODO
+			CProcess_Manager::Get_Instance().Shutdown();
 			break;
 
 		case kiv_os::NOS_Process::Wait_For:
 			//TODO
+			break;
+		case kiv_os::NOS_Process::Register_Signal_Handler:
+			kiv_thread::CThread_Manager::Get_Instance().Add_Terminate_Handler(regs);
 			break;
 		}
 	}
@@ -113,6 +118,7 @@ namespace kiv_process {
 			return false;
 		}
 
+		//TODO lock table
 		std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
 
 		pcb->pid = pid;
@@ -129,10 +135,11 @@ namespace kiv_process {
 		ppcb->cpids.push_back(pid);
 
 		process_table.push_back(pcb);
+		//TODO unlock table
 		//TODO write informations to PCB
 
 		kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
-		t_manager.Create_Thread(pid, prog_name, context);
+		t_manager.Create_Thread(pid, context);
 
 		return true;
 	}
@@ -140,7 +147,7 @@ namespace kiv_process {
 	bool CProcess_Manager::Exit_Process(kiv_hal::TRegisters& context) {
 
 		//TODO implement
-		return fabsl;
+		return false;
 
 	}
 
@@ -212,6 +219,35 @@ namespace kiv_process {
 
 		pcb->thread_table.push_back(tcb);
 		process_table.push_back(pcb);
+	}
+
+	void CProcess_Manager::Shutdown() {
+		
+		kiv_hal::TRegisters registers;
+		//TODO set registers to contain informations
+
+		for (const auto pcb : process_table) {
+			for (const auto tcb : pcb->thread_table) {
+
+				if (tcb->terminate_handler == nullptr) {
+					//NO TIME FOR MERCY, KILL IT!
+					Default_Terminate_Handler(tcb);
+				}
+				else {
+					tcb->terminate_handler(registers);
+					tcb->thread.join();
+				}
+
+			}
+		}
+
+	}
+
+	void CProcess_Manager::Default_Terminate_Handler(std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
+
+		//TODO change -1 to some exit code
+		TerminateThread(tcb->thread.native_handle(), -1);
+
 	}
 
 #pragma endregion

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <thread>
+
 #include "..\api\api.h"
 
 namespace kiv_process {
@@ -23,6 +24,7 @@ namespace kiv_thread {
 		struct TThread_Control_Block {
 
 			std::thread::id tid;
+			std::thread thread;
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 			NThread_State state;
 			kiv_os::TThread_Proc terminate_handler;
@@ -37,11 +39,11 @@ namespace kiv_thread {
 			static CThread_Manager & Get_Instance();
 			~CThread_Manager();
 
-			bool Create_Thread(const size_t pid, const char* func_name, const kiv_hal::TRegisters& context);
-			bool Create_Thread(const kiv_hal::TRegisters& context);
+			bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
+			bool Create_Thread(kiv_hal::TRegisters& context);
 
-			bool Exit_Thread();
-			bool Add_Terminate_Handler(kiv_hal::TRegisters& context);
+			bool Exit_Thread(kiv_hal::TRegisters& context);
+			bool Add_Terminate_Handler(const kiv_hal::TRegisters& context);
 
 		private:
 

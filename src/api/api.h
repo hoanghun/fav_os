@@ -126,7 +126,7 @@ namespace kiv_os {
 
 	enum class NSignal_Id : uint8_t {
 		Terminate = 15		//SIGTERM
-	}
+	};
 
 	//atributy souboru
 	enum class NFile_Attributes : std::uint8_t {
