@@ -218,6 +218,7 @@ namespace kiv_process {
 
 				if (tcb->state == kiv_thread::NThread_State::TERMINATED) {
 
+					tcb->pcb = nullptr;
 					tcb->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
 					pcb->thread_table.erase(pcb->thread_table.begin() + position);
 
@@ -281,9 +282,12 @@ namespace kiv_process {
 
 				if (tcb->terminate_handler == nullptr) {
 					//NO TIME FOR MERCY, KILL IT!
+					tcb->pcb = nullptr;
 					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
 				}
 				else {
+
+					tcb->pcb = NULL;
 					tcb->terminate_handler(registers);
 					// TODO mohlo by se stat ze se nedockam
 					tcb->thread.join();

@@ -7,6 +7,8 @@
 #include "common.h"
 #include "process.h"
 
+#include <vld.h>
+
 HMODULE User_Programs;
 
 
