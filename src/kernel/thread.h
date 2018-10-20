@@ -28,16 +28,18 @@ namespace kiv_thread {
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 			NThread_State state;
 			kiv_os::TThread_Proc terminate_handler;
+			uint16_t exit_code;
 
 		};
 
+		inline void Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb);
 
 		class CThread_Manager {
 
 		public:
 
 			static CThread_Manager & Get_Instance();
-			~CThread_Manager();
+			static void Destroy();
 
 			bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
 			bool Create_Thread(kiv_hal::TRegisters& context);

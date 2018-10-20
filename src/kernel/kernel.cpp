@@ -33,6 +33,7 @@ void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 }
 
 void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
+
 	Initialize_Kernel();
 	kiv_hal::Set_Interrupt_Handler(kiv_os::System_Int_Number, Sys_Call);
 
@@ -70,28 +71,40 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 
 	const char* prog_name = "shell";
 
+	// shell start
+	{
+		kiv_hal::TRegisters sregs;
 
-	kiv_hal::TRegisters sregs;
+		sregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+		sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
+		sregs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Process);
 
-	sregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
-	sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
-	sregs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Process);
-
-	sregs.rdx.r = reinterpret_cast<decltype(sregs.rdx.r)>(prog_name);
-	sregs.rdi.r = reinterpret_cast<decltype(sregs.rdx.r)>(nullptr);
+		sregs.rdx.r = reinterpret_cast<decltype(sregs.rdx.r)>(prog_name);
+		sregs.rdi.r = reinterpret_cast<decltype(sregs.rdx.r)>(nullptr);
 
 
-	//spustime shell - v realnem OS bychom ovsem spousteli login
-	//kiv_os::TThread_Proc shell = (kiv_os::TThread_Proc)GetProcAddress(User_Programs, "shell");
-	//if (shell) {
-		//spravne se ma shell spustit pres clone!
-		//ale ten v kostre pochopitelne neni implementovan		
-		//shell(regs);
-	//}
+		//spustime shell - v realnem OS bychom ovsem spousteli login
+		//kiv_os::TThread_Proc shell = (kiv_os::TThread_Proc)GetProcAddress(User_Programs, "shell");
+		//if (shell) {
+			//spravne se ma shell spustit pres clone!
+			//ale ten v kostre pochopitelne neni implementovan		
+			//shell(regs);
+		//}
 
-	Sys_Call(sregs);
+		Sys_Call(sregs);
+	}
 
-	Shutdown_Kernel();
+	//system shutdown
+	{
+		kiv_hal::TRegisters sregs;
+
+		sregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+		sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Shutdown);
+
+		Sys_Call(sregs);
+		Shutdown_Kernel();
+	}
+	
 }
 
 

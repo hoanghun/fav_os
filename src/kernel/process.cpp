@@ -3,7 +3,6 @@
 #include "process.h"
 #include "common.h"
 
-
 namespace kiv_process {
 
 	void Handle_Process(kiv_hal::TRegisters &regs) {
@@ -18,6 +17,12 @@ namespace kiv_process {
 
 		case kiv_os::NOS_Process::Shutdown:
 			CProcess_Manager::Get_Instance().Shutdown();
+
+			// TODO move to kernel shutdown
+			// Free memory before shutdown
+			CProcess_Manager::Destroy();
+			kiv_thread::CThread_Manager::Destroy();
+
 			break;
 
 		case kiv_os::NOS_Process::Wait_For:
@@ -87,6 +92,8 @@ namespace kiv_process {
 
 #pragma region CProcess_Manager
 
+	std::mutex CProcess_Manager::ptable;
+
 	CProcess_Manager * CProcess_Manager::instance = NULL;
 
 	CProcess_Manager::CProcess_Manager() {
@@ -95,8 +102,8 @@ namespace kiv_process {
 		pid_manager = CPid_Manager();
 	}
 
-	CProcess_Manager::~CProcess_Manager() {
-
+	void CProcess_Manager::Destroy() {
+		delete instance;
 	}
 
 	CProcess_Manager & CProcess_Manager::Get_Instance() {
@@ -118,24 +125,29 @@ namespace kiv_process {
 			return false;
 		}
 
-		//TODO lock table
-		std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
+		// uzamknuti tabulky procesu tzn. i tabulky vlaken
+		// mozna by slo udelat efektivneji nez zamykat celou tabulku
+		ptable.lock();
+		{
+			std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
 
-		pcb->pid = pid;
-		pcb->state = NProcess_State::RUNNING;
-		// TODO name
+			pcb->pid = pid;
+			pcb->state = NProcess_State::RUNNING;
+			// TODO name
 
-		std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
-		if (!Get_Pcb(std::this_thread::get_id(), ppcb)) {
-			return false;
+			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
+			if (!Get_Pcb(std::this_thread::get_id(), ppcb)) {
+				return false;
+			}
+
+
+			pcb->ppid = ppcb->pid;
+			ppcb->cpids.push_back(pid);
+
+			process_table.push_back(pcb);
 		}
+		ptable.unlock();
 
-		
-		pcb->ppid = ppcb->pid;
-		ppcb->cpids.push_back(pid);
-
-		process_table.push_back(pcb);
-		//TODO unlock table
 		//TODO write informations to PCB
 
 		kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
@@ -144,12 +156,12 @@ namespace kiv_process {
 		return true;
 	}
 
-	bool CProcess_Manager::Exit_Process(kiv_hal::TRegisters& context) {
+	//bool CProcess_Manager::Exit_Process(kiv_hal::TRegisters& context) {
 
-		//TODO implement
-		return false;
+	//	//TODO implement
+	//	return false;
 
-	}
+	//}
 
 	bool CProcess_Manager::Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb) {
 
@@ -193,7 +205,40 @@ namespace kiv_process {
 	}
 
 	void CProcess_Manager::Check_Process_State(size_t pid) {
-		//TODO
+		
+		ptable.lock();
+		{
+
+			auto pcb = std::make_shared<TProcess_Control_Block>();
+			Get_Pcb(std::this_thread::get_id(), pcb);
+
+			bool terminated = true;
+			size_t position = 0;
+			for (auto tcb : pcb->thread_table) {
+
+				if (tcb->state == kiv_thread::NThread_State::TERMINATED) {
+
+					tcb->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
+					pcb->thread_table.erase(pcb->thread_table.begin() + position);
+
+				}
+				else {
+					terminated = false;
+				}
+
+				position++;
+			}
+
+			if (terminated) {
+				process_table.erase(process_table.begin() + pcb->pid);
+				pid_manager.Release_Pid(pcb->pid);
+
+				//TODO child processes
+			}
+
+		}
+		ptable.unlock();
+
 	}
 
 	//  Vytvoøíme systémový init proces
@@ -203,22 +248,27 @@ namespace kiv_process {
 		size_t pid;
 		pid_manager.Get_Free_Pid(&pid);
 		
-		// Nastavíme PCB pro systémový proces
-		std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
-		pcb->name = "system";
-		pcb->pid = pid;
-		pcb->ppid = 0; //TODO negative value could be better, but size_t ....
-		pcb->state = NProcess_State::RUNNING;
+		ptable.lock();
+		{
+			// Nastavíme PCB pro systémový proces
+			std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
+			pcb->name = "system";
+			pcb->pid = pid;
+			pcb->ppid = 0; //TODO negative value could be better, but size_t ....
+			pcb->state = NProcess_State::RUNNING;
 
-		// Nastavíme vlákno pro systémový proces
-		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb = std::make_shared<kiv_thread::TThread_Control_Block>();
-		tcb->pcb = pcb;
-		tcb->state = kiv_thread::NThread_State::RUNNING;
-		tcb->terminate_handler = nullptr;
-		tcb->tid = std::this_thread::get_id();
+			// Nastavíme vlákno pro systémový proces
+			std::shared_ptr<kiv_thread::TThread_Control_Block> tcb = std::make_shared<kiv_thread::TThread_Control_Block>();
+			tcb->pcb = pcb;
+			tcb->state = kiv_thread::NThread_State::RUNNING;
+			tcb->terminate_handler = nullptr;
+			tcb->tid = std::this_thread::get_id();
 
-		pcb->thread_table.push_back(tcb);
-		process_table.push_back(pcb);
+			pcb->thread_table.push_back(tcb);
+			process_table.push_back(pcb);
+		}
+		ptable.unlock();
+
 	}
 
 	void CProcess_Manager::Shutdown() {
@@ -231,22 +281,16 @@ namespace kiv_process {
 
 				if (tcb->terminate_handler == nullptr) {
 					//NO TIME FOR MERCY, KILL IT!
-					Default_Terminate_Handler(tcb);
+					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
 				}
 				else {
 					tcb->terminate_handler(registers);
+					// TODO mohlo by se stat ze se nedockam
 					tcb->thread.join();
 				}
 
 			}
 		}
-
-	}
-
-	void CProcess_Manager::Default_Terminate_Handler(std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
-
-		//TODO change -1 to some exit code
-		TerminateThread(tcb->thread.native_handle(), -1);
 
 	}
 

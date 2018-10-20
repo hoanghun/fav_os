@@ -8,12 +8,20 @@
 
 namespace kiv_thread {
 
+		void  Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb) {
+
+			//TODO change -1 to some exit code
+			TerminateThread(tcb->thread.native_handle(), -1);
+
+		}
+
 		CThread_Manager * CThread_Manager::instance = NULL;
 
 		CThread_Manager::CThread_Manager() {
 		}
 
-		CThread_Manager::~CThread_Manager() {
+		void CThread_Manager::Destroy() {
+			delete instance;
 		}
 
 		CThread_Manager & CThread_Manager::Get_Instance() {
@@ -26,6 +34,7 @@ namespace kiv_thread {
 
 		}
 
+		// Vyvoti vlakno pro proces
 		bool CThread_Manager::Create_Thread(const size_t pid, kiv_hal::TRegisters& context) {
 
 			const char* func_name = (char*)(context.rdx.r);
@@ -38,20 +47,26 @@ namespace kiv_thread {
 				return false;
 			}
 	
-			
-			//TODO lock table
+			//TODO move to block ??
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
-	
-			tcb->thread = std::thread(func, context);
 
-			tcb->pcb = pcb;
-			tcb->state = NThread_State::RUNNING;
-			tcb->tid = tcb->thread.get_id();
-			tcb->terminate_handler = nullptr;
+			// uzamknuti tabulky procesu tzn. i tabulky vlaken
+			// mozna by slo udelat efektivneji nez zamykat celou tabulku
+			kiv_process::CProcess_Manager::ptable.lock();
+			{
+				//std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
+
+				tcb->thread = std::thread(func, context);
+
+				tcb->pcb = pcb;
+				tcb->state = NThread_State::RUNNING;
+				tcb->tid = tcb->thread.get_id();
+				tcb->terminate_handler = nullptr;
 
 
-			pcb->thread_table.push_back(tcb);
-			//TODO unlock table
+				pcb->thread_table.push_back(tcb);
+			}
+			kiv_process::CProcess_Manager::ptable.unlock();
 
 			//TODO REMOVE
 			tcb->thread.join();
@@ -59,14 +74,20 @@ namespace kiv_thread {
 			return true;
 		}
 
+		//Vytvori vlakno pro jiz existujici proces
 		bool  CThread_Manager::Create_Thread(kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = std::make_shared<kiv_process::TProcess_Control_Block>();
 
-			if (!kiv_process::CProcess_Manager::Get_Instance().Get_Pcb(std::this_thread::get_id(), pcb)) {
-				//TODO error
-				return false;
+			kiv_process::CProcess_Manager::ptable.lock();
+			{
+
+				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Pcb(std::this_thread::get_id(), pcb)) {
+					return false;
+				}
+
 			}
+			kiv_process::CProcess_Manager::ptable.unlock();
 
 			Create_Thread(pcb->pid, context);
 
@@ -74,37 +95,58 @@ namespace kiv_thread {
 		}
 
 		bool CThread_Manager::Exit_Thread(kiv_hal::TRegisters& context) {
-			
+
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
-			if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
-				return false;
+			kiv_process::CProcess_Manager::ptable.lock();
+			{
+				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
+					return false;
+				}
+			
+
+				if (tcb->terminate_handler == nullptr) {
+					Kiv_Os_Default_Terminate_Handler(tcb);
+
+					// TODO check if this is the right register
+					// TODO set some error value
+					// tcb->exit_code = context.rax.x;
+				}
+				else {
+
+					kiv_hal::TRegisters& regs = kiv_hal::TRegisters();
+					//TODO fill registers
+
+					tcb->terminate_handler(regs);
+					// TODO check if this is the right register
+					tcb->exit_code = context.rax.x;
+				}
+
+				tcb->state = NThread_State::TERMINATED;
+				
 			}
-
-			if (tcb->terminate_handler == nullptr) {
-				return false;
-			}
-
-			kiv_hal::TRegisters& regs = kiv_hal::TRegisters();
-			//TODO fill registers
-
-			tcb->terminate_handler(regs);
-			tcb->state = NThread_State::TERMINATED;
+			kiv_process::CProcess_Manager::ptable.unlock();
 
 			kiv_process::CProcess_Manager::Get_Instance().Check_Process_State(tcb->pcb->pid);
 
 			return true;
 		}
 
+		// Prida vlaknu/procesu hendler na funkci, ktera ho ukonci
 		bool CThread_Manager::Add_Terminate_Handler(const kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
-			if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
-				return false;
+			kiv_process::CProcess_Manager::ptable.lock(); 
+			{
+				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
+					return false;
+				}
 			}
+			kiv_process::CProcess_Manager::ptable.unlock();
 
-			tcb->terminate_handler = 0; //TODO add address from context
+			// Pokud je rdx.r == 0 potom se ulozi do terminat_handler (stejne uz by tam mela byt)
+			tcb->terminate_handler = reinterpret_cast<kiv_os::TThread_Proc>(context.rdx.r); 
 
 			return true;
 

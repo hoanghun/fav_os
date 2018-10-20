@@ -24,6 +24,7 @@ bool Setup_HW() {
 }
 
 int __cdecl main() {
+
 	if (!Setup_HW()) return 1;
 
 	//HW je nastaven, zavedeme simulovany operacni system
@@ -41,5 +42,6 @@ int __cdecl main() {
 	//a az simulovany OS skonci, uvolnime zdroje z pameti
 	FreeLibrary(kernel);
 	TlsFree(kiv_hal::Expected_Tls_IDT_Index);
+
 	return 0;
 }
