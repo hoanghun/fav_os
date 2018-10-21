@@ -94,7 +94,7 @@ namespace kiv_process {
 
 	std::mutex CProcess_Manager::ptable;
 
-	CProcess_Manager * CProcess_Manager::instance = NULL;
+	CProcess_Manager *CProcess_Manager::instance = NULL;
 
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
@@ -106,14 +106,12 @@ namespace kiv_process {
 		delete instance;
 	}
 
-	CProcess_Manager & CProcess_Manager::Get_Instance() {
-
+	CProcess_Manager& CProcess_Manager::Get_Instance() {
 		if (instance == NULL) {
 			instance = new CProcess_Manager();
 		}
 
 		return *instance;
-
 	}
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {

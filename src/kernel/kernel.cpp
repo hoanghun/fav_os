@@ -4,9 +4,9 @@
 #include "io.h"
 #include <Windows.h>
 
+#include <iostream>
 #include "common.h"
 #include "process.h"
-
 #include <vld.h>
 
 HMODULE User_Programs;
@@ -35,7 +35,6 @@ void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 }
 
 void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
-
 	Initialize_Kernel();
 	kiv_hal::Set_Interrupt_Handler(kiv_os::System_Int_Number, Sys_Call);
 

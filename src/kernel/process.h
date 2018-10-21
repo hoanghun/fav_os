@@ -8,6 +8,7 @@
 
 #include "thread.h"
 #include "../api/hal.h"
+#include "source_manager.h"
 
 namespace kiv_process {
 
@@ -16,7 +17,6 @@ namespace kiv_process {
 		const int PID_NOT_AVAILABLE = -1;
 		
 		class CPid_Manager {
-			
 			public:
 				static const size_t MAX_PROCESS_COUNT = 1024;
 				bool Get_Free_Pid(size_t* pid);
@@ -35,7 +35,11 @@ namespace kiv_process {
 			TERMINATED
 		};
 
-		struct TProcess_Control_Block {
+		struct Control_Block {
+			kiv_os::THandle owner;
+		};
+
+		struct TProcess_Control_Block : public Control_Block {
 			std::string name;
 			size_t pid;
 			size_t ppid;
@@ -61,9 +65,7 @@ namespace kiv_process {
 				void Shutdown();
 
 			private:
-
 				static std::mutex ptable;
-
 				static CProcess_Manager *instance;
 				CPid_Manager pid_manager;
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;

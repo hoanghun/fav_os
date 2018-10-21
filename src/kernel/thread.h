@@ -6,30 +6,23 @@
 #include "..\api\api.h"
 
 namespace kiv_process {
-
 		struct TProcess_Control_Block;
-
 }
 
 namespace kiv_thread {
-
 		enum NThread_State {
-
-			RUNNING,
+			RUNNING = 1,
 			BLOCKED,
 			TERMINATED
-
 		};
 
 		struct TThread_Control_Block {
-
 			std::thread::id tid;
 			std::thread thread;
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 			NThread_State state;
 			kiv_os::TThread_Proc terminate_handler;
 			uint16_t exit_code;
-
 		};
 
 		inline void Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb);
@@ -52,6 +45,5 @@ namespace kiv_thread {
 			static CThread_Manager * instance;
 
 			CThread_Manager();
-	
 		};
 }
