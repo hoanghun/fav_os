@@ -35,11 +35,11 @@ namespace kiv_process {
 			TERMINATED
 		};
 
-		struct Control_Block {
+		struct TControl_Block {
 			kiv_os::THandle owner;
 		};
 
-		struct TProcess_Control_Block : public Control_Block {
+		struct TProcess_Control_Block : public TControl_Block {
 			std::string name;
 			size_t pid;
 			size_t ppid;

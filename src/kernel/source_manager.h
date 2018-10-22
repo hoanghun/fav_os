@@ -6,30 +6,30 @@
 #include <memory>
 
 namespace kiv_process {
-	struct Control_Block;
+	struct TControl_Block;
 
-	enum class Handle_Type {
+	enum class NHandle_Type {
 		FILE = 1,
 		PROCESS,
 	};
 
-	struct Handle {
-		Handle_Type type;
-		std::shared_ptr<Control_Block> control_block;
+	struct THandle_Object {
+		NHandle_Type type;
+		std::shared_ptr<TControl_Block> control_block;
 		size_t owner;
 	};
 
-	class Source_Manager {
+	class CSource_Manager {
 	public:
-		void Add_Handle(kiv_os::THandle handle, Handle_Type type, std::shared_ptr<kiv_process::Control_Block> block);
-		Handle& Get_Handle(kiv_os::THandle handle);
+		void Add_Handle(kiv_os::THandle handle, NHandle_Type type, std::shared_ptr<kiv_process::TControl_Block> block);
+		THandle_Object& Get_Handle(kiv_os::THandle handle);
 		size_t Remove_Handle(kiv_os::THandle handle);
-		static Source_Manager& Get_Instance();
+		static CSource_Manager& Get_Instance();
 
 	private:
-		std::map<kiv_os::THandle, Handle> handles_;
-		static Source_Manager *instance_;
+		std::map<kiv_os::THandle, THandle_Object> handles_;
+		static CSource_Manager *instance_;
 		
-		Source_Manager() {}
+		CSource_Manager() {}
 	};
 }
