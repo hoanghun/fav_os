@@ -3,6 +3,7 @@
 #include "process.h"
 #include "common.h"
 
+#include <iostream>
 namespace kiv_process {
 
 	void Handle_Process(kiv_hal::TRegisters &regs) {
@@ -20,8 +21,10 @@ namespace kiv_process {
 
 			// TODO move to kernel shutdown
 			// Free memory before shutdown
+		
 			CProcess_Manager::Destroy();
 			kiv_thread::CThread_Manager::Destroy();
+			kiv_io::CFile_Table::Destroy();
 
 			break;
 
@@ -94,7 +97,7 @@ namespace kiv_process {
 
 	std::mutex CProcess_Manager::ptable;
 
-	CProcess_Manager *CProcess_Manager::instance = NULL;
+	CProcess_Manager *CProcess_Manager::instance = new CProcess_Manager();
 
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
@@ -107,10 +110,6 @@ namespace kiv_process {
 	}
 
 	CProcess_Manager& CProcess_Manager::Get_Instance() {
-		if (instance == NULL) {
-			instance = new CProcess_Manager();
-		}
-
 		return *instance;
 	}
 
@@ -138,9 +137,24 @@ namespace kiv_process {
 				return false;
 			}
 
-
 			pcb->ppid = ppcb->pid;
 			ppcb->cpids.push_back(pid);
+
+			kiv_io::TGFT_Record *std_in = kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
+			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
+			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
+			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
+
+			kiv_io::TGFT_Record *std_out = kiv_io::CFile_Table::Get_Instance().Open_File("stdout", kiv_io::NAccess_Resctriction::Write_Only);
+			
+			// TODO check for std_in and std_out not null
+
+			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(0, std_in));
+			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(1, std_out));
+
+			std::cout << (pcb->fd_table.find(0)->second->file_name) << std::endl;
+			std::cout << (pcb->fd_table.find(0)->second->ref_count) << std::endl;
+			std::cout << (pcb->fd_table.find(1)->second->file_name) << std::endl;
 
 			process_table.push_back(pcb);
 		}
@@ -162,9 +176,7 @@ namespace kiv_process {
 	//}
 
 	bool CProcess_Manager::Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb) {
-
 		for(std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
-
 			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
 				if (ttcb->tid == tid) {
 					
@@ -175,16 +187,13 @@ namespace kiv_process {
 					return true;
 				}
 			}
-
 		}
 
 		return false;
 	}
 
 	bool CProcess_Manager::Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
-
 		for (std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
-
 			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
 				if (ttcb->tid == tid) {
 
@@ -195,7 +204,6 @@ namespace kiv_process {
 					return true;
 				}
 			}
-
 		}
 
 		return false;

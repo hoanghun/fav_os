@@ -5,13 +5,13 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <map>
 
 #include "thread.h"
 #include "../api/hal.h"
-#include "source_manager.h"
+#include "file_table.h"
 
 namespace kiv_process {
-
 		void Handle_Process(kiv_hal::TRegisters &regs);
 
 		const int PID_NOT_AVAILABLE = -1;
@@ -28,18 +28,13 @@ namespace kiv_process {
 				bool is_full = false;
 		};
 		
-		
 		enum NProcess_State {
 			RUNNING = 1,
 			BLOCKED,
 			TERMINATED
 		};
 
-		struct TControl_Block {
-			kiv_os::THandle owner;
-		};
-
-		struct TProcess_Control_Block : public TControl_Block {
+		struct TProcess_Control_Block {
 			std::string name;
 			size_t pid;
 			size_t ppid;
@@ -47,13 +42,12 @@ namespace kiv_process {
 			NProcess_State state;
 
 			std::vector<std::shared_ptr<kiv_thread::TThread_Control_Block>> thread_table;
-
-			//file deskriptory
+			std::map<kiv_os::THandle, kiv_io::TGFT_Record*> fd_table;
+			unsigned int last_fd;
 			//working dir
 		};
 
 		class CProcess_Manager {
-
 			friend class kiv_thread::CThread_Manager;
 
 			public:

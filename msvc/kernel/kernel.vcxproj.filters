@@ -33,7 +33,7 @@
     <ClCompile Include="..\..\src\kernel\thread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\kernel\source_manager.cpp">
+    <ClCompile Include="..\..\src\kernel\file_table.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -62,7 +62,7 @@
     <ClInclude Include="..\..\src\kernel\common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\kernel\source_manager.h">
+    <ClInclude Include="..\..\src\kernel\file_table.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

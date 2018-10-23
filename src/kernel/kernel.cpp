@@ -7,6 +7,9 @@
 #include <iostream>
 #include "common.h"
 #include "process.h"
+#include "file_table.h"
+
+#include <iostream>
 
 HMODULE User_Programs;
 
@@ -33,10 +36,18 @@ void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 
 }
 
+void Set_Global_File_Descriptor_Table() {
+	kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
+	kiv_io::CFile_Table::Get_Instance().Open_File("stdout", kiv_io::NAccess_Resctriction::Write_Only);
+
+	kiv_io::CFile_Table::Get_Instance();
+}
+
 void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 	Initialize_Kernel();
+	kiv_io::CFile_Table::Get_Instance();
 	kiv_hal::Set_Interrupt_Handler(kiv_os::System_Int_Number, Sys_Call);
-
+	Set_Global_File_Descriptor_Table();
 	//v ramci ukazky jeste vypiseme dostupne disky
 	kiv_hal::TRegisters regs;
 	for (regs.rdx.l = 0; ; regs.rdx.l++) {
@@ -104,7 +115,6 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 		Sys_Call(sregs);
 		Shutdown_Kernel();
 	}
-	
 }
 
 
