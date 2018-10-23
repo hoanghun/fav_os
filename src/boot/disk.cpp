@@ -112,8 +112,12 @@ void CDisk_Image::Write_Sectors(kiv_hal::TRegisters &context) {
 		kiv_hal::TDisk_Address_Packet &dap = *reinterpret_cast<kiv_hal::TDisk_Address_Packet*>(context.rdi.r);
 		mDisk_Image.seekg(mBytes_Per_Sector*dap.lba_index, std::ios::beg);
 		const auto bytes_to_write = dap.count*mBytes_Per_Sector;
+
+		const auto before = mDisk_Image.tellp();
 		mDisk_Image.write(static_cast<char*>(dap.sectors), bytes_to_write);
-		if (mDisk_Image.gcount() == bytes_to_write) Set_Status(context, kiv_hal::NDisk_Status::No_Error);
+		const auto number_of_bytes_written = mDisk_Image.tellp() - before;
+
+		if (number_of_bytes_written == bytes_to_write) Set_Status(context, kiv_hal::NDisk_Status::No_Error);
 			else Set_Status(context, kiv_hal::NDisk_Status::Fixed_Disk_Write_Fault_On_Selected_Drive);
 	}
 }
