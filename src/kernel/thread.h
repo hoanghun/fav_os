@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <thread>
+#include <Windows.h>
 
 #include "..\api\api.h"
 
@@ -25,7 +26,10 @@ namespace kiv_thread {
 			uint16_t exit_code;
 		};
 
-		inline void Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb);
+		inline void Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb) {
+			//TODO change -1 to some exit code
+			TerminateThread(tcb->thread.native_handle(), -1);
+		}
 
 		class CThread_Manager {
 
@@ -37,9 +41,9 @@ namespace kiv_thread {
 			bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
 			bool Create_Thread(kiv_hal::TRegisters& context);
 
-			bool Exit_Thread(kiv_hal::TRegisters& context);
+			bool Thread_Exit(kiv_hal::TRegisters& context);
 			bool Add_Terminate_Handler(const kiv_hal::TRegisters& context);
-
+			
 		private:
 
 			static CThread_Manager * instance;

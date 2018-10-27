@@ -1,4 +1,3 @@
-#include <Windows.h>
 #include <memory>
 
 #include "thread.h"
@@ -7,13 +6,6 @@
 #include "..\api\api.h"
 
 namespace kiv_thread {
-
-		void  Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb) {
-
-			//TODO change -1 to some exit code
-			TerminateThread(tcb->thread.native_handle(), -1);
-
-		}
 
 		CThread_Manager * CThread_Manager::instance = NULL;
 
@@ -94,7 +86,8 @@ namespace kiv_thread {
 			return false;
 		}
 
-		bool CThread_Manager::Exit_Thread(kiv_hal::TRegisters& context) {
+		//Funkce je volana po skonceni vlakna/procesu
+		bool CThread_Manager::Thread_Exit(kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
@@ -104,24 +97,6 @@ namespace kiv_thread {
 					return false;
 				}
 			
-
-				if (tcb->terminate_handler == nullptr) {
-					Kiv_Os_Default_Terminate_Handler(tcb);
-
-					// TODO check if this is the right register
-					// TODO set some error value
-					// tcb->exit_code = context.rax.x;
-				}
-				else {
-
-					kiv_hal::TRegisters& regs = kiv_hal::TRegisters();
-					//TODO fill registers
-
-					tcb->terminate_handler(regs);
-					// TODO check if this is the right register
-					tcb->exit_code = context.rax.x;
-				}
-
 				tcb->state = NThread_State::TERMINATED;
 				
 			}

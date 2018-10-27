@@ -55,6 +55,7 @@ namespace kiv_process {
 				static void Destroy();
 
 				bool Create_Process(kiv_hal::TRegisters& context);
+				void Wait_For(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
 				void Shutdown();
 
@@ -69,6 +70,8 @@ namespace kiv_process {
 				bool Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
 				void Check_Process_State(size_t pid);
 				void Create_Sys_Process();
+				void Reap_Process();
+
 		};
 }
 

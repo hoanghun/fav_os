@@ -6,6 +6,9 @@
 #include <iostream>
 namespace kiv_process {
 
+	bool system_shutdown = false;
+	int waiting_time = 50;
+
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
 
@@ -13,7 +16,7 @@ namespace kiv_process {
 			CProcess_Manager::Get_Instance().Create_Process(regs);
 			break;
 		case kiv_os::NOS_Process::Exit:
-			kiv_thread::CThread_Manager::Get_Instance().Exit_Thread(regs);
+			kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(regs);
 			break;
 
 		case kiv_os::NOS_Process::Shutdown:
@@ -152,9 +155,11 @@ namespace kiv_process {
 			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(0, std_in));
 			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(1, std_out));
 
+#if _DEBUG
 			std::cout << (pcb->fd_table.find(0)->second->file_name) << std::endl;
 			std::cout << (pcb->fd_table.find(0)->second->ref_count) << std::endl;
 			std::cout << (pcb->fd_table.find(1)->second->file_name) << std::endl;
+#endif
 
 			process_table.push_back(pcb);
 		}
@@ -210,13 +215,18 @@ namespace kiv_process {
 
 	}
 
+	//TODO doladit co vsechno ma delat
 	void CProcess_Manager::Check_Process_State(size_t pid) {
 		
 		ptable.lock();
 		{
 
 			auto pcb = std::make_shared<TProcess_Control_Block>();
-			Get_Pcb(std::this_thread::get_id(), pcb);
+			if (!Get_Pcb(std::this_thread::get_id(), pcb)) {
+				ptable.unlock();
+				return;
+			}
+
 
 			bool terminated = true;
 			size_t position = 0;
@@ -225,7 +235,7 @@ namespace kiv_process {
 				if (tcb->state == kiv_thread::NThread_State::TERMINATED) {
 
 					tcb->pcb = nullptr;
-					tcb->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
+					tcb->thread.join(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
 					pcb->thread_table.erase(pcb->thread_table.begin() + position);
 
 				}
@@ -237,16 +247,62 @@ namespace kiv_process {
 			}
 
 			if (terminated) {
+
+				//If there are not terminated child processes
+				for (size_t cpid : pcb->cpids) {
+					if (process_table[cpid]->state != NProcess_State::TERMINATED) {
+						process_table[pcb->ppid]->cpids.push_back(cpid);
+					}
+				}
+
 				process_table.erase(process_table.begin() + pcb->pid);
 				pid_manager.Release_Pid(pcb->pid);
 
-				//TODO child processes
 			}
 
 		}
 		ptable.unlock();
 
 	}
+
+	void CProcess_Manager::Shutdown() {
+		
+		kiv_hal::TRegisters registers;
+		//TODO set registers to contain informations
+
+		//Zastavi vsechny systemove procesy
+		system_shutdown = true;
+
+		for (const auto pcb : process_table) {
+			for (const auto tcb : pcb->thread_table) {
+
+				//Systemove procesy nebudeme ukoncovat nasilne
+				if (pcb->pid == 0) {
+					tcb->thread.join();
+					tcb->pcb = NULL;
+				}
+				if (tcb->terminate_handler == nullptr) {
+					//NO TIME FOR MERCY, KILL IT!
+					tcb->pcb = nullptr;
+					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
+				}
+				else {
+					tcb->terminate_handler(registers);
+					// TODO mohlo by se stat ze se nedockam
+					tcb->thread.join();
+					tcb->pcb = NULL;
+				}
+
+			}
+		}
+
+	}
+
+	void CProcess_Manager::Wait_For(kiv_hal::TRegisters& context) {
+		//TODO
+	}
+
+#pragma region System_Processes
 
 	//  Vytvoøíme systémový init proces
 	void CProcess_Manager::Create_Sys_Process() {
@@ -269,6 +325,7 @@ namespace kiv_process {
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
+			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
 			tcb->tid = std::this_thread::get_id();
 
 			pcb->thread_table.push_back(tcb);
@@ -278,31 +335,27 @@ namespace kiv_process {
 
 	}
 
-	void CProcess_Manager::Shutdown() {
-		
-		kiv_hal::TRegisters registers;
-		//TODO set registers to contain informations
+	//Stara se o procesy
+	void CProcess_Manager::Reap_Process() {
 
-		for (const auto pcb : process_table) {
-			for (const auto tcb : pcb->thread_table) {
+		while (!system_shutdown) {
 
-				if (tcb->terminate_handler == nullptr) {
-					//NO TIME FOR MERCY, KILL IT!
-					tcb->pcb = nullptr;
-					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
-				}
-				else {
-
-					tcb->pcb = NULL;
-					tcb->terminate_handler(registers);
-					// TODO mohlo by se stat ze se nedockam
-					tcb->thread.join();
-				}
-
+			if (ptable.try_lock()) {
+				//TODO do your job
 			}
+			else
+			{
+				//Pokud nedostaneme zamek nad process_table nema cenu pokracovat, ale chceme se dostat k praci co nejdrive
+				std::this_thread::yield();
+			}
+			ptable.unlock();
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(waiting_time));
 		}
 
 	}
+
+#pragma endregion
 
 #pragma endregion
 
