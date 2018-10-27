@@ -7,6 +7,8 @@
 
 namespace kiv_thread {
 
+#pragma endregion
+		
 		CThread_Manager * CThread_Manager::instance = NULL;
 
 		CThread_Manager::CThread_Manager() {
@@ -52,7 +54,17 @@ namespace kiv_thread {
 
 				tcb->pcb = pcb;
 				tcb->state = NThread_State::RUNNING;
-				tcb->tid = tcb->thread.get_id();
+				tcb->tid = Hash_Thread_Id(tcb->thread.get_id());
+
+				std::unique_lock<std::mutex> lock(maps_lock);
+				{
+					std::shared_ptr<TThread_Control_Block> ptr = tcb;
+					thread_map.emplace(tcb->tid, tcb);
+				}
+				lock.unlock();
+
+
+
 				tcb->terminate_handler = nullptr;
 
 
@@ -69,17 +81,20 @@ namespace kiv_thread {
 		//Vytvori vlakno pro jiz existujici proces
 		bool  CThread_Manager::Create_Thread(kiv_hal::TRegisters& context) {
 
-			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = std::make_shared<kiv_process::TProcess_Control_Block>();
+			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
 
-			kiv_process::CProcess_Manager::ptable.lock();
+			std::unique_lock<std::mutex> lock(maps_lock);
 			{
-
-				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Pcb(std::this_thread::get_id(), pcb)) {
+				auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
+				if (result == thread_map.end()) {
+					lock.unlock();
 					return false;
 				}
-
+				else {
+					pcb = result->second->pcb;
+				}
 			}
-			kiv_process::CProcess_Manager::ptable.unlock();
+			lock.unlock();
 
 			Create_Thread(pcb->pid, context);
 
@@ -89,20 +104,35 @@ namespace kiv_thread {
 		//Funkce je volana po skonceni vlakna/procesu
 		bool CThread_Manager::Thread_Exit(kiv_hal::TRegisters& context) {
 
-			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
+			std::shared_ptr<TThread_Control_Block> tcb;
 
 			kiv_process::CProcess_Manager::ptable.lock();
 			{
-				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
-					return false;
+				std::unique_lock<std::mutex> lock(maps_lock);
+				{
+					auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
+					if (result == thread_map.end()) {
+						lock.unlock();
+						return false;
+					}
+					else {
+						tcb = result->second;
+						tcb->state = NThread_State::TERMINATED;
+						thread_map.erase(tcb->tid);
+					}
 				}
-			
-				tcb->state = NThread_State::TERMINATED;
+				lock.unlock();
+
+				//Signalizace ukonceni procesu tem kdo na to cekaji
+				for (auto const & e : tcb->waiting) {
+					*e = true;
+				}
+				tcb->waiting.clear();
 				
 			}
 			kiv_process::CProcess_Manager::ptable.unlock();
 
-			kiv_process::CProcess_Manager::Get_Instance().Check_Process_State(tcb->pcb->pid);
+			kiv_process::CProcess_Manager::Get_Instance().Check_Process_State(tcb->pcb);
 
 			return true;
 		}
@@ -110,20 +140,109 @@ namespace kiv_thread {
 		// Prida vlaknu/procesu hendler na funkci, ktera ho ukonci
 		bool CThread_Manager::Add_Terminate_Handler(const kiv_hal::TRegisters& context) {
 
-			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
+			std::shared_ptr<TThread_Control_Block> tcb;
 
-			kiv_process::CProcess_Manager::ptable.lock(); 
+			std::unique_lock<std::mutex> lock(maps_lock);
 			{
-				if (!kiv_process::CProcess_Manager::Get_Instance().Get_Tcb(std::this_thread::get_id(), tcb)) {
+				auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
+				if (result == thread_map.end()) {
+					lock.unlock();
 					return false;
 				}
+				else {
+					tcb = result->second;
+				}
 			}
-			kiv_process::CProcess_Manager::ptable.unlock();
+			lock.unlock();
 
 			// Pokud je rdx.r == 0 potom se ulozi do terminat_handler (stejne uz by tam mela byt)
 			tcb->terminate_handler = reinterpret_cast<kiv_os::TThread_Proc>(context.rdx.r); 
 
 			return true;
+
+		}
+
+
+		void CThread_Manager::Wait_For(kiv_hal::TRegisters& context) {
+
+			size_t * tids = reinterpret_cast<size_t *>(context.rdx.r);
+			size_t tids_count = context.rcx.r;
+
+			std::unique_lock<std::mutex> lock(maps_lock);
+			{
+				for (int i = 0; i < tids_count; i++) {
+
+					auto result = thread_map.find(tids[i]);
+
+					if (result == thread_map.end()) {
+						//TODO raise some error??
+						context.rax.r = -1;
+						return;
+					}
+					else if (result->second->state == NThread_State::TERMINATED) {
+						context.rax.r = tids[i];
+						return;
+					}
+				}
+			}
+			lock.unlock();
+
+			std::vector<bool> events;
+			events.reserve(tids_count);
+
+			for (int i = 0; i < tids_count; i++) {
+				std::shared_ptr<bool> sptr = std::make_shared<bool>(events[i]);
+				Add_Event(tids[i], sptr);
+				events[i] = false;
+				i++;
+			}
+
+			std::thread waiting = std::thread(Wait_For_Multiple, events);
+			waiting.join();
+
+			for (int i = 0; i < tids_count; i++) {
+
+				if (events[i]) {
+					context.rax.r = tids[i];
+				}
+			}
+		}
+
+		void Wait_For_Multiple(std::vector<bool> &events) {
+
+			for (;;) {
+				for (int i = 0; i < events.size(); i++) {
+					if (events[i]) {
+						return;
+					}
+				}
+				std::this_thread::yield();
+			}
+
+		}
+
+		void CThread_Manager::Add_Event(const size_t tid, const std::shared_ptr<bool> e) {
+			
+			std::shared_ptr<TThread_Control_Block> tcb;
+
+			std::unique_lock<std::mutex> m_lock(maps_lock);
+			{
+				auto result = thread_map.find(tid);
+
+				if (result == thread_map.end()) {
+					return;
+				}
+				else {
+					tcb = result->second;
+				}
+			}
+			m_lock.unlock();
+
+			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+			{
+				tcb->waiting.push_back(e);
+			}
+			e_lock.unlock();
 
 		}
 

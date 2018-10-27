@@ -127,7 +127,7 @@ namespace kiv_process {
 
 		// uzamknuti tabulky procesu tzn. i tabulky vlaken
 		// mozna by slo udelat efektivneji nez zamykat celou tabulku
-		ptable.lock();
+		std::unique_lock<std::mutex> lock(ptable);
 		{
 			std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
 
@@ -136,7 +136,7 @@ namespace kiv_process {
 			// TODO name
 
 			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
-			if (!Get_Pcb(std::this_thread::get_id(), ppcb)) {
+			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
 				return false;
 			}
 
@@ -163,12 +163,13 @@ namespace kiv_process {
 
 			process_table.push_back(pcb);
 		}
-		ptable.unlock();
+		lock.unlock();
 
 		//TODO write informations to PCB
 
-		kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
-		t_manager.Create_Thread(pid, context);
+		//kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
+		//t_manager.Create_Thread(pid, context);
+		kiv_thread::CThread_Manager::Get_Instance().Create_Thread(pid, context);
 
 		return true;
 	}
@@ -180,7 +181,7 @@ namespace kiv_process {
 
 	//}
 
-	bool CProcess_Manager::Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb) {
+	bool CProcess_Manager::Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb) {
 		for(std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
 			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
 				if (ttcb->tid == tid) {
@@ -197,7 +198,7 @@ namespace kiv_process {
 		return false;
 	}
 
-	bool CProcess_Manager::Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
+	bool CProcess_Manager::Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
 		for (std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
 			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
 				if (ttcb->tid == tid) {
@@ -216,17 +217,10 @@ namespace kiv_process {
 	}
 
 	//TODO doladit co vsechno ma delat
-	void CProcess_Manager::Check_Process_State(size_t pid) {
+	void CProcess_Manager::Check_Process_State(std::shared_ptr<TProcess_Control_Block> pcb) {
 		
 		ptable.lock();
 		{
-
-			auto pcb = std::make_shared<TProcess_Control_Block>();
-			if (!Get_Pcb(std::this_thread::get_id(), pcb)) {
-				ptable.unlock();
-				return;
-			}
-
 
 			bool terminated = true;
 			size_t position = 0;
@@ -298,10 +292,6 @@ namespace kiv_process {
 
 	}
 
-	void CProcess_Manager::Wait_For(kiv_hal::TRegisters& context) {
-		//TODO
-	}
-
 #pragma region System_Processes
 
 	//  Vytvoøíme systémový init proces
@@ -326,7 +316,7 @@ namespace kiv_process {
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
 			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
-			tcb->tid = std::this_thread::get_id();
+			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
 
 			pcb->thread_table.push_back(tcb);
 			process_table.push_back(pcb);

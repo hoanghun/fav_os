@@ -16,6 +16,7 @@ namespace kiv_process {
 
 		const int PID_NOT_AVAILABLE = -1;
 		
+		//TODO secure with mutex
 		class CPid_Manager {
 			public:
 				static const size_t MAX_PROCESS_COUNT = 1024;
@@ -55,7 +56,6 @@ namespace kiv_process {
 				static void Destroy();
 
 				bool Create_Process(kiv_hal::TRegisters& context);
-				void Wait_For(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
 				void Shutdown();
 
@@ -66,9 +66,9 @@ namespace kiv_process {
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
 
 				CProcess_Manager();
-				bool Get_Pcb(std::thread::id tid, std::shared_ptr<TProcess_Control_Block> pcb);
-				bool Get_Tcb(std::thread::id tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
-				void Check_Process_State(size_t pid);
+				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb);
+				bool Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
+				void Check_Process_State(std::shared_ptr<TProcess_Control_Block> pid);
 				void Create_Sys_Process();
 				void Reap_Process();
 
