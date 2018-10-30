@@ -9,7 +9,7 @@
 
 #include "thread.h"
 #include "../api/hal.h"
-#include "file_table.h"
+#include "vfs.h"
 
 namespace kiv_process {
 		void Handle_Process(kiv_hal::TRegisters &regs);
@@ -43,7 +43,7 @@ namespace kiv_process {
 			NProcess_State state;
 
 			std::vector<std::shared_ptr<kiv_thread::TThread_Control_Block>> thread_table;
-			std::map<kiv_os::THandle, kiv_io::TGFT_Record*> fd_table;
+			std::map<kiv_os::THandle, kiv_os::THandle> fd_table; // Process handle -> VFS handle
 			unsigned int last_fd;
 			//working dir
 		};

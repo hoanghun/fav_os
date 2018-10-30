@@ -27,7 +27,7 @@ namespace kiv_process {
 		
 			CProcess_Manager::Destroy();
 			kiv_thread::CThread_Manager::Destroy();
-			kiv_io::CFile_Table::Destroy();
+			kiv_vfs::CVirtual_File_System::Destroy();
 
 			break;
 
@@ -142,24 +142,6 @@ namespace kiv_process {
 
 			pcb->ppid = ppcb->pid;
 			ppcb->cpids.push_back(pid);
-
-			kiv_io::TGFT_Record *std_in = kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
-			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
-			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
-			kiv_io::CFile_Table::Get_Instance().Open_File("stdin", kiv_io::NAccess_Resctriction::Read_Only);
-
-			kiv_io::TGFT_Record *std_out = kiv_io::CFile_Table::Get_Instance().Open_File("stdout", kiv_io::NAccess_Resctriction::Write_Only);
-			
-			// TODO check for std_in and std_out not null
-
-			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(0, std_in));
-			pcb->fd_table.insert(std::pair<kiv_os::THandle, kiv_io::TGFT_Record*>(1, std_out));
-
-#if _DEBUG
-			std::cout << (pcb->fd_table.find(0)->second->file_name) << std::endl;
-			std::cout << (pcb->fd_table.find(0)->second->ref_count) << std::endl;
-			std::cout << (pcb->fd_table.find(1)->second->file_name) << std::endl;
-#endif
 
 			process_table.push_back(pcb);
 		}
