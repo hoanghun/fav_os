@@ -71,7 +71,7 @@ namespace kiv_vfs {
 		return nullptr;
 	}
 
-	bool IMounted_File_System::Delete_File(IFile *file) {
+	bool IMounted_File_System::Delete_File(std::string path) {
 		return false;
 	}
 #pragma endregion
@@ -142,7 +142,8 @@ namespace kiv_vfs {
 				return false;
 			}
 			else {
-				file->Get_Mount()->Delete_File(file->);
+				std::string path = file->Get_Path();
+				file->Get_Mount()->Delete_File(path);
 				mCached_files.erase(it);
 				return true;
 			}

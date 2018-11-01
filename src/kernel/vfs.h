@@ -78,7 +78,7 @@ namespace kiv_vfs {
 	class IMounted_File_System {
 		public:
 			virtual IFile *Open_File();
-			virtual bool Delete_File(IFile *file);
+			virtual bool Delete_File(std::string path);
 			std::string Get_Label();
 
 		protected:
