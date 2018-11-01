@@ -297,7 +297,8 @@ namespace kiv_process {
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
-			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
+			//TODO pri nacitani dll se zasekne
+			//tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
 			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
 
 			pcb->thread_table.push_back(tcb);
