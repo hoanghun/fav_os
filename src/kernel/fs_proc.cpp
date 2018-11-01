@@ -21,11 +21,10 @@ namespace kiv_fs_proc {
 
 #pragma region File
 
-	CFile::CFile(std::string name, CMount *mount, kiv_os::NFile_Attributes attributes) {
-		mName = name;
+	CFile::CFile(std::string path, CMount *mount, kiv_os::NFile_Attributes attributes) {
+		mPath = path;
 		mMount = mount;
 		mAttributes = attributes;
-		mAvailable_For_Writting = true;
 	}
 
 	unsigned int CFile::Write(int position, char *buffer, size_t buffer_size) {
@@ -36,6 +35,10 @@ namespace kiv_fs_proc {
 	unsigned int CFile::Read(int position, char *buffer, size_t buffer_size) {
 		// TODO implement
 		return 0;
+	}
+
+	bool CFile::Is_Available_For_Write() {
+		return false;
 	}
 
 #pragma endregion
