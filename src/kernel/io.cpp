@@ -85,46 +85,45 @@ void Create_Pipe(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) 
 
 
 void Handle_IO(kiv_hal::TRegisters &regs) {
-	kiv_vfs::CVirtual_File_System &vfs = kiv_vfs::CVirtual_File_System::Get_Instance();
+	//kiv_vfs::CVirtual_File_System &vfs = kiv_vfs::CVirtual_File_System::Get_Instance();
+
+	//switch (static_cast<kiv_os::NOS_File_System>(regs.rax.l)) {
+	//	case kiv_os::NOS_File_System::Open_File:		return Open_File(regs, vfs);
+	//	case kiv_os::NOS_File_System::Close_Handle:		return Close_File(regs, vfs);
+	//	case kiv_os::NOS_File_System::Delete_File:		return Delete_File(regs, vfs);
+	//	case kiv_os::NOS_File_System::Write_File:		return Write_File(regs, vfs);
+	//	case kiv_os::NOS_File_System::Read_File:		return Read_File(regs, vfs);
+	//	case kiv_os::NOS_File_System::Seek:				return Seek(regs, vfs);
+	//	case kiv_os::NOS_File_System::Set_Working_Dir:	return Set_Working_Dir(regs, vfs);
+	//	case kiv_os::NOS_File_System::Get_Working_Dir:	return Get_Working_Dir(regs, vfs);
+	//	case kiv_os::NOS_File_System::Create_Pipe:		return Create_Pipe(regs, vfs);
+	//	default:										return; // TODO Handle unknown operation
+	//}
 
 	switch (static_cast<kiv_os::NOS_File_System>(regs.rax.l)) {
-		case kiv_os::NOS_File_System::Open_File:		return Open_File(regs, vfs);
-		case kiv_os::NOS_File_System::Close_Handle:		return Close_File(regs, vfs);
-		case kiv_os::NOS_File_System::Delete_File:		return Delete_File(regs, vfs);
-		case kiv_os::NOS_File_System::Write_File:		return Write_File(regs, vfs);
-		case kiv_os::NOS_File_System::Read_File:		return Read_File(regs, vfs);
-		case kiv_os::NOS_File_System::Seek:				return Seek(regs, vfs);
-		case kiv_os::NOS_File_System::Set_Working_Dir:	return Set_Working_Dir(regs, vfs);
-		case kiv_os::NOS_File_System::Get_Working_Dir:	return Get_Working_Dir(regs, vfs);
-		case kiv_os::NOS_File_System::Create_Pipe:		return Create_Pipe(regs, vfs);
-		default:										return; // TODO Handle unknown operation
+		case kiv_os::NOS_File_System::Read_File: {
+				//viz uvodni komentar u Write_File
+				regs.rax.r = Read_Line_From_Console(reinterpret_cast<char*>(regs.rdi.r), regs.rcx.r);
+		}
+		break;
+
+
+		case kiv_os::NOS_File_System::Write_File: {
+					//Spravne bychom nyni meli pouzit interni struktury kernelu a zadany handle resolvovat na konkretni objekt, ktery pise na konkretni zarizeni/souboru/roury.
+					//Ale protoze je tohle jenom kostra, tak to rovnou biosem posleme na konzoli.
+					kiv_hal::TRegisters registers;
+					registers.rax.h = static_cast<decltype(registers.rax.h)>(kiv_hal::NVGA_BIOS::Write_String);
+					registers.rdx.r = regs.rdi.r;
+					registers.rcx = regs.rcx;
+		
+					//preklad parametru dokoncen, zavolame sluzbu
+					kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
+
+					regs.flags.carry |= (registers.rax.r == 0 ? 1 : 0);	//jestli jsme nezapsali zadny znak, tak jiste doslo k nejake chybe
+					regs.rax = registers.rcx;	//VGA BIOS nevraci pocet zapsanych znaku, tak predpokladame, ze zapsal vsechny
+		}
+		break; //Write_File
 	}
-
-	//V ostre verzi pochopitelne do switche dejte volani funkci a ne primo vykonny kod
-
-		//case kiv_os::NOS_File_System::Read_File: {
-		//		//viz uvodni komentar u Write_File
-		//		regs.rax.r = Read_Line_From_Console(reinterpret_cast<char*>(regs.rdi.r), regs.rcx.r);
-		//}
-		//break;
-
-
-		//case kiv_os::NOS_File_System::Write_File: {
-		//			//Spravne bychom nyni meli pouzit interni struktury kernelu a zadany handle resolvovat na konkretni objekt, ktery pise na konkretni zarizeni/souboru/roury.
-		//			//Ale protoze je tohle jenom kostra, tak to rovnou biosem posleme na konzoli.
-		//			kiv_hal::TRegisters registers;
-		//			registers.rax.h = static_cast<decltype(registers.rax.h)>(kiv_hal::NVGA_BIOS::Write_String);
-		//			registers.rdx.r = regs.rdi.r;
-		//			registers.rcx = regs.rcx;
-		//
-		//			//preklad parametru dokoncen, zavolame sluzbu
-		//			kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
-
-		//			regs.flags.carry |= (registers.rax.r == 0 ? 1 : 0);	//jestli jsme nezapsali zadny znak, tak jiste doslo k nejake chybe
-		//			regs.rax = registers.rcx;	//VGA BIOS nevraci pocet zapsanych znaku, tak predpokladame, ze zapsal vsechny
-		//}
-		//break; //Write_File
-
 
 	/* Nasledujici dve vetve jsou ukazka, ze starsiho zadani, ktere ukazuji, jak mate mapovat Windows HANDLE na kiv_os handle a zpet, vcetne jejich alokace a uvolneni
 
