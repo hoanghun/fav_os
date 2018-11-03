@@ -94,15 +94,27 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 		sregs.rdi.r = reinterpret_cast<decltype(sregs.rdx.r)>(nullptr);
 
 
-		//spustime shell - v realnem OS bychom ovsem spousteli login
-		//kiv_os::TThread_Proc shell = (kiv_os::TThread_Proc)GetProcAddress(User_Programs, "shell");
-		//if (shell) {
-			//spravne se ma shell spustit pres clone!
-			//ale ten v kostre pochopitelne neni implementovan		
-			//shell(regs);
-		//}
-
 		Sys_Call(sregs);
+
+		kiv_hal::TRegisters wregs;
+		wregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+		wregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Wait_For);
+
+		size_t handles[] = { sregs.rax.r };
+
+		wregs.rdx.r = reinterpret_cast<size_t>(handles);
+		wregs.rcx.r = 1;
+		
+		Sys_Call(wregs);
+
+		kiv_hal::TRegisters regs;
+		regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+		regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Read_Exit_Code);
+
+		regs.rdx.r = sregs.rax.r;
+
+		Sys_Call(regs);
+
 	}
 
 	//system shutdown

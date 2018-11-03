@@ -29,5 +29,6 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			break;	//EOF
 	} while (strcmp(buffer, "exit") != 0);
 
-	return 0;	
+	kiv_os_rtl::Exit(0);
+
 }

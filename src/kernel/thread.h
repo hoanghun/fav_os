@@ -32,7 +32,7 @@ namespace kiv_thread {
 			uint16_t exit_code;
 			//Wait for
 			std::mutex waiting_lock;
-			std::vector<std::shared_ptr<bool>> waiting;
+			std::vector<bool*> waiting;
 		};
 			
 
@@ -60,13 +60,17 @@ namespace kiv_thread {
 			
 
 			void Wait_For(kiv_hal::TRegisters& context);
-			void Add_Event(const size_t tid, const std::shared_ptr<bool> e);
+			void Add_Event(const size_t tid, bool *e);
+			bool Read_Exit_Code(kiv_hal::TRegisters &context);
+			bool Read_Exit_Code(const size_t handle, uint16_t &exit_code);
 
 		private:
 
 			std::map<size_t, std::shared_ptr<TThread_Control_Block>> thread_map;
 			std::mutex maps_lock;
 		
+			int Wait(const size_t * tids, const size_t tids_count);
+
 			static CThread_Manager * instance;
 			CThread_Manager();
 		

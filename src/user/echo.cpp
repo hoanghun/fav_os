@@ -23,12 +23,7 @@ extern "C" size_t __stdcall echo(const kiv_hal::TRegisters &regs) {
 	}
 
 	//TODO presunout do rtl a udelat z toho crt0??
-	kiv_hal::TRegisters eregs;
-	eregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
-	eregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Exit);
-	eregs.rcx.r = 0;
-
-	kiv_os::Sys_Call(eregs);
+	kiv_os_rtl::Exit(0);
 
 	return 0; 
 

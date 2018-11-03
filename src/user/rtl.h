@@ -17,4 +17,16 @@ namespace kiv_os_rtl {
 	//vraci true, kdyz vse OK
 	//vraci true, kdyz vse OK
 
+	void Exit(const int exit_code);
+
+	bool Clone(const char *prog_name, const char *args, size_t &handle);
+
+	bool Thread(const char *prog_name, const char *data, size_t &handle);
+
+	bool Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled);
+
+	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler);
+
+	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler, int &exit_code);
+
 }

@@ -31,3 +31,101 @@ bool kiv_os_rtl::Write_File(const kiv_os::THandle file_handle, const char *buffe
 	written = regs.rax.r;
 	return result;
 }
+
+void kiv_os_rtl::Exit(const int exit_code) {
+
+	kiv_hal::TRegisters regs;
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Exit);
+	regs.rcx.r = 0;
+
+	kiv_os::Sys_Call(regs);
+
+}
+
+bool kiv_os_rtl::Clone(const char *prog_name, const char *args, size_t &handle) {
+
+	kiv_hal::TRegisters regs;
+
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
+	regs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Process);
+
+	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(prog_name);
+	regs.rdi.r = reinterpret_cast<decltype(regs.rdx.r)>(args);
+
+	kiv_os::Sys_Call(regs);
+
+	handle = regs.rax.r;
+
+	//TODO
+	return true;
+}
+
+bool kiv_os_rtl::Thread(const char *prog_name, const char *data, size_t &handle) {
+
+	kiv_hal::TRegisters regs;
+
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
+	regs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Thread);
+
+	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(prog_name);
+	regs.rdi.r = reinterpret_cast<decltype(regs.rdx.r)>(data);
+
+	kiv_os::Sys_Call(regs);
+
+	handle = regs.rax.r;
+
+	//TODO
+	return true;
+}
+
+bool kiv_os_rtl::Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled) {
+
+
+	kiv_hal::TRegisters regs;
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Wait_For);
+
+	regs.rdx.r = reinterpret_cast<size_t>(handles);
+	regs.rcx.r = handles_count;
+
+	kiv_os::Sys_Call(regs);
+
+	//TODO
+	return true;
+}
+
+bool kiv_os_rtl::Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler) {
+
+	kiv_hal::TRegisters regs;
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Register_Signal_Handler);
+
+	regs.rdx.r = reinterpret_cast<size_t>(handler);
+	regs.rcx.r = static_cast<uint64_t>(kiv_os::NSignal_Id::Terminate);
+
+	kiv_os::Sys_Call(regs);
+
+	//TODO
+	return true;
+
+}
+
+bool kiv_os_rtl::Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler, int &exit_code) {
+
+	kiv_hal::TRegisters regs;
+	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
+	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Read_Exit_Code);
+
+	regs.rdx.r = reinterpret_cast<size_t>(handler);
+
+	kiv_os::Sys_Call(regs);
+
+	exit_code = regs.rcx.x;
+
+	//TODO
+	return true;
+
+}
