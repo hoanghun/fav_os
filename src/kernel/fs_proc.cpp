@@ -21,7 +21,7 @@ namespace kiv_fs_proc {
 
 #pragma region File
 
-	CFile::CFile(std::string path, CMount *mount, kiv_os::NFile_Attributes attributes) {
+	CFile::CFile(std::shared_ptr<kiv_vfs::TPath> path, std::shared_ptr<kiv_vfs::IMounted_File_System> mount, kiv_os::NFile_Attributes attributes) {
 		mPath = path;
 		mMount = mount;
 		mAttributes = attributes;
@@ -51,12 +51,17 @@ namespace kiv_fs_proc {
 		mDisk = disk;
 	}
 
-	kiv_vfs::IFile *CMount::Open_File(std::string path, kiv_os::NFile_Attributes attributes, bool create_new) {
+	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
 		// TODO implement
 		return nullptr;
 	}
 
-	bool CMount::Delete_File(std::string path) {
+	std::shared_ptr<kiv_vfs::IFile> CMount::Create_File(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
+		// TODO implement
+		return nullptr;
+	}
+
+	bool CMount::Delete_File(std::shared_ptr<kiv_vfs::TPath> path) {
 		// TODO implement
 		return false;
 	}

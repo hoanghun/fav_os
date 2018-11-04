@@ -29,8 +29,16 @@ namespace kiv_vfs {
 	// Opened file
 	struct TFile_Descriptor {
 		unsigned int position;
-		IFile *file;
+		std::shared_ptr<IFile> file;
 		TFD_Attributes attributes;
+	};
+
+	// Format: mount:/path[0]/path[1]/path[2]/file
+	struct TPath {
+		std::string mount;
+		std::vector<std::string> path;
+		std::string file;
+		std::string absolute_path;
 	};
 
 	// Abstract class from which concrete file systems inherit
@@ -47,16 +55,16 @@ namespace kiv_vfs {
 			void Increase_Read_Count();
 			void Decrease_Read_Count();
 
-			std::string Get_Path();
-			IMounted_File_System *Get_Mount();
+			std::shared_ptr<TPath> Get_Path();
+			std::shared_ptr<IMounted_File_System> Get_Mount();
 			unsigned int Get_Write_Count();
 			unsigned int Get_Read_Count();
-			unsigned int Get_Reference_Count();
+			bool Is_Opened();
 			kiv_os::NFile_Attributes Get_Attributes();
 
 		protected:
-			std::string mPath; // Absolute path
-			IMounted_File_System *mMount;
+			std::shared_ptr<TPath> mPath;
+			std::shared_ptr<IMounted_File_System> mMount;
 			kiv_os::NFile_Attributes mAttributes;
 			unsigned int mRead_count;
 			unsigned int mWrite_count;
@@ -77,31 +85,36 @@ namespace kiv_vfs {
 	// Class representing one mounted file system (file system's 'Create_Mount' returns instance of class that inherits from this class)
 	class IMounted_File_System {
 		public:
-			virtual IFile *Open_File();
-			virtual bool Delete_File(std::string path);
+			virtual std::shared_ptr<IFile> Open_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes);
+			virtual std::shared_ptr<IFile> Create_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes);
+			virtual bool Delete_File(std::shared_ptr<TPath> path);
 			std::string Get_Label();
 
 		protected:
 			std::string mLabel;
 	};
 
+	// TODO predavat funkcim working directory procesù?
 	class CVirtual_File_System {
 		public:
 			static CVirtual_File_System &Get_Instance();
 			static void Destroy();
 
-			bool Open_File(std::string path, kiv_os::NFile_Attributes attributes, bool create_new);
-			bool Close_File(kiv_os::THandle fd);
+			// Throws TFd_Table_Full_Exception, TFile_Not_Found_Exception, TInvalid_Mount_Exception
+			bool Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			bool Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			bool Close_File(kiv_os::THandle fd_index);
+			// Throws TInvalid_Path_Exception, TFile_Not_Found_Exception
 			bool Delete_File(std::string path);
-			unsigned int Write_File(kiv_os::THandle fd, char *buffer, size_t buffer_size);
-			unsigned int Read_File(kiv_os::THandle fd, char *buffer, size_t buffer_size);
-			bool Set_Position(kiv_os::THandle fd, int position, kiv_os::NFile_Seek type);
-			bool Set_Size(kiv_os::THandle fd, int position, kiv_os::NFile_Seek type);
-			unsigned int Get_Position(kiv_os::THandle fd);
+			unsigned int Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			unsigned int Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			// Throws TPosition_Out_Of_Range_Exception
+			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+			unsigned int Get_Position(kiv_os::THandle fd_index);
 			bool Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
-
 			// TODO Set working directory, get working directory?
-
+			 
 			bool Register_File_System(IFile_System &fs);
 			bool Mount_File_System(std::string fs_name, std::string label, TDisk_Number = 0);
 
@@ -115,10 +128,36 @@ namespace kiv_vfs {
 			unsigned int mRegistered_fs_count = 0;
 			unsigned int mMounted_fs_count = 0;
 
-			std::array<TFile_Descriptor *, MAX_FILE_DESCRIPTORS> mFile_descriptors{ nullptr };
-			std::map<std::string, IFile *> mCached_files; // absolute_path -> IFile *
+			std::array<std::shared_ptr<TFile_Descriptor>, MAX_FILE_DESCRIPTORS> mFile_descriptors{ nullptr };
+			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
 
-			std::array<IFile_System *, MAX_FS_REGISTERED> mRegistered_file_systems{ nullptr }; // Pøedìlat na mapu fs_name -> fs ?
-			std::array<IMounted_File_System *, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
+			std::array<std::shared_ptr<IFile_System>, MAX_FS_REGISTERED> mRegistered_file_systems{ nullptr }; // Pøedìlat na mapu fs_name -> fs ?
+			std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
+
+			std::shared_ptr<TFile_Descriptor> Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
+			// Throws TInvalid_Fd_Exception whed FD is not found
+			std::shared_ptr<TFile_Descriptor> Get_File_Descriptor(kiv_os::THandle fd_index);
+			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<TFile_Descriptor> &file_desc);
+			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
+			kiv_os::THandle Get_Free_Fd_Index();
+			std::shared_ptr<IMounted_File_System> Resolve_Mount(std::shared_ptr<TPath> &normalized_path);
+			std::shared_ptr<TPath> Create_Normalized_Path(std::string path);
+			void Increase_File_References(std::shared_ptr<IFile> &file, kiv_os::NFile_Attributes attributes);
+			void Decrease_File_References(std::shared_ptr<TFile_Descriptor> &file_desc);
+			bool Is_File_Cached(std::shared_ptr<TPath> path);
+			void Cache_File(std::shared_ptr<IFile> &file);
+			void Decache_File(std::shared_ptr<IFile> &file);
+			std::shared_ptr<IFile> Get_Cached_File(std::shared_ptr<TPath> path);
 	};
+
+	struct TInvalid_Fd_Exception : public std::exception {};
+	struct TFd_Table_Full_Exception : public std::exception {};
+
+	struct TFile_Not_Found_Exception : public std::exception {};
+	struct TPosition_Out_Of_Range_Exception : public std::exception {};
+
+	struct TInvalid_Path_Exception : public std::exception {};
+	struct TInvalid_Mount_Exception : public std::exception {};
+
+	struct TInternal_Error_Exception : public std::exception {};
 }
