@@ -66,10 +66,8 @@ namespace kiv_fs_stdio {
 
 #pragma region File
 namespace kiv_fs_stdio {
-	CFile::CFile(std::shared_ptr<kiv_vfs::TPath> path, std::shared_ptr<kiv_vfs::IMounted_File_System> mount,
-		kiv_os::NFile_Attributes attributes) {
+	CFile::CFile(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
 		mPath = path;
-		mMount = mount;
 		mAttributes = attributes;
 	}
 
@@ -107,7 +105,7 @@ namespace kiv_fs_stdio {
 	}
 	
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
-		std::shared_ptr<kiv_vfs::IFile> file = std::make_shared<CFile>(path, nullptr, attributes);
+		std::shared_ptr<kiv_vfs::IFile> file = std::make_shared<CFile>(path, attributes);
 		
 		return file;
 	}	

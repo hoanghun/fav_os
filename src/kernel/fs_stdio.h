@@ -10,7 +10,7 @@ namespace kiv_fs_stdio {
 
 	class CFile : public kiv_vfs::IFile {
 	public:
-		CFile(std::shared_ptr<kiv_vfs::TPath> path, std::shared_ptr<kiv_vfs::IMounted_File_System> mount, kiv_os::NFile_Attributes attributes);
+		CFile(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes);
 		virtual size_t Write(const char *buffer, size_t buffer_size, int position = 0) final override;
 		virtual size_t Read(char *buffer, size_t buffer_size, int position = 0) final override;
 		virtual bool Is_Available_For_Write() final override;
