@@ -5,7 +5,7 @@ namespace kiv_vfs {
 #pragma region File
 
 	// Default implementation (concrete filesystem can override this method)
-	unsigned int IFile::Get_Size() {
+	size_t IFile::Get_Size() {
 		return 0;
 	}
 
@@ -199,7 +199,7 @@ namespace kiv_vfs {
 	bool CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
 		auto file_desc = Get_File_Descriptor(fd_index);
 
-		unsigned int tmp_pos;
+		size_t tmp_pos;
 		switch (type) {
 			case kiv_os::NFile_Seek::Beginning:
 				tmp_pos = 0;

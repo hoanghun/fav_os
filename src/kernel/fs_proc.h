@@ -1,5 +1,7 @@
 #pragma once
+
 #include "vfs.h"
+
 namespace kiv_fs_proc {
 
 	class CFile;
@@ -9,8 +11,8 @@ namespace kiv_fs_proc {
 	class CFile : public kiv_vfs::IFile {
 		public:
 			CFile(std::shared_ptr<kiv_vfs::TPath> path, std::shared_ptr<kiv_vfs::IMounted_File_System> mount, kiv_os::NFile_Attributes attributes);
-			virtual unsigned int Write(int position, char *buffer, size_t buffer_size) final override;
-			virtual unsigned int Read(int position, char *buffer, size_t buffer_size) final override;
+			virtual size_t Write(const char *buffer, size_t buffer_size, int position) final override;
+			virtual size_t Read(char *buffer, size_t buffer_size, int position) final override;
 			virtual bool Is_Available_For_Write() final override;
 
 		private:

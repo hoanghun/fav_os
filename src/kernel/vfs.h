@@ -45,10 +45,10 @@ namespace kiv_vfs {
 	// Instances of inherited classes represent one file
 	class IFile {
 		public:
-			virtual unsigned int Write(int position, char *buffer, size_t buffer_size) = 0;
-			virtual unsigned int Read(int position, char *buffer, size_t buffer_size) = 0;
+			virtual size_t Write(const char *buffer, size_t buffer_size, int position) = 0;
+			virtual size_t Read(char *buffer, size_t buffer_size, int position) = 0;
 			virtual bool Is_Available_For_Write() = 0;
-			virtual unsigned int Get_Size();
+			virtual size_t Get_Size();
 
 			void Increase_Write_Count();
 			void Decrease_Write_Count();

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\api\api.cpp" />
     <ClCompile Include="..\..\src\kernel\fs_proc.cpp" />
+    <ClCompile Include="..\..\src\kernel\fs_stdio.cpp" />
     <ClCompile Include="..\..\src\kernel\handles.cpp" />
     <ClCompile Include="..\..\src\kernel\io.cpp" />
     <ClCompile Include="..\..\src\kernel\kernel.cpp" />
@@ -33,6 +34,7 @@
     <ClInclude Include="..\..\src\api\api.h" />
     <ClInclude Include="..\..\src\api\hal.h" />
     <ClInclude Include="..\..\src\kernel\fs_proc.h" />
+    <ClInclude Include="..\..\src\kernel\fs_stdio.h" />
     <ClInclude Include="..\..\src\kernel\handles.h" />
     <ClInclude Include="..\..\src\kernel\io.h" />
     <ClInclude Include="..\..\src\kernel\kernel.h" />
