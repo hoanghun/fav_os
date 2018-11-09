@@ -56,29 +56,39 @@ namespace kiv_process {
 	}
 
 #pragma region CPid_Manager
+
+	CPid_Manager::CPid_Manager() {
+		pids[0] = false;
+	}
+
 	bool CPid_Manager::Get_Free_Pid(size_t* pid) {
-		if (!is_full) {
-
-			last = (last + 1) % pids.size();
-			size_t start = last;
-
-			do {
-
-				if (pids[last] == false) {
-					pids[last] = true;
-
-					*pid = last;
-					return true;
-				}
+		std::unique_lock<std::mutex> lock(plock);
+		{
+			if (!is_full) {
 
 				last = (last + 1) % pids.size();
+				size_t start = last;
 
-			} while (last != start);
+				do {
 
-			is_full = true;
-			
+					if (pids[last] == false) {
+						pids[last] = true;
+
+						*pid = last;
+
+						lock.unlock();
+						return true;
+					}
+
+					last = (last + 1) % pids.size();
+
+				} while (last != start);
+
+				is_full = true;
+
+			}
 		}
-
+		plock.unlock();
 		return false;
 	}
 
@@ -109,10 +119,11 @@ namespace kiv_process {
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
 		Create_Sys_Process();
-		pid_manager = CPid_Manager();
+		pid_manager = new CPid_Manager();
 	}
 
 	void CProcess_Manager::Destroy() {
+		delete instance->pid_manager;
 		delete instance;
 	}
 
@@ -129,7 +140,7 @@ namespace kiv_process {
 		const char* prog_name = (char*)(context.rdx.r);
 
 		size_t pid;
-		if (!pid_manager.Get_Free_Pid(&pid)) {
+		if (!pid_manager->Get_Free_Pid(&pid)) {
 			// TODO process cannot be created
 			return false;
 		}
@@ -150,13 +161,12 @@ namespace kiv_process {
 			}
 
 			pcb->ppid = ppcb->pid;
+			//pcb->working_directory = ppcb->working_directory
 			ppcb->cpids.push_back(pid);
 
 			process_table.push_back(pcb);
 		}
 		lock.unlock();
-
-		//TODO write informations to PCB
 
 		//kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
 		//t_manager.Create_Thread(pid, context);
@@ -234,7 +244,7 @@ namespace kiv_process {
 				}
 
 				process_table.erase(process_table.begin() + pcb->pid);
-				pid_manager.Release_Pid(pcb->pid);
+				pid_manager->Release_Pid(pcb->pid);
 
 			}
 
@@ -280,6 +290,53 @@ namespace kiv_process {
 
 	}
 
+	bool CProcess_Manager::Set_Working_Directory(const size_t &tid, const std::string &dir) {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+			std::unique_lock<std::mutex> lock(ptable);
+			{
+				tcb->pcb->working_directory = dir;
+			}
+			lock.unlock();
+		}
+		else {
+			return false;
+		}
+
+		return true;
+	}
+
+	bool CProcess_Manager::Get_Working_Directory(const size_t &tid, std::string * dir) const {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+			*dir = tcb->pcb->working_directory;
+		}
+		else {
+			return false;
+		}
+
+		return true;
+
+	}
+
+	bool CProcess_Manager::Open_File(const size_t &tid, const size_t &index, const kiv_vfs::TPath &path) {
+
+	/*	std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+
+		}
+		else {
+			return false;
+		}*/
+		//TODO
+		return false;
+	}
+
 #pragma region System_Processes
 
 	//  Vytvoøíme systémový init proces
@@ -301,7 +358,7 @@ namespace kiv_process {
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
-			//TODO pri nacitani dll se zasekne
+			//TODO pri nacitani dll se zasekne pokud ihned inicializujeme instanci
 			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
 			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
 
@@ -321,7 +378,7 @@ namespace kiv_process {
 		while (!system_shutdown) {
 
 			if (ptable.try_lock()) {
-				//TODO do your job
+				
 				child_pids = process_table[0]->cpids;
 				handles.clear();
 

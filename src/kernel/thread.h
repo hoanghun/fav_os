@@ -10,6 +10,7 @@
 
 namespace kiv_process {
 		struct TProcess_Control_Block;
+		class CProcess_Manager;
 }
 
 namespace kiv_thread {
@@ -47,32 +48,35 @@ namespace kiv_thread {
 
 		class CThread_Manager {
 
-		public:
+			friend class kiv_process::CProcess_Manager;
 
-			static CThread_Manager & Get_Instance();
-			static void Destroy();
+			public:
 
-			bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
-			bool Create_Thread(kiv_hal::TRegisters& context);
+				static CThread_Manager & Get_Instance();
+				static void Destroy();
 
-			bool Thread_Exit(kiv_hal::TRegisters& context);
-			bool Add_Terminate_Handler(const kiv_hal::TRegisters& context);
+				bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
+				bool Create_Thread(kiv_hal::TRegisters& context);
+
+				bool Thread_Exit(kiv_hal::TRegisters& context);
+				bool Add_Terminate_Handler(const kiv_hal::TRegisters& context);
 			
 
-			void Wait_For(kiv_hal::TRegisters& context);
-			void Add_Event(const size_t tid, bool *e);
-			bool Read_Exit_Code(kiv_hal::TRegisters &context);
-			bool Read_Exit_Code(const size_t handle, uint16_t &exit_code);
+				void Wait_For(kiv_hal::TRegisters& context);
+				void Add_Event(const size_t tid, bool *e);
+				bool Read_Exit_Code(kiv_hal::TRegisters &context);
+				bool Read_Exit_Code(const size_t handle, uint16_t &exit_code);
 
-		private:
+			private:
 
-			std::map<size_t, std::shared_ptr<TThread_Control_Block>> thread_map;
-			std::mutex maps_lock;
+				std::map<size_t, std::shared_ptr<TThread_Control_Block>> thread_map;
+				std::mutex maps_lock;
 		
-			int Wait(const size_t * tids, const size_t tids_count);
+				int Wait(const size_t * tids, const size_t tids_count);
+				bool Get_Thread_Control_Block(const size_t &tid, std::shared_ptr<TThread_Control_Block> *tcb);
 
-			static CThread_Manager * instance;
-			CThread_Manager();
+				static CThread_Manager * instance;
+				CThread_Manager();
 		
 		};
 }

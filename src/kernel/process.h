@@ -16,14 +16,16 @@ namespace kiv_process {
 
 		const int PID_NOT_AVAILABLE = -1;
 		
-		//TODO secure with mutex
 		class CPid_Manager {
 			public:
+				CPid_Manager();
+
 				static const size_t MAX_PROCESS_COUNT = 1024;
 				bool Get_Free_Pid(size_t* pid);
 				bool Release_Pid(size_t pid);
 
 			private:
+				std::mutex plock;
 				std::array<bool, MAX_PROCESS_COUNT> pids{false};
 				size_t last = 0;
 				bool is_full = false;
@@ -41,14 +43,15 @@ namespace kiv_process {
 			size_t ppid;
 			std::vector<size_t> cpids;
 			NProcess_State state;
+			std::string working_directory;
 
 			std::vector<std::shared_ptr<kiv_thread::TThread_Control_Block>> thread_table;
 			std::map<kiv_os::THandle, kiv_os::THandle> fd_table; // Process handle -> VFS handle
 			unsigned int last_fd;
-			//working dir
 		};
 
 		class CProcess_Manager {
+
 			friend class kiv_thread::CThread_Manager;
 
 			public:
@@ -57,12 +60,18 @@ namespace kiv_process {
 
 				bool Create_Process(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
+
+				bool Set_Working_Directory(const size_t &tid, const std::string &dir);
+				bool Get_Working_Directory(const size_t &tid, std::string *dir) const;
+				
+				bool Open_File(const size_t &tid, const size_t &index, const kiv_vfs::TPath &path);
+
 				void Shutdown();
 
 			private:
 				static std::mutex ptable;
 				static CProcess_Manager *instance;
-				CPid_Manager pid_manager;
+				CPid_Manager *pid_manager;
 				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
 
 				CProcess_Manager();

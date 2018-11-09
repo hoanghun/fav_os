@@ -84,24 +84,16 @@ namespace kiv_thread {
 		//Vytvori vlakno pro jiz existujici proces
 		bool  CThread_Manager::Create_Thread(kiv_hal::TRegisters& context) {
 
-			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb;
+			std::shared_ptr<TThread_Control_Block> tcb;
 
-			std::unique_lock<std::mutex> lock(maps_lock);
-			{
-				auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
-				if (result == thread_map.end()) {
-					lock.unlock();
-					return false;
-				}
-				else {
-					pcb = result->second->pcb;
-				}
+			if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
+				Create_Thread(tcb->pcb->pid, context);
 			}
-			lock.unlock();
+			else {
+				return false;
+			}
 
-			Create_Thread(pcb->pid, context);
-
-			return false;
+			return true;
 		}
 
 		//Funkce je volana po skonceni vlakna/procesu
@@ -111,20 +103,13 @@ namespace kiv_thread {
 			std::unique_lock<std::mutex> plock(kiv_process::CProcess_Manager::ptable);
 			{
 
-				std::unique_lock<std::mutex> lock(maps_lock);
-				{
-					auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
-					if (result == thread_map.end()) {
-						plock.unlock();
-						lock.unlock();
-						return false;
-					}
-					else {
-						tcb = result->second;
-						tcb->state = NThread_State::TERMINATED;
-					}
+				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
+					tcb->state = NThread_State::TERMINATED;
 				}
-				lock.unlock();
+				else {
+					plock.unlock();
+					return false;
+				}
 
 				//Signalizace ukonceni procesu tem kdo na to cekaji
 				for (auto const & e : tcb->waiting) {
@@ -143,18 +128,9 @@ namespace kiv_thread {
 
 			std::shared_ptr<TThread_Control_Block> tcb;
 
-			std::unique_lock<std::mutex> lock(maps_lock);
-			{
-				auto result = thread_map.find(Hash_Thread_Id(std::this_thread::get_id()));
-				if (result == thread_map.end()) {
-					lock.unlock();
-					return false;
-				}
-				else {
-					tcb = result->second;
-				}
+			if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb) == false) {
+				return false;
 			}
-			lock.unlock();
 
 			// Pokud je rdx.r == 0 potom se ulozi do terminat_handler (stejne uz by tam mela byt)
 			tcb->terminate_handler = reinterpret_cast<kiv_os::TThread_Proc>(context.rdx.r); 
@@ -226,19 +202,9 @@ namespace kiv_thread {
 			
 			std::shared_ptr<TThread_Control_Block> tcb;
 
-			std::unique_lock<std::mutex> m_lock(maps_lock);
-			{
-				auto result = thread_map.find(tid);
-
-				if (result == thread_map.end()) {
-					m_lock.unlock();
-					return;
-				}
-				else {
-					tcb = result->second;
-				}
+			if (Get_Thread_Control_Block(tid, &tcb) == false) {
+				return;
 			}
-			m_lock.unlock();
 
 			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
 			{
@@ -259,16 +225,9 @@ namespace kiv_thread {
 			std::shared_ptr<TThread_Control_Block> tcb;
 			NThread_State terminated = NThread_State::RUNNING;
 
-			std::unique_lock<std::mutex> lock(maps_lock);
-			{
-				auto result = thread_map.find(handle);
-				if (result == thread_map.end()) {
-					lock.unlock();
-					return false;
-				}
-				else {
-					tcb = result->second;
-					//return exit_code
+			if (Get_Thread_Control_Block(handle, &tcb)) {
+				std::unique_lock<std::mutex> lock(maps_lock);
+				{
 					terminated = tcb->state;
 					if (terminated == NThread_State::TERMINATED) {
 						exit_code = tcb->exit_code;
@@ -278,10 +237,12 @@ namespace kiv_thread {
 						lock.unlock();
 						return false;
 					}
-
 				}
+				lock.unlock();
 			}
-			lock.unlock();
+			else {
+				return false;
+			}
 
 			if (terminated == NThread_State::TERMINATED) {
 				kiv_process::CProcess_Manager::Get_Instance().Check_Process_State(tcb->pcb);
@@ -289,6 +250,24 @@ namespace kiv_thread {
 
 			return true;
 
+		}
+
+		bool CThread_Manager::Get_Thread_Control_Block(const size_t &tid, std::shared_ptr<TThread_Control_Block> *tcb) {
+
+			std::unique_lock<std::mutex> lock(maps_lock);
+			{
+				auto result = thread_map.find(tid);
+				if (result == thread_map.end()) {
+					lock.unlock();
+					return false;
+				}
+				else {
+					*tcb = result->second;
+				}
+			}
+			lock.unlock();
+
+			return true;
 		}
 
 }
