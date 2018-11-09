@@ -60,6 +60,8 @@ namespace kiv_vfs {
 			bool Is_Opened();
 			kiv_os::NFile_Attributes Get_Attributes();
 
+			virtual ~IFile();
+
 		protected:
 			TPath mPath;
 			kiv_os::NFile_Attributes mAttributes;
@@ -75,6 +77,7 @@ namespace kiv_vfs {
 			virtual IMounted_File_System *Create_Mount(std::string label, TDisk_Number = 0) = 0;
 			std::string Get_Name();
 
+			virtual ~IFile_System();
 		protected:
 			std::string mName;
 	};
@@ -86,6 +89,8 @@ namespace kiv_vfs {
 			virtual std::shared_ptr<IFile> Create_File(const TPath &path, kiv_os::NFile_Attributes attributes);
 			virtual bool Delete_File(const TPath &path);
 			std::string Get_Label();
+
+			virtual ~IMounted_File_System();
 		protected:
 			std::string mLabel;
 	};

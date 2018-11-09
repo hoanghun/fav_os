@@ -45,6 +45,10 @@ namespace kiv_vfs {
 		return mAttributes;
 	}
 
+	IFile::~IFile() {
+
+	}
+
 #pragma endregion
 
 
@@ -54,12 +58,20 @@ namespace kiv_vfs {
 		return mName;
 	}
 
+	IFile_System::~IFile_System() {
+
+	}
+
 #pragma endregion
 
 
 #pragma region Mounted file system
 	std::string IMounted_File_System::Get_Label() {
 		return mLabel;
+	}
+
+	IMounted_File_System::~IMounted_File_System() {
+
 	}
 
 	// Default implementations (concrete filesystem can override those methods)
