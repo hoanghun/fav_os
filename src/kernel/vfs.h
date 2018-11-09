@@ -119,6 +119,8 @@ namespace kiv_vfs {
 			 */
 			bool Register_File_System(IFile_System &fs);
 			bool Mount_File_System(std::string fs_name, std::string label, TDisk_Number = 0);
+			void Mount_Registered();
+			void UMount();
 		// TODO Locks
 		private:
 			CVirtual_File_System(); 
@@ -132,10 +134,9 @@ namespace kiv_vfs {
 			std::array<TFile_Descriptor, MAX_FILE_DESCRIPTORS> mFile_descriptors;
 			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
 
-			std::array<std::shared_ptr<IFile_System>, MAX_FS_REGISTERED> mRegistered_file_systems{ nullptr }; // Pøedìlat na mapu fs_name -> fs ?
+			std::vector<IFile_System*> mRegistered_file_systems; // Pøedìlat na mapu fs_name -> fs ?
 			//std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
-			std::map<std::string, IMounted_File_System> mMounted_file_systems;
-			
+			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
 			
 			TFile_Descriptor Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
 			// Throws TInvalid_Fd_Exception whed FD is not found

@@ -48,8 +48,8 @@ namespace tmp { // todo remove tmp
 #pragma region Register
 namespace kiv_fs_stdio {
 	CFile_System::CFile_System() {
-#ifdef DEBUG
-		std::cout << "Big dick pic" << std::endl;
+#ifdef _DEBUG
+		//std::cout << "Big dick pic" << std::endl;
 #endif
 	}
 

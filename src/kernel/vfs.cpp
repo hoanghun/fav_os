@@ -82,7 +82,7 @@ namespace kiv_vfs {
 	CVirtual_File_System *CVirtual_File_System::instance = new CVirtual_File_System();
 
 	CVirtual_File_System::CVirtual_File_System() {
-		// TODO 
+		mRegistered_file_systems.reserve(MAX_FS_REGISTERED);
 	}
 
 	void CVirtual_File_System::Destroy() {
@@ -95,13 +95,37 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Register_File_System(IFile_System &fs) {
-		// TODO
-		return false;
+		if (mRegistered_fs_count == MAX_FS_REGISTERED) {
+			return false;
+		}
+		
+		for (auto &reg_file_system : mRegistered_file_systems) {
+			if (fs.Get_Name() == reg_file_system->Get_Name())
+				return false;
+		}
+
+		mRegistered_file_systems.push_back(&fs);
+		mRegistered_fs_count++;
+
+		return true;
 	}
 
 	bool CVirtual_File_System::Mount_File_System(std::string fs_name, std::string label, TDisk_Number disk) {
 		// TODO
 		return false;
+	}
+
+	void CVirtual_File_System::Mount_Registered() {
+		for (auto reg_file_system : mRegistered_file_systems) {
+			auto mount = reg_file_system->Create_Mount("?");
+			mMounted_file_systems.insert(std::make_pair("?", mount)); // TODO 
+		}
+	}
+
+	void CVirtual_File_System::UMount() {
+		for (auto mount : mMounted_file_systems) {
+			delete mount.second;
+		}
 	}
 
 	bool CVirtual_File_System::Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
@@ -267,7 +291,7 @@ namespace kiv_vfs {
 		return file_desc;
 	}
 
-	TFile_Descriptor& CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
+	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
 		if (!mFile_descriptors[fd_index].file) {
 			throw TInvalid_Fd_Exception();
 		}
@@ -296,7 +320,7 @@ namespace kiv_vfs {
 	}
 
 	IMounted_File_System &CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
-		return mMounted_file_systems.at(normalized_path.mount);
+		return *mMounted_file_systems.at(normalized_path.mount);
 	}
 
 	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
