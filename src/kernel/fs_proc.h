@@ -11,8 +11,8 @@ namespace kiv_fs_proc {
 	class CFile : public kiv_vfs::IFile {
 		public:
 			CFile(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes);
-			virtual size_t Write(const char *buffer, size_t buffer_size, int position) final override;
-			virtual size_t Read(char *buffer, size_t buffer_size, int position) final override;
+			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
+			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Available_For_Write() final override;
 
 		private:

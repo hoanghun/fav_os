@@ -26,12 +26,12 @@ namespace kiv_fs_proc {
 		mAttributes = attributes;
 	}
 
-	size_t CFile::Write(const char *buffer, size_t buffer_size, int position) {
+	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
 		// TODO implement
 		return 0;
 	}
 
-	size_t CFile::Read(char *buffer, size_t buffer_size, int position) {
+	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
 		// TODO implement
 		return 0;
 	}

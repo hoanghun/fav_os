@@ -118,7 +118,7 @@ namespace kiv_vfs {
 		// File is not cached -> resolve file and cache file
 		else {
 			auto mount = Resolve_Mount(normalized_path); // throws TInvalid_Mount_Exception
-			file = mount->Open_File(normalized_path, attributes);
+			file = mount.Open_File(normalized_path, attributes);
 			if (!file) {
 				throw TFile_Not_Found_Exception();
 			}
@@ -173,12 +173,12 @@ namespace kiv_vfs {
 		// File is not cached
 		else {
 			auto mount = Resolve_Mount(normalized_path);
-			mount->Delete_File(normalized_path);
+			mount.Delete_File(normalized_path);
 		}
 		return true;
 	}
 
-	unsigned int CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
+	size_t CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
 		auto file_desc = Get_File_Descriptor(fd_index);
 
 		if (!file_desc.file) {
@@ -192,7 +192,7 @@ namespace kiv_vfs {
 		return file_desc.file->Write(buffer, buffer_size, file_desc.position);
 	}
 
-	unsigned int CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
+	size_t CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
 		auto file_desc = Get_File_Descriptor(fd_index);
 
 		// TODO
@@ -295,9 +295,8 @@ namespace kiv_vfs {
 		return -1; // fix hack not all paths lead to return --- 
 	}
 
-	std::shared_ptr<IMounted_File_System> CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
-		// TODO
-		return std::make_shared<IMounted_File_System>();
+	IMounted_File_System &CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
+		return mMounted_file_systems.at(normalized_path.mount);
 	}
 
 	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {

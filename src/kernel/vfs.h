@@ -44,8 +44,8 @@ namespace kiv_vfs {
 	// Instances of inherited classes represent one file
 	class IFile {
 		public:
-			virtual size_t Write(const char *buffer, size_t buffer_size, int position) = 0;
-			virtual size_t Read(char *buffer, size_t buffer_size, int position) = 0;
+			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) = 0;
+			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) = 0;
 			virtual bool Is_Available_For_Write() = 0;
 			virtual size_t Get_Size();
 
@@ -105,8 +105,8 @@ namespace kiv_vfs {
 			bool Close_File(kiv_os::THandle fd_index);
 			// Throws TInvalid_Path_Exception, TFile_Not_Found_Exception
 			bool Delete_File(std::string path);
-			unsigned int Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
-			unsigned int Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			size_t Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			size_t Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
 			// Throws TPosition_Out_Of_Range_Exception
 			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
@@ -133,15 +133,17 @@ namespace kiv_vfs {
 			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
 
 			std::array<std::shared_ptr<IFile_System>, MAX_FS_REGISTERED> mRegistered_file_systems{ nullptr }; // Pøedìlat na mapu fs_name -> fs ?
-			std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
-
+			//std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
+			std::map<std::string, IMounted_File_System> mMounted_file_systems;
+			
+			
 			TFile_Descriptor Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
 			// Throws TInvalid_Fd_Exception whed FD is not found
-			TFile_Descriptor& Get_File_Descriptor(kiv_os::THandle fd_index);
+			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index);
 			void Put_File_Descriptor(kiv_os::THandle fd_index, TFile_Descriptor &file_desc);
 			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			kiv_os::THandle Get_Free_Fd_Index();
-			std::shared_ptr<IMounted_File_System> Resolve_Mount(const TPath &normalized_path);
+			IMounted_File_System &Resolve_Mount(const TPath &normalized_path);
 			TPath Create_Normalized_Path(std::string path);
 			void Increase_File_References(std::shared_ptr<IFile> &file, kiv_os::NFile_Attributes attributes);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);

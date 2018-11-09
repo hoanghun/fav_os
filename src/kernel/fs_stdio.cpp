@@ -71,11 +71,11 @@ namespace kiv_fs_stdio {
 		mAttributes = attributes;
 	}
 
-	size_t CFile::Read(char *buffer, size_t buffer_size, int position) {
+	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
 		return tmp::Read_Line_From_Console(buffer, buffer_size);
 	}
 
-	size_t CFile::Write(const char *buffer, size_t buffer_size, int position) {
+	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
 		kiv_hal::TRegisters registers;
 		registers.rax.h = static_cast<decltype(registers.rax.h)>(kiv_hal::NVGA_BIOS::Write_String);
 		registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(buffer);
