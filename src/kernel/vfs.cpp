@@ -228,7 +228,7 @@ namespace kiv_vfs {
 		return false;
 	}
 
-	unsigned int CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
+	size_t CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
 		auto file_desc = Get_File_Descriptor(fd_index); // T
 
 		return file_desc->position;

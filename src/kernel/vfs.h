@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "file_table.h"
 #include "../api/api.h"
 #include <cstdint>
 #include <map>
@@ -28,7 +27,7 @@ namespace kiv_vfs {
 
 	// Opened file
 	struct TFile_Descriptor {
-		unsigned int position;
+		size_t position;
 		std::shared_ptr<IFile> file;
 		TFD_Attributes attributes;
 	};
@@ -108,7 +107,7 @@ namespace kiv_vfs {
 			// Throws TPosition_Out_Of_Range_Exception
 			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
-			unsigned int Get_Position(kiv_os::THandle fd_index);
+			size_t Get_Position(kiv_os::THandle fd_index);
 			bool Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 			// TODO Set working directory, get working directory?
 			 

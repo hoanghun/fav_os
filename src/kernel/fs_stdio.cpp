@@ -1,7 +1,5 @@
 #include "fs_stdio.h"
 
-
-
 #pragma region Util
 namespace tmp { // todo remove tmp
 	size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
@@ -50,7 +48,9 @@ namespace tmp { // todo remove tmp
 #pragma region Register
 namespace kiv_fs_stdio {
 	CFile_System::CFile_System() {
-
+#ifdef DEBUG
+		std::cout << "Big dick pic" << std::endl;
+#endif
 	}
 
 	bool CFile_System::Register() {
