@@ -7,6 +7,7 @@
 #include <iostream>
 #include "common.h"
 #include "process.h"
+#include "fs_stdio.h"
 
 #include <iostream>
 
@@ -39,7 +40,6 @@ void __stdcall Sys_Call(kiv_hal::TRegisters &regs) {
 void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 	Initialize_Kernel();
 	kiv_hal::Set_Interrupt_Handler(kiv_os::System_Int_Number, Sys_Call);
-
 
 	//v ramci ukazky jeste vypiseme dostupne disky
 	kiv_hal::TRegisters regs;

@@ -143,7 +143,7 @@ namespace kiv_vfs {
 
 		Decrease_File_References(file_desc);
 		// Remove file descriptor
-		mFile_descriptors[fd_index] = nullptr;
+		mFile_descriptors[fd_index].file = nullptr;
 
 		// TODO Remove record in PCB
 		return false;
@@ -202,11 +202,11 @@ namespace kiv_vfs {
 				break;
 
 			case kiv_os::NFile_Seek::Current:
-				tmp_pos = file_desc->position;
+				tmp_pos = file_desc.position;
 				break;
 
 			case kiv_os::NFile_Seek::End:
-				tmp_pos = file_desc->file->Get_Size() - 1; // TODO check if correct
+				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
 				break;
 
 			default:
@@ -215,11 +215,11 @@ namespace kiv_vfs {
 
 		tmp_pos += position;
 
-		if (tmp_pos > file_desc->file->Get_Size() || tmp_pos < 0) {
+		if (tmp_pos > file_desc.file->Get_Size() || tmp_pos < 0) {
 			throw TPosition_Out_Of_Range_Exception();
 		}
 
-		file_desc->position = tmp_pos;
+		file_desc.position = tmp_pos;
 		return true;
 	}
 
@@ -231,7 +231,7 @@ namespace kiv_vfs {
 	size_t CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
 		auto file_desc = Get_File_Descriptor(fd_index); // T
 
-		return file_desc->position;
+		return file_desc.position;
 	}
 
 	bool CVirtual_File_System::Create_Pipe(kiv_os::THandle & write_end, kiv_os::THandle & read_end) {
@@ -243,16 +243,16 @@ namespace kiv_vfs {
 	// ===== PRIVATE ======
 	// ====================
 
-	std::shared_ptr<TFile_Descriptor> CVirtual_File_System::Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
-		auto file_desc = std::make_shared<TFile_Descriptor>();
+	TFile_Descriptor CVirtual_File_System::Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
+		TFile_Descriptor file_desc;
 
-		file_desc->position = 0;
-		file_desc->file = file;
+		file_desc.position = 0;
+		file_desc.file = file;
 		if (attributes == kiv_os::NFile_Attributes::Read_Only) {
-			file_desc->attributes = FD_ATTR_READ;
+			file_desc.attributes = FD_ATTR_READ;
 		}
 		else {
-			file_desc->attributes = FD_ATTR_RW;
+			file_desc.attributes = FD_ATTR_RW;
 		}
 
 		Increase_File_References(file, attributes);
@@ -260,16 +260,15 @@ namespace kiv_vfs {
 		return file_desc;
 	}
 
-	std::shared_ptr<TFile_Descriptor> CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
-		std::shared_ptr<TFile_Descriptor> file_desc = mFile_descriptors[fd_index];
-		if (!file_desc) {
+	TFile_Descriptor& CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
+		if (!mFile_descriptors[fd_index].file) {
 			throw TInvalid_Fd_Exception();
 		}
 
-		return file_desc;
+		return mFile_descriptors[fd_index];
 	}
 
-	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<TFile_Descriptor> &file_desc) {
+	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, TFile_Descriptor &file_desc) {
 		mFd_count++;
 		mFile_descriptors[fd_index] = file_desc;
 	}
@@ -281,10 +280,12 @@ namespace kiv_vfs {
 
 		// TODO optimize (keep last free fd that was found?)
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
-			if (mFile_descriptors[i] == nullptr) {
+			if (mFile_descriptors[i].file == nullptr) {
 				return i;
 			}
 		}
+
+		return -1; // fix hack not all paths lead to return --- 
 	}
 
 	std::shared_ptr<IMounted_File_System> CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
@@ -329,12 +330,12 @@ namespace kiv_vfs {
 		}
 	}
 
-	void CVirtual_File_System::Decrease_File_References(std::shared_ptr<TFile_Descriptor> &file_desc) {
-		if (file_desc->attributes & FD_ATTR_READ) {
-			file_desc->file->Decrease_Read_Count();
+	void CVirtual_File_System::Decrease_File_References(const TFile_Descriptor &file_desc) {
+		if (file_desc.attributes & FD_ATTR_READ) {
+			file_desc.file->Decrease_Read_Count();
 		}
-		if (file_desc->attributes & FD_ATTR_WRITE) {
-			file_desc->file->Decrease_Write_Count();
+		if (file_desc.attributes & FD_ATTR_WRITE) {
+			file_desc.file->Decrease_Write_Count();
 		}
 	}
 
