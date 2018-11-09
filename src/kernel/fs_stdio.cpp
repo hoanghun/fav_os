@@ -3,7 +3,7 @@
 
 
 #pragma region Util
-namespace tmp {
+namespace tmp { // todo remove tmp
 	size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 		kiv_hal::TRegisters registers;
 
@@ -66,7 +66,7 @@ namespace kiv_fs_stdio {
 
 #pragma region File
 namespace kiv_fs_stdio {
-	CFile::CFile(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
+	CFile::CFile(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
 		mPath = path;
 		mAttributes = attributes;
 	}
@@ -102,12 +102,31 @@ namespace kiv_fs_stdio {
 namespace kiv_fs_stdio {
 	CMount::CMount(std::string label) {
 		mLabel = label;
+		
+		/* during mount creating both stdin file and stdout file */
+		kiv_vfs::TPath stdin_path;
+		stdin_path.absolute_path = "stdio:stdin";
+		stdin_path.file = "stdin";
+		stdin_path.mount = "stdio";
+		
+		std::shared_ptr<kiv_vfs::IFile> stdin_file = std::make_shared<CFile>(stdin_path, kiv_os::NFile_Attributes::System_File);
+		mStdioFiles.insert(std::pair<std::string, std::shared_ptr<kiv_vfs::IFile>>("stdin", stdin_file));
+
+		kiv_vfs::TPath stdout_path;
+		stdout_path.absolute_path = "stdio:stdout";
+		stdout_path.file = "stdout";
+		stdout_path.mount = "stdio";
+
+		std::shared_ptr<kiv_vfs::IFile> stdout_file = std::make_shared<CFile>(stdout_path, kiv_os::NFile_Attributes::System_File);
+		mStdioFiles.insert(std::pair<std::string, std::shared_ptr<kiv_vfs::IFile>>("stdout", stdout_file));
 	}
 	
-	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(std::shared_ptr<kiv_vfs::TPath> path, kiv_os::NFile_Attributes attributes) {
-		std::shared_ptr<kiv_vfs::IFile> file = std::make_shared<CFile>(path, attributes);
-		
-		return file;
+	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+		if (mStdioFiles.count(path.file)) {
+			return mStdioFiles.at(path.file);
+		}
+
+		return nullptr;
 	}	
 }
 

@@ -55,16 +55,14 @@ namespace kiv_vfs {
 			void Increase_Read_Count();
 			void Decrease_Read_Count();
 
-			std::shared_ptr<TPath> Get_Path();
-			std::shared_ptr<IMounted_File_System> Get_Mount();
+			TPath &Get_Path();
 			unsigned int Get_Write_Count();
 			unsigned int Get_Read_Count();
 			bool Is_Opened();
 			kiv_os::NFile_Attributes Get_Attributes();
 
 		protected:
-			std::shared_ptr<TPath> mPath;
-			std::shared_ptr<IMounted_File_System> mMount;
+			TPath mPath;
 			kiv_os::NFile_Attributes mAttributes;
 			unsigned int mRead_count;
 			unsigned int mWrite_count;
@@ -85,11 +83,10 @@ namespace kiv_vfs {
 	// Class representing one mounted file system (file system's 'Create_Mount' returns instance of class that inherits from this class)
 	class IMounted_File_System {
 		public:
-			virtual std::shared_ptr<IFile> Open_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes);
-			virtual std::shared_ptr<IFile> Create_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes);
-			virtual bool Delete_File(std::shared_ptr<TPath> path);
+			virtual std::shared_ptr<IFile> Open_File(const TPath &path, kiv_os::NFile_Attributes attributes);
+			virtual std::shared_ptr<IFile> Create_File(const TPath &path, kiv_os::NFile_Attributes attributes);
+			virtual bool Delete_File(const TPath &path);
 			std::string Get_Label();
-
 		protected:
 			std::string mLabel;
 	};
@@ -140,14 +137,14 @@ namespace kiv_vfs {
 			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<TFile_Descriptor> &file_desc);
 			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			kiv_os::THandle Get_Free_Fd_Index();
-			std::shared_ptr<IMounted_File_System> Resolve_Mount(std::shared_ptr<TPath> &normalized_path);
-			std::shared_ptr<TPath> Create_Normalized_Path(std::string path);
+			std::shared_ptr<IMounted_File_System> Resolve_Mount(const TPath &normalized_path);
+			TPath Create_Normalized_Path(std::string path);
 			void Increase_File_References(std::shared_ptr<IFile> &file, kiv_os::NFile_Attributes attributes);
 			void Decrease_File_References(std::shared_ptr<TFile_Descriptor> &file_desc);
-			bool Is_File_Cached(std::shared_ptr<TPath> path);
+			bool Is_File_Cached(const TPath &path);
 			void Cache_File(std::shared_ptr<IFile> &file);
 			void Decache_File(std::shared_ptr<IFile> &file);
-			std::shared_ptr<IFile> Get_Cached_File(std::shared_ptr<TPath> path);
+			std::shared_ptr<IFile> Get_Cached_File(const TPath &path);
 	};
 
 	struct TInvalid_Fd_Exception : public std::exception {};

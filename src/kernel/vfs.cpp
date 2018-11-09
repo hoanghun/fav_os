@@ -25,12 +25,8 @@ namespace kiv_vfs {
 		mRead_count--;
 	}
 
-	std::shared_ptr<TPath> IFile::Get_Path() {
+	TPath &IFile::Get_Path() {
 		return mPath;
-	}
-
-	std::shared_ptr<IMounted_File_System> IFile::Get_Mount() {
-		return mMount;
 	}
 
 	unsigned int IFile::Get_Write_Count() {
@@ -67,15 +63,15 @@ namespace kiv_vfs {
 	}
 
 	// Default implementations (concrete filesystem can override those methods)
-	std::shared_ptr<IFile> IMounted_File_System::Open_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes) {
+	std::shared_ptr<IFile> IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
 		return nullptr;
 	}
 
-	std::shared_ptr<IFile> IMounted_File_System::Create_File(std::shared_ptr<TPath> path, kiv_os::NFile_Attributes attributes) {
+	std::shared_ptr<IFile> IMounted_File_System::Create_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
 		return nullptr;
 	}
 
-	bool IMounted_File_System::Delete_File(std::shared_ptr<TPath> path) {
+	bool IMounted_File_System::Delete_File(const TPath &path) {
 		return false;
 	}
 #pragma endregion
@@ -168,7 +164,7 @@ namespace kiv_vfs {
 
 			// File is not opened -> can delete that file
 			else {
-				file->Get_Mount()->Delete_File(file->Get_Path());
+				// file->Get_Mount()->Delete_File(file->Get_Path()); fix
 				mCached_files.erase(it);
 				return true;
 			}
@@ -291,24 +287,24 @@ namespace kiv_vfs {
 		}
 	}
 
-	std::shared_ptr<IMounted_File_System> CVirtual_File_System::Resolve_Mount(std::shared_ptr<TPath> &normalized_path) {
+	std::shared_ptr<IMounted_File_System> CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
 		// TODO
 		return std::make_shared<IMounted_File_System>();
 	}
 
-	std::shared_ptr<TPath> CVirtual_File_System::Create_Normalized_Path(std::string path) {
+	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
 		// TODO
 		// TODO get process's working directory
 		throw TInvalid_Path_Exception(); 
-		return std::make_shared<TPath>();
+		return TPath();
 	}
 
-	bool CVirtual_File_System::Is_File_Cached(std::shared_ptr<TPath> path) {
-		return (mCached_files.find(path->absolute_path) != mCached_files.end());
+	bool CVirtual_File_System::Is_File_Cached(const TPath& path) {
+		return (mCached_files.find(path.absolute_path) != mCached_files.end());
 	}
 
 	void CVirtual_File_System::Cache_File(std::shared_ptr<IFile> &file) {
-		mCached_files.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path()->absolute_path, file));
+		mCached_files.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path().absolute_path, file));
 	}
 
 	void CVirtual_File_System::Decache_File(std::shared_ptr<IFile> &file) {
@@ -316,11 +312,11 @@ namespace kiv_vfs {
 			throw TInternal_Error_Exception();
 		}
 
-		mCached_files.erase(mCached_files.find(file->Get_Path()->absolute_path));
+		mCached_files.erase(mCached_files.find(file->Get_Path().absolute_path));
 	}
 
-	std::shared_ptr<IFile> CVirtual_File_System::Get_Cached_File(std::shared_ptr<TPath> path) {
-		return mCached_files.find(path->absolute_path)->second;
+	std::shared_ptr<IFile> CVirtual_File_System::Get_Cached_File(const TPath &path) {
+		return mCached_files.find(path.absolute_path)->second;
 	}
 
 	void CVirtual_File_System::Increase_File_References(std::shared_ptr<IFile> &file, kiv_os::NFile_Attributes attributes) {
