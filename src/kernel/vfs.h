@@ -156,7 +156,8 @@ namespace kiv_vfs {
 	 */
 	struct TInvalid_Fd_Exception : public std::exception {};
 	struct TFd_Table_Full_Exception : public std::exception {};
-
+	
+	struct TRead_Only : public std::exception{};
 	struct TFile_Not_Found_Exception : public std::exception {};
 	struct TPosition_Out_Of_Range_Exception : public std::exception {};
 

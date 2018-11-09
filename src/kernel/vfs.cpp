@@ -181,8 +181,15 @@ namespace kiv_vfs {
 	unsigned int CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
 		auto file_desc = Get_File_Descriptor(fd_index);
 
-		// TODO
-		return 0;
+		if (!file_desc.file) {
+			throw new kiv_vfs::TFile_Not_Found_Exception();
+		}
+
+		if (!(file_desc.attributes & kiv_vfs::FD_ATTR_WRITE)) {
+			throw new kiv_vfs::TRead_Only();
+		}
+
+		return file_desc.file->Write(buffer, buffer_size, file_desc.position);
 	}
 
 	unsigned int CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
