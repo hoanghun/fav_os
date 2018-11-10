@@ -32,6 +32,10 @@ namespace kiv_thread {
 		// Vyvoti vlakno pro proces
 		bool CThread_Manager::Create_Thread(const size_t pid, kiv_hal::TRegisters& context) {
 
+			kiv_hal::TRegisters regs;
+			regs.rax.x = context.rbx.e >> 16;
+			regs.rbx.x = context.rbx.e && 65536;
+
 			const char* func_name = (char*)(context.rdx.r);
 
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = kiv_process::CProcess_Manager::Get_Instance().process_table[pid];
@@ -49,17 +53,17 @@ namespace kiv_thread {
 			std::unique_lock<std::mutex> lock(kiv_process::CProcess_Manager::ptable);
 			{
 
-				tcb->thread = std::thread(func, context);
-
-				tcb->pcb = pcb;
-				tcb->state = NThread_State::RUNNING;
-				tcb->tid = Hash_Thread_Id(tcb->thread.get_id());
-
-				//return handle to parent process
-				context.rax.r = tcb->tid;
-
 				std::unique_lock<std::mutex> tm_lock(maps_lock);
 				{
+					tcb->thread = std::thread(func, regs);
+
+					tcb->pcb = pcb;
+					tcb->state = NThread_State::RUNNING;
+					tcb->tid = Hash_Thread_Id(tcb->thread.get_id());
+
+					//return handle to parent process
+					context.rax.r = tcb->tid;
+
 					std::shared_ptr<TThread_Control_Block> ptr = tcb;
 					thread_map.emplace(tcb->tid, tcb);
 				}

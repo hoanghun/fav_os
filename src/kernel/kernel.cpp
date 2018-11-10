@@ -94,6 +94,9 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 	{
 		kiv_hal::TRegisters sregs;
 
+		sregs.rbx.e = 0;
+		sregs.rbx.e = (sregs.rbx.e << 16) | 1;
+
 		sregs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
 		sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
 		sregs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Process);

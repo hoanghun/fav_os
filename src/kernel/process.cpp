@@ -153,12 +153,13 @@ namespace kiv_process {
 			pcb->pid = pid;
 			pcb->state = NProcess_State::RUNNING;
 			pcb->name = std::string((char*)(context.rdx.r));
-			pcb->fd_table[0] = 0;
-			pcb->fd_table[1] = 1;
 			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
 			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
 				return false;
 			}
+
+			pcb->fd_table[0] = context.rbx.e >> 16 ;
+			pcb->fd_table[1] = context.rbx.e && 65536;
 
 			pcb->ppid = ppcb->pid;
 			pcb->working_directory = ppcb->working_directory;
@@ -414,17 +415,24 @@ namespace kiv_process {
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
 			
-			//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
-			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
-			
-			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
-
 			std::unique_lock<std::mutex> tm_lock(kiv_thread::CThread_Manager::Get_Instance().maps_lock);
 			{
-				std::shared_ptr<kiv_thread::TThread_Control_Block> ptr = tcb;
+				//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
+				tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
+			
+				tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
+
+				//std::shared_ptr<kiv_thread::TThread_Control_Block> ptr = tcb;
 				kiv_thread::CThread_Manager::Get_Instance().thread_map.emplace(tcb->tid, tcb);
+				kiv_thread::CThread_Manager::Get_Instance().thread_map.emplace(kiv_thread::Hash_Thread_Id(tcb->thread.get_id()), tcb);
+
+				// Otevre stdin a stdout
 			}
 			tm_lock.unlock();
+
+			kiv_os::THandle fd_index = 0;
+			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
+			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
 
 			pcb->thread_table.push_back(tcb);
 			process_table.push_back(pcb);
