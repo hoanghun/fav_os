@@ -153,7 +153,8 @@ namespace kiv_process {
 			pcb->pid = pid;
 			pcb->state = NProcess_State::RUNNING;
 			pcb->name = std::string((char*)(context.rdx.r));
-
+			pcb->fd_table[0] = 0;
+			pcb->fd_table[1] = 1;
 			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
 			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
 				return false;
@@ -167,8 +168,6 @@ namespace kiv_process {
 		}
 		lock.unlock();
 
-		//kiv_thread::CThread_Manager t_manager = kiv_thread::CThread_Manager::Get_Instance();
-		//t_manager.Create_Thread(pid, context);
 		kiv_thread::CThread_Manager::Get_Instance().Create_Thread(pid, context);
 
 		return true;
@@ -414,8 +413,10 @@ namespace kiv_process {
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
+			/*
 			//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
 			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
+			*/
 			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
 
 			std::unique_lock<std::mutex> tm_lock(kiv_thread::CThread_Manager::Get_Instance().maps_lock);
