@@ -16,6 +16,18 @@ HMODULE User_Programs;
 
 void Initialize_Kernel() {
 	User_Programs = LoadLibraryW(L"user.dll");
+
+	/*
+	 * Registering all known file systems crucial for kernel
+	 */
+	kiv_fs_stdio::CFile_System stdio_system("stdio");
+
+	stdio_system.Register();
+
+	/*
+	 * Mounting registered
+	 */
+	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_Registered();
 }
 
 void Shutdown_Kernel() {

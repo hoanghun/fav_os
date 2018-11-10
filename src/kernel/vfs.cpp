@@ -129,8 +129,8 @@ namespace kiv_vfs {
 
 	void CVirtual_File_System::Mount_Registered() {
 		for (auto reg_file_system : mRegistered_file_systems) {
-			auto mount = reg_file_system->Create_Mount("?");
-			mMounted_file_systems.insert(std::make_pair("?", mount)); // TODO 
+			auto mount = reg_file_system->Create_Mount(reg_file_system->Get_Name());
+			mMounted_file_systems.insert(std::make_pair(reg_file_system->Get_Name(), mount)); // TODO 
 		}
 	}
 

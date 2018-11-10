@@ -164,6 +164,7 @@ namespace kiv_process {
 			ppcb->cpids.push_back(pid);
 
 			//CHECK 
+
 			//try {
 			//	kiv_os::THandle fd_index = 0;
 			//	kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);

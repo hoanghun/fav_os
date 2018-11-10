@@ -47,10 +47,8 @@ namespace tmp { // todo remove tmp
 
 #pragma region Register
 namespace kiv_fs_stdio {
-	CFile_System::CFile_System() {
-#ifdef _DEBUG
-		//std::cout << "Big dick pic" << std::endl;
-#endif
+	CFile_System::CFile_System(std::string name) {
+		mName = name;
 	}
 
 	bool CFile_System::Register() {
