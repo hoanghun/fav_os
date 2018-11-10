@@ -47,7 +47,7 @@ namespace kiv_process {
 
 			std::vector<std::shared_ptr<kiv_thread::TThread_Control_Block>> thread_table;
 			std::map<kiv_os::THandle, kiv_os::THandle> fd_table; // Process handle -> VFS handle
-			unsigned int last_fd;
+			kiv_os::THandle last_fd;
 		};
 
 		class CProcess_Manager {
@@ -64,9 +64,9 @@ namespace kiv_process {
 				bool Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir);
 				bool Get_Working_Directory(const size_t &tid, kiv_vfs::TPath *dir) const;
 				
-				bool Save_Fd(const kiv_os::THandle &fd_index);
+				kiv_os::THandle Save_Fd(const kiv_os::THandle &fd_index);
 				bool Remove_Fd(const kiv_os::THandle &fd_index);
-				bool Get_Fd(const size_t &position, kiv_os::THandle &fd);
+				bool Get_Fd(const kiv_os::THandle &position, kiv_os::THandle &fd);
 
 				void Shutdown();
 
@@ -83,7 +83,7 @@ namespace kiv_process {
 				void Create_Sys_Process();
 				void Reap_Process();
 
-				unsigned int Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
+				kiv_os::THandle Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 				void Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 
 		};

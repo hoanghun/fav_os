@@ -1,5 +1,7 @@
 #include "fs_stdio.h"
 
+#include <iostream>
+
 #pragma region Util
 namespace tmp { // todo remove tmp
 	size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
@@ -118,8 +120,9 @@ namespace kiv_fs_stdio {
 		std::shared_ptr<kiv_vfs::IFile> stdout_file = std::make_shared<CFile>(stdout_path, kiv_os::NFile_Attributes::System_File);
 		mStdioFiles.insert(std::pair<std::string, std::shared_ptr<kiv_vfs::IFile>>("stdout", stdout_file));
 	}
-	
+
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+		std::cout << "ajaj" << std::endl;
 		if (mStdioFiles.count(path.file)) {
 			return mStdioFiles.at(path.file);
 		}

@@ -1,5 +1,7 @@
 #include "vfs.h"
 
+#include <iostream>
+
 namespace kiv_vfs {
 
 #pragma region File
@@ -76,6 +78,7 @@ namespace kiv_vfs {
 
 	// Default implementations (concrete filesystem can override those methods)
 	std::shared_ptr<IFile> IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
+		std::cout << "wtf" << std::endl;
 		return nullptr;
 	}
 
@@ -91,18 +94,21 @@ namespace kiv_vfs {
 
 #pragma region Virtual file system
 
-	CVirtual_File_System *CVirtual_File_System::instance = new CVirtual_File_System();
+	CVirtual_File_System *CVirtual_File_System::instance = nullptr;
 
-	CVirtual_File_System::CVirtual_File_System() {
+	CVirtual_File_System::CVirtual_File_System() : mFd_count(0) {
 		mRegistered_file_systems.reserve(MAX_FS_REGISTERED);
 	}
 
 	void CVirtual_File_System::Destroy() {
-		// TODO cleanup?
 		delete instance;
 	}
 
 	CVirtual_File_System &CVirtual_File_System::Get_Instance() {
+		if (instance == nullptr) {
+			instance = new CVirtual_File_System();
+		}
+
 		return *instance;
 	}
 
@@ -130,7 +136,7 @@ namespace kiv_vfs {
 	void CVirtual_File_System::Mount_Registered() {
 		for (auto reg_file_system : mRegistered_file_systems) {
 			auto mount = reg_file_system->Create_Mount(reg_file_system->Get_Name());
-			mMounted_file_systems.insert(std::make_pair(reg_file_system->Get_Name(), mount)); // TODO 
+			mMounted_file_systems.insert(std::make_pair(reg_file_system->Get_Name(), mount));
 		}
 	}
 
@@ -154,7 +160,7 @@ namespace kiv_vfs {
 		// File is not cached -> resolve file and cache file
 		else {
 			auto mount = Resolve_Mount(normalized_path); // throws TFile_Not_Found_Exception
-			file = mount.Open_File(normalized_path, attributes);
+			file = mount->Open_File(normalized_path, attributes);
 			if (!file) {
 				throw TFile_Not_Found_Exception();
 			}
@@ -164,6 +170,7 @@ namespace kiv_vfs {
 			Cache_File(file);
 		}
 
+		fd_index = free_fd;
 		Put_File_Descriptor(free_fd, file, attributes);
 
 		return true;
@@ -190,7 +197,7 @@ namespace kiv_vfs {
 			}
 		}
 
-		auto file = mount.Create_File(normalized_path, attributes);
+		auto file = mount->Create_File(normalized_path, attributes);
 		if (!file) {
 			throw TNot_Enough_Space_Exception();
 		}
@@ -204,7 +211,7 @@ namespace kiv_vfs {
 		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Excep
 
 		Remove_File_Descriptor(fd_index);
-
+		
 		// TODO Remove record in PCB
 		return false;
 	}
@@ -232,7 +239,7 @@ namespace kiv_vfs {
 		// File is not cached
 		else {
 			auto mount = Resolve_Mount(normalized_path); // Throws TFile_Not_Found_Exception
-			if (mount.Delete_File(normalized_path)) {
+			if (mount->Delete_File(normalized_path)) {
 				throw TFile_Not_Found_Exception();
 			}
 		}
@@ -311,7 +318,7 @@ namespace kiv_vfs {
 		TPath normalized_path = Create_Normalized_Path(path); // Throws File_Not_Found_Exception
 		auto mount = Resolve_Mount(normalized_path); // Throws File_Not_Found_Exception
 
-		if (!mount.Open_File(normalized_path, kiv_os::NFile_Attributes::Read_Only)) { // TODO correct attrs?
+		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Read_Only)) { // TODO correct attrs?
 			// TODO prevent from deleting working directory?
 			throw TFile_Not_Found_Exception();
 		}
@@ -339,7 +346,7 @@ namespace kiv_vfs {
 	// ====================
 
 	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
-		if (!mFile_descriptors[fd_index].file) {
+		if (fd_index > MAX_FILE_DESCRIPTORS || !mFile_descriptors[fd_index].file) {
 			throw TInvalid_Fd_Exception();
 		}
 
@@ -388,9 +395,9 @@ namespace kiv_vfs {
 		return -1; // fix hack not all paths lead to return --- 
 	}
 
-	IMounted_File_System &CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
+	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
 		// TODO throw TFile_Not_Found_Exception when bad mount
-		return *mMounted_file_systems.at(normalized_path.mount);
+		return mMounted_file_systems.at(normalized_path.mount);
 	}
 
 	bool CVirtual_File_System::Is_File_Cached(const TPath& path) {

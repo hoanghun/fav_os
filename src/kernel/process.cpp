@@ -162,22 +162,6 @@ namespace kiv_process {
 			pcb->ppid = ppcb->pid;
 			pcb->working_directory = ppcb->working_directory;
 			ppcb->cpids.push_back(pid);
-
-			//CHECK 
-
-			//try {
-			//	kiv_os::THandle fd_index = 0;
-			//	kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
-			//	context.rbx.e = fd_index;
-			//	kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
-			//	context.rbx.e = (context.rbx.e << 16) | fd_index;
-			//}
-			//catch (kiv_vfs::TFile_Not_Found_Exception) {
-			//	//TODO
-			//}
-			//catch (kiv_vfs::TPermission_Denied_Exception) {
-			//	//TODO
-			//}
 			
 			process_table.push_back(pcb);
 		}
@@ -348,7 +332,7 @@ namespace kiv_process {
 
 	}
 
-	unsigned int CProcess_Manager::Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
+	kiv_os::THandle CProcess_Manager::Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
 
 		std::unique_lock<std::mutex> lock(ptable);
 		{
@@ -360,7 +344,7 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Save_Fd(const kiv_os::THandle &fd_index) {
+	kiv_os::THandle CProcess_Manager::Save_Fd(const kiv_os::THandle &fd_index) {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
@@ -390,12 +374,11 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Get_Fd(const size_t &position, kiv_os::THandle &fd) {
+	bool CProcess_Manager::Get_Fd(const kiv_os::THandle &position, kiv_os::THandle &fd) {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
-		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
-			
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {	
 			if (tcb->pcb->fd_table.size() < position) {
 				return false;
 			}
@@ -407,7 +390,6 @@ namespace kiv_process {
 		else {
 			return false;
 		}
-
 	}
 
 #pragma region System_Processes

@@ -152,12 +152,13 @@ namespace kiv_vfs {
 			bool Mount_File_System(std::string fs_name, std::string label, TDisk_Number = 0);
 			void Mount_Registered();
 			void UMount();
+			unsigned int mFd_count;
 		// TODO Locks
 		private:
 			CVirtual_File_System(); 
 			static CVirtual_File_System *instance;
 
-			unsigned int mFd_count = 0;
+			
 			unsigned int mCached_files_count = 0;
 			unsigned int mRegistered_fs_count = 0;
 			unsigned int mMounted_fs_count = 0;
@@ -176,7 +177,7 @@ namespace kiv_vfs {
 			void Remove_File_Descriptor(kiv_os::THandle fd_index);
 			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			kiv_os::THandle Get_Free_Fd_Index();
-			IMounted_File_System &Resolve_Mount(const TPath &normalized_path);
+			IMounted_File_System *Resolve_Mount(const TPath &normalized_path);
 			TPath Create_Normalized_Path(std::string path);
 			void Increase_File_References(TFile_Descriptor &file_desc);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);

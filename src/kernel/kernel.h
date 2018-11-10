@@ -6,3 +6,4 @@
 
 void Set_Error(const bool failed, kiv_hal::TRegisters &regs);
 void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context);
+void __stdcall Sys_Call(kiv_hal::TRegisters &context);
