@@ -66,6 +66,7 @@ namespace kiv_process {
 				
 				bool Save_Fd(const kiv_os::THandle &fd_index);
 				bool Remove_Fd(const kiv_os::THandle &fd_index);
+				bool Get_Fd(const size_t &position, kiv_os::THandle &fd);
 
 				void Shutdown();
 
@@ -82,8 +83,8 @@ namespace kiv_process {
 				void Create_Sys_Process();
 				void Reap_Process();
 
-				bool Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
-				bool Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
+				unsigned int Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
+				void Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 
 		};
 }

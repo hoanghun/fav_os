@@ -348,7 +348,7 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
+	unsigned int CProcess_Manager::Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
 
 		std::unique_lock<std::mutex> lock(ptable);
 		{
@@ -356,7 +356,7 @@ namespace kiv_process {
 		}
 		lock.unlock();
 
-		return true;
+		return pcb->last_fd - 1;
 
 	}
 
@@ -372,9 +372,8 @@ namespace kiv_process {
 		}
 	}
 
-	bool CProcess_Manager::Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
+	void CProcess_Manager::Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
 		pcb->fd_table.erase(fd_index);
-		return true;
 	}
 
 	bool CProcess_Manager::Remove_Fd(const kiv_os::THandle &fd_index) {
@@ -382,7 +381,28 @@ namespace kiv_process {
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
 		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()) , &tcb)) {
-			return Remove_Fd(tcb->pcb, fd_index);
+			Remove_Fd(tcb->pcb, fd_index);
+			return true;
+		}
+		else {
+			return false;
+		}
+
+	}
+
+	bool CProcess_Manager::Get_Fd(const size_t &position, kiv_os::THandle &fd) {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
+			
+			if (tcb->pcb->fd_table.size() < position) {
+				return false;
+			}
+			else {
+				fd = tcb->pcb->fd_table.at(position);
+				return true;
+			}	
 		}
 		else {
 			return false;
