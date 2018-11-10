@@ -9,11 +9,23 @@ namespace kiv_process {
 	bool system_shutdown = false;
 	int waiting_time = 50;
 
+	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
+		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
+		case kiv_os::NClone::Create_Process:
+			kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
+			break;
+
+		case kiv_os::NClone::Create_Thread:
+			kiv_thread::CThread_Manager::Get_Instance().Create_Thread(regs);
+			break;
+		}
+	}
+
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
 
 		case kiv_os::NOS_Process::Clone:
-			CProcess_Manager::Get_Instance().Create_Process(regs);
+			Handle_Clone_Call(regs);
 			break;
 		case kiv_os::NOS_Process::Exit:
 			kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(regs);
@@ -39,18 +51,6 @@ namespace kiv_process {
 			break;
 		case kiv_os::NOS_Process::Read_Exit_Code:
 			kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(regs);
-			break;
-		}
-	}
-
-	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
-		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
-		case kiv_os::NClone::Create_Process:
-			kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
-			break;
-
-		case kiv_os::NClone::Create_Thread:
-			kiv_thread::CThread_Manager::Get_Instance().Create_Thread(regs);
 			break;
 		}
 	}
