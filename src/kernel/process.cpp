@@ -413,10 +413,10 @@ namespace kiv_process {
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
-			/*
+			
 			//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
 			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
-			*/
+			
 			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
 
 			std::unique_lock<std::mutex> tm_lock(kiv_thread::CThread_Manager::Get_Instance().maps_lock);
@@ -430,7 +430,6 @@ namespace kiv_process {
 			process_table.push_back(pcb);
 		}
 		lock.unlock();
-
 	}
 
 	//Stara se o procesy, kterym skoncil rodicovsky proces aniz by si precetl
@@ -456,8 +455,7 @@ namespace kiv_process {
 				}
 				ptable.unlock();
 			}
-			else
-			{
+			else {
 				//Pokud nedostaneme zamek nad process_table nema cenu pokracovat, ale chceme se dostat k praci co nejdrive
 				std::this_thread::yield();
 			}

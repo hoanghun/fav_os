@@ -189,7 +189,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
 	char *buffer = reinterpret_cast<char *>(regs.rdi.r);
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
-
+	size_t bytes_read;
 	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
 #ifdef _DEBUG
 		printf("FD not found\n");
@@ -198,7 +198,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 
 	kiv_os::NOS_Error result;
 	try {
-		vfs.Read_File(vfs_handle, buffer, buf_size);
+		bytes_read = vfs.Read_File(vfs_handle, buffer, buf_size);
 		result = kiv_os::NOS_Error::Success;
 	}
 	catch (kiv_vfs::TPermission_Denied_Exception e) {
@@ -207,7 +207,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 	catch (...) { // including TInvalid_Fd_Exception
 		result = kiv_os::NOS_Error::Unknown_Error;
 	}
-
+	regs.rax.r = bytes_read;
 	Set_Result(regs, result);
 }
 

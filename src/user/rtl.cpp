@@ -40,7 +40,6 @@ void kiv_os_rtl::Exit(const int exit_code) {
 	regs.rcx.r = 0;
 
 	kiv_os::Sys_Call(regs);
-
 }
 
 bool kiv_os_rtl::Clone(const char *prog_name, const char *args, size_t &handle) {

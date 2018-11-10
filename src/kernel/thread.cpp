@@ -41,31 +41,6 @@ namespace kiv_thread {
 			if (!func) {
 				return false;
 			}
-			kiv_hal::TRegisters stdin_regs;
-			kiv_hal::TRegisters stdout_regs;
-
-			// move to different file ! TODO
-			stdin_regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::File_System);
-			stdin_regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_File_System::Open_File);
-			stdin_regs.rdx.r = reinterpret_cast<decltype(stdin_regs.rdx.r)>(kiv_vfs::STDIN_PATH.c_str());
-			stdin_regs.rcx.r = static_cast<uint8_t>(kiv_os::NOpen_File::fmOpen_Always);
-			stdin_regs.rdi.r = static_cast<uint8_t>(kiv_os::NFile_Attributes::System_File);
-
-			Sys_Call(stdin_regs);
-
-			stdout_regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::File_System);
-			stdout_regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_File_System::Open_File);
-			stdout_regs.rdx.r = reinterpret_cast<decltype(stdin_regs.rdx.r)>(kiv_vfs::STDOUT_PATH.c_str());
-			stdout_regs.rcx.r = static_cast<uint8_t>(kiv_os::NOpen_File::fmOpen_Always);
-			stdout_regs.rdi.r = static_cast<uint8_t>(kiv_os::NFile_Attributes::System_File);
-
-			Sys_Call(stdout_regs);
-
-			context.rax.x = stdin_regs.rax.x;
-			context.rbx.x = stdout_regs.rax.x;
-
-			kiv_process::CProcess_Manager::Get_Instance().Save_Fd(context.rax.x);
-			kiv_process::CProcess_Manager::Get_Instance().Save_Fd(context.rbx.x);
 
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
