@@ -30,7 +30,7 @@ namespace kiv_fs_proc {
 
 	class CMount : public kiv_vfs::IMounted_File_System {
 		public:
-			CMount(std::string label, kiv_vfs::TDisk_Number disk);
+			CMount(std::string label);
 			virtual std::shared_ptr<kiv_vfs::IFile> Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
 			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
 			virtual bool Delete_File(const kiv_vfs::TPath &path) final override;

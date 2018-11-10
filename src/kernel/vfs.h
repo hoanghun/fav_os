@@ -11,6 +11,7 @@ namespace kiv_vfs {
 	using TFD_Attributes = std::uint8_t;
 
 	// All possible file descriptor attributes and their combinations
+	const TFD_Attributes FD_ATTR_FREE = 0x00;
 	const TFD_Attributes FD_ATTR_READ = 0x01;
 	const TFD_Attributes FD_ATTR_WRITE = 0x02;
 	const TFD_Attributes FD_ATTR_RW = FD_ATTR_READ | FD_ATTR_WRITE;
@@ -104,20 +105,42 @@ namespace kiv_vfs {
 			/*
 			 * Sys calls
 			 */
-			// Throws TFd_Table_Full_Exception, TFile_Not_Found_Exception, TInvalid_Mount_Exception
+
+			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception
 			bool Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+
+			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception, 
+			//			TNot_Enough_Space_Exception
 			bool Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+
+			// Throws	TInvalid_Fd_Exception
 			bool Close_File(kiv_os::THandle fd_index);
-			// Throws TInvalid_Path_Exception, TFile_Not_Found_Exception
+
+			// Throws	TFile_Not_Found_Exception, TPermission_Denied_Exception
 			bool Delete_File(std::string path);
+
+			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
 			size_t Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+
+			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
 			size_t Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
-			// Throws TPosition_Out_Of_Range_Exception
+
+			// Throws	TInvalid_Fd_Exception, TPosition_Out_Of_Range_Exception
 			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+
+			// TODO
 			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+
+			// Throws	TInvalid_Fd_Exception
 			size_t Get_Position(kiv_os::THandle fd_index);
+
+			// TODO
 			bool Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
-			// TODO Set working directory, get working directory?
+
+			// Throws	File_Not_Found_Exception
+			void Set_Working_Directory(char *path);
+
+			size_t Get_Working_Directory(char *buffer, size_t buf_size);
 			 
 			/*
 			 * mounting systems
@@ -143,15 +166,16 @@ namespace kiv_vfs {
 			//std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
 			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
 			
-			TFile_Descriptor Create_File_Descriptor(std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
+			
 			// Throws TInvalid_Fd_Exception whed FD is not found
 			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index);
-			void Put_File_Descriptor(kiv_os::THandle fd_index, TFile_Descriptor &file_desc);
+			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
+			void Remove_File_Descriptor(kiv_os::THandle fd_index);
 			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			kiv_os::THandle Get_Free_Fd_Index();
 			IMounted_File_System &Resolve_Mount(const TPath &normalized_path);
 			TPath Create_Normalized_Path(std::string path);
-			void Increase_File_References(std::shared_ptr<IFile> &file, kiv_os::NFile_Attributes attributes);
+			void Increase_File_References(TFile_Descriptor &file_desc);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);
 			bool Is_File_Cached(const TPath &path);
 			void Cache_File(std::shared_ptr<IFile> &file);
@@ -165,9 +189,11 @@ namespace kiv_vfs {
 	struct TInvalid_Fd_Exception : public std::exception {};
 	struct TFd_Table_Full_Exception : public std::exception {};
 	
-	struct TRead_Only : public std::exception{};
+	struct TPermission_Denied_Exception : public std::exception {};
 	struct TFile_Not_Found_Exception : public std::exception {};
 	struct TPosition_Out_Of_Range_Exception : public std::exception {};
+	struct TNot_Enough_Space_Exception : public std::exception {};
+	struct TInvalid_Operation_Exception : public std::exception {};
 
 	struct TInvalid_Path_Exception : public std::exception {};
 	struct TInvalid_Mount_Exception : public std::exception {};

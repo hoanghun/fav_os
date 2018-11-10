@@ -13,7 +13,7 @@ namespace kiv_fs_proc {
 	}
 
 	kiv_vfs::IMounted_File_System *CFile_System::Create_Mount(const std::string label, const kiv_vfs::TDisk_Number disk_number) {
-		return new CMount(label, disk_number);
+		return new CMount(label);
 	}
 
 #pragma endregion
@@ -45,9 +45,8 @@ namespace kiv_fs_proc {
 
 #pragma region Mount
 
-	CMount::CMount(std::string label, kiv_vfs::TDisk_Number disk) { 
+	CMount::CMount(std::string label) { 
 		mLabel = label;
-		mDisk = disk;
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
