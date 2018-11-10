@@ -164,12 +164,20 @@ namespace kiv_process {
 			ppcb->cpids.push_back(pid);
 
 			//CHECK 
-			/*kiv_os::THandle fd_index = 0;
-			Open_File(pcb, "stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
-			context.rbx.e = fd_index;
-			Open_File(pcb, "stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
-			context.rbx.e = (context.rbx.e << 16) | fd_index;*/
-
+			//try {
+			//	kiv_os::THandle fd_index = 0;
+			//	kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
+			//	context.rbx.e = fd_index;
+			//	kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
+			//	context.rbx.e = (context.rbx.e << 16) | fd_index;
+			//}
+			//catch (kiv_vfs::TFile_Not_Found_Exception) {
+			//	//TODO
+			//}
+			//catch (kiv_vfs::TPermission_Denied_Exception) {
+			//	//TODO
+			//}
+			
 			process_table.push_back(pcb);
 		}
 		lock.unlock();
@@ -339,55 +347,41 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Open_File(const std::shared_ptr<TProcess_Control_Block> &pcb, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
+	bool CProcess_Manager::Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
 
-			try {
-				if (kiv_vfs::CVirtual_File_System::Get_Instance().Open_File(path, attributes, fd_index) == false) {
-					return false;
-				}
+		std::unique_lock<std::mutex> lock(ptable);
+		{
+			pcb->fd_table.emplace(pcb->last_fd++, fd_index);
+		}
+		lock.unlock();
 
-				std::unique_lock<std::mutex> lock(ptable);
-				{
-					pcb->fd_table.emplace(pcb->last_fd++, fd_index);
-				}
-				lock.unlock();
-
-				return true;
-			}
-			catch (kiv_vfs::TFile_Not_Found_Exception) {
-				//TODO možná nechat výjimku aby se propagovala výš
-				return false;
-			}
-			catch (kiv_vfs::TPermission_Denied_Exception) {
-				//TODO možná nechat výjimku aby se propagovala výš
-				return false;
-			}
+		return true;
 
 	}
 
-	bool CProcess_Manager::Open_File(const size_t &tid, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
+	bool CProcess_Manager::Save_Fd(const kiv_os::THandle &fd_index) {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
-		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
-			return Open_File(tcb->pcb, path, attributes, fd_index);
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()) , &tcb)) {
+			return Save_Fd(tcb->pcb, fd_index);
 		}
 		else {
 			return false;
 		}
 	}
 
-	bool CProcess_Manager::Close_File(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
+	bool CProcess_Manager::Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
 		pcb->fd_table.erase(fd_index);
 		return true;
 	}
 
-	bool CProcess_Manager::Close_File(const size_t &tid, const kiv_os::THandle &fd_index) {
+	bool CProcess_Manager::Remove_Fd(const kiv_os::THandle &fd_index) {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
-		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
-			return Close_File(tcb->pcb, fd_index);
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()) , &tcb)) {
+			return Remove_Fd(tcb->pcb, fd_index);
 		}
 		else {
 			return false;
