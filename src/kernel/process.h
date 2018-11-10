@@ -43,7 +43,7 @@ namespace kiv_process {
 			size_t ppid;
 			std::vector<size_t> cpids;
 			NProcess_State state;
-			std::string working_directory;
+			kiv_vfs::TPath working_directory;
 
 			std::vector<std::shared_ptr<kiv_thread::TThread_Control_Block>> thread_table;
 			std::map<kiv_os::THandle, kiv_os::THandle> fd_table; // Process handle -> VFS handle
@@ -61,10 +61,11 @@ namespace kiv_process {
 				bool Create_Process(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
 
-				bool Set_Working_Directory(const size_t &tid, const std::string &dir);
-				bool Get_Working_Directory(const size_t &tid, std::string *dir) const;
+				bool Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir);
+				bool Get_Working_Directory(const size_t &tid, kiv_vfs::TPath *dir) const;
 				
-				bool Open_File(const size_t &tid, const size_t &index, const kiv_vfs::TPath &path);
+				bool Open_File(const size_t &tid, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+				bool Close_File(const size_t &tid, const kiv_os::THandle &fd_index);
 
 				void Shutdown();
 
@@ -80,6 +81,9 @@ namespace kiv_process {
 				void Check_Process_State(std::shared_ptr<TProcess_Control_Block> pid);
 				void Create_Sys_Process();
 				void Reap_Process();
+
+				bool Open_File(const std::shared_ptr<TProcess_Control_Block> &tid, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+				bool Close_File(const std::shared_ptr<TProcess_Control_Block> &tid, const kiv_os::THandle &fd_index);
 
 		};
 }

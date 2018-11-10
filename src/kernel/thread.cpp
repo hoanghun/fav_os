@@ -41,14 +41,12 @@ namespace kiv_thread {
 				return false;
 			}
 	
-			//TODO move to block ??
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
 			// uzamknuti tabulky procesu tzn. i tabulky vlaken
 			// mozna by slo udelat efektivneji nez zamykat celou tabulku
-			kiv_process::CProcess_Manager::ptable.lock();
+			std::unique_lock<std::mutex> lock(kiv_process::CProcess_Manager::ptable);
 			{
-				//std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
 				tcb->thread = std::thread(func, context);
 
@@ -59,12 +57,12 @@ namespace kiv_thread {
 				//return handle to parent process
 				context.rax.r = tcb->tid;
 
-				std::unique_lock<std::mutex> lock(maps_lock);
+				std::unique_lock<std::mutex> tm_lock(maps_lock);
 				{
 					std::shared_ptr<TThread_Control_Block> ptr = tcb;
 					thread_map.emplace(tcb->tid, tcb);
 				}
-				lock.unlock();
+				tm_lock.unlock();
 
 
 
@@ -73,10 +71,7 @@ namespace kiv_thread {
 
 				pcb->thread_table.push_back(tcb);
 			}
-			kiv_process::CProcess_Manager::ptable.unlock();
-
-			//TODO REMOVE
-			//tcb->thread.join();
+			lock.unlock();
 
 			return true;
 		}
@@ -178,7 +173,6 @@ namespace kiv_thread {
 			}
 
 			for (int i = 0; i < tids_count; i++) {
-				/*std::shared_ptr<bool> sptr = std::make_shared<bool>(events[i]);*/
 				Add_Event(tids[i], &events[i]);
 				events[i] = false;
 				i++;

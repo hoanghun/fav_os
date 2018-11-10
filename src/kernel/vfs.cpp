@@ -326,7 +326,10 @@ namespace kiv_vfs {
 		if (buf_size < working_dir.length()) {
 			return 0;
 		}
-		std::copy(working_dir.begin(), working_dir.end(), buffer);
+		
+		// UNSAFE std::copy(working_dir.begin(), working_dir.end(), buffer);
+		stdext::checked_array_iterator<char *> chai(buffer, buf_size);
+		std::copy(working_dir.begin(), working_dir.end(), chai);
 
 		return working_dir.length();
 	}

@@ -50,7 +50,7 @@ namespace kiv_process {
 			break;
 
 		case kiv_os::NClone::Create_Thread:
-			// TODO call to create new thread
+			kiv_thread::CThread_Manager::Get_Instance().Create_Thread(regs);
 			break;
 		}
 	}
@@ -137,7 +137,6 @@ namespace kiv_process {
 	}
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {
-		const char* prog_name = (char*)(context.rdx.r);
 
 		size_t pid;
 		if (!pid_manager->Get_Free_Pid(&pid)) {
@@ -153,7 +152,7 @@ namespace kiv_process {
 
 			pcb->pid = pid;
 			pcb->state = NProcess_State::RUNNING;
-			// TODO name
+			pcb->name = std::string((char*)(context.rdx.r));
 
 			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
 			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
@@ -161,8 +160,15 @@ namespace kiv_process {
 			}
 
 			pcb->ppid = ppcb->pid;
-			//pcb->working_directory = ppcb->working_directory
+			pcb->working_directory = ppcb->working_directory;
 			ppcb->cpids.push_back(pid);
+
+			//CHECK 
+			/*kiv_os::THandle fd_index = 0;
+			Open_File(pcb, "stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
+			context.rbx.e = fd_index;
+			Open_File(pcb, "stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
+			context.rbx.e = (context.rbx.e << 16) | fd_index;*/
 
 			process_table.push_back(pcb);
 		}
@@ -210,16 +216,18 @@ namespace kiv_process {
 
 	}
 
-	//TODO doladit co vsechno ma delat
+	//Zkontroluje zda process skoncil tzn. vsechny vlakna jsou ve stavu terminated
+	//a provede potrebne akce
 	void CProcess_Manager::Check_Process_State(std::shared_ptr<TProcess_Control_Block> pcb) {
 		
-		ptable.lock();
+		std::unique_lock<std::mutex> lock(ptable);
 		{
 
 			bool terminated = true;
 			size_t position = 0;
 			for (auto tcb : pcb->thread_table) {
 
+				//Pokud vlakno skoncilo tak ho smazeme
 				if (tcb->state == kiv_thread::NThread_State::TERMINATED) {
 
 					tcb->pcb = nullptr;
@@ -234,9 +242,17 @@ namespace kiv_process {
 				position++;
 			}
 
+			//Pokud jiz nebezi zadne vlakno v procesu tzn. proces je ukoncen
 			if (terminated) {
 
-				//If there are not terminated child processes
+				//Uzavirani vsech otevrenych souboru
+				for (auto &item : pcb->fd_table) {
+					kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(item.second);
+				}
+
+				pcb->fd_table.clear();
+
+				//Pokud bezi nejake child procesy tak je predame rodici
 				for (size_t cpid : pcb->cpids) {
 					if (process_table[cpid]->state != NProcess_State::TERMINATED) {
 						process_table[pcb->ppid]->cpids.push_back(cpid);
@@ -249,13 +265,13 @@ namespace kiv_process {
 			}
 
 		}
-		ptable.unlock();
+		lock.unlock();
 
 	}
 
 	void CProcess_Manager::Shutdown() {
 		
-		kiv_hal::TRegisters registers;
+		kiv_hal::TRegisters regs;
 		//TODO set registers to contain informations
 
 		//Zastavi vsechny systemove procesy
@@ -278,7 +294,7 @@ namespace kiv_process {
 					tcb->pcb = nullptr;
 				}
 				else {
-					tcb->terminate_handler(registers);
+					tcb->terminate_handler(regs);
 					// TODO mohlo by se stat ze se nedockam
 					tcb->thread.join();
 					kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(tcb->tid, exit_code);
@@ -290,7 +306,7 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Set_Working_Directory(const size_t &tid, const std::string &dir) {
+	bool CProcess_Manager::Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir) {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
@@ -308,7 +324,7 @@ namespace kiv_process {
 		return true;
 	}
 
-	bool CProcess_Manager::Get_Working_Directory(const size_t &tid, std::string * dir) const {
+	bool CProcess_Manager::Get_Working_Directory(const size_t &tid, kiv_vfs::TPath * dir) const {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
@@ -323,18 +339,60 @@ namespace kiv_process {
 
 	}
 
-	bool CProcess_Manager::Open_File(const size_t &tid, const size_t &index, const kiv_vfs::TPath &path) {
+	bool CProcess_Manager::Open_File(const std::shared_ptr<TProcess_Control_Block> &pcb, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
 
-	/*	std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+			try {
+				if (kiv_vfs::CVirtual_File_System::Get_Instance().Open_File(path, attributes, fd_index) == false) {
+					return false;
+				}
+
+				std::unique_lock<std::mutex> lock(ptable);
+				{
+					pcb->fd_table.emplace(pcb->last_fd++, fd_index);
+				}
+				lock.unlock();
+
+				return true;
+			}
+			catch (kiv_vfs::TFile_Not_Found_Exception) {
+				//TODO možná nechat výjimku aby se propagovala výš
+				return false;
+			}
+			catch (kiv_vfs::TPermission_Denied_Exception) {
+				//TODO možná nechat výjimku aby se propagovala výš
+				return false;
+			}
+
+	}
+
+	bool CProcess_Manager::Open_File(const size_t &tid, const std::string &path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
 		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
-
+			return Open_File(tcb->pcb, path, attributes, fd_index);
 		}
 		else {
 			return false;
-		}*/
-		//TODO
-		return false;
+		}
+	}
+
+	bool CProcess_Manager::Close_File(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index) {
+		pcb->fd_table.erase(fd_index);
+		return true;
+	}
+
+	bool CProcess_Manager::Close_File(const size_t &tid, const kiv_os::THandle &fd_index) {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+			return Close_File(tcb->pcb, fd_index);
+		}
+		else {
+			return false;
+		}
+
 	}
 
 #pragma region System_Processes
@@ -344,32 +402,41 @@ namespace kiv_process {
 
 		//Na zaèátku musí být urèitì volný pid, proto nenní potøeba kontrolovat 
 		
-		ptable.lock();
+		std::unique_lock<std::mutex> lock(ptable);
 		{
 			// Nastavíme PCB pro systémový proces
 			std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
 			pcb->name = "system";
 			pcb->pid = 0;
-			pcb->ppid = 0; //TODO negative value could be better, but size_t ....
+			pcb->ppid = 0; //CHECK negative value could be better, but size_t ....
 			pcb->state = NProcess_State::RUNNING;
+			//TODO pcb->working_directory = DEFAULT;
 
 			// Nastavíme vlákno pro systémový proces
 			std::shared_ptr<kiv_thread::TThread_Control_Block> tcb = std::make_shared<kiv_thread::TThread_Control_Block>();
 			tcb->pcb = pcb;
 			tcb->state = kiv_thread::NThread_State::RUNNING;
 			tcb->terminate_handler = nullptr;
-			//TODO pri nacitani dll se zasekne pokud ihned inicializujeme instanci
+			//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
 			tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
 			tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
+
+			std::unique_lock<std::mutex> tm_lock(kiv_thread::CThread_Manager::Get_Instance().maps_lock);
+			{
+				std::shared_ptr<kiv_thread::TThread_Control_Block> ptr = tcb;
+				kiv_thread::CThread_Manager::Get_Instance().thread_map.emplace(tcb->tid, tcb);
+			}
+			tm_lock.unlock();
 
 			pcb->thread_table.push_back(tcb);
 			process_table.push_back(pcb);
 		}
-		ptable.unlock();
+		lock.unlock();
 
 	}
 
-	//Stara se o procesy
+	//Stara se o procesy, kterym skoncil rodicovsky proces aniz by si precetl
+	//navratovy kod
 	void CProcess_Manager::Reap_Process() {
 
 		std::vector<size_t> child_pids;
