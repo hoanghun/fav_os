@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 
+#include "rtl.h"
+
 struct executable {
 
 	std::string name;
@@ -11,8 +13,13 @@ struct executable {
 	std::string file_in = "";
 	std::string file_out = "";
 
+	bool file_out_rewrite = false;
+
 	bool pipe_in = false;
 	bool pipe_out = false;
+
+	kiv_os::THandle in_handle;
+	kiv_os::THandle out_handle;
 
 };
 

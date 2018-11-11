@@ -1,8 +1,13 @@
 #pragma once
 
 #include "..\api\api.h"
+#include "parser.h"
+
+#include <vector>
 
 extern "C" size_t __stdcall shell(const kiv_hal::TRegisters &regs);
+void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, kiv_os::THandle sout);
+void Execute(const std::vector<executable> &exes);
 
 
 //nasledujici funkce si dejte do vlastnich souboru

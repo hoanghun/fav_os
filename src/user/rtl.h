@@ -19,7 +19,7 @@ namespace kiv_os_rtl {
 
 	void Exit(const int exit_code);
 
-	bool Clone(const char *prog_name, const char *args, size_t &handle);
+	bool Clone(const char *prog_name, const char *args, kiv_os::THandle in, kiv_os::THandle out, size_t &handle);
 
 	bool Thread(const char *prog_name, const char *data, size_t &handle);
 
@@ -27,6 +27,6 @@ namespace kiv_os_rtl {
 
 	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler);
 
-	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler, int &exit_code);
+	bool Read_Exit_Code(const kiv_os::TThread_Proc *handler, int &exit_code);
 
 }

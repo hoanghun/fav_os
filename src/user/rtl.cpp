@@ -42,9 +42,12 @@ void kiv_os_rtl::Exit(const int exit_code) {
 	kiv_os::Sys_Call(regs);
 }
 
-bool kiv_os_rtl::Clone(const char *prog_name, const char *args, size_t &handle) {
+bool kiv_os_rtl::Clone(const char *prog_name, const char *args, kiv_os::THandle in, kiv_os::THandle out, size_t &handle) {
 
 	kiv_hal::TRegisters regs;
+
+	regs.rbx.e = in;
+	regs.rbx.e = (regs.rbx.e << 16) | out;
 
 	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
 	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
@@ -112,7 +115,7 @@ bool kiv_os_rtl::Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *h
 
 }
 
-bool kiv_os_rtl::Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler, int &exit_code) {
+bool kiv_os_rtl::Read_Exit_Code(const kiv_os::TThread_Proc *handler, int &exit_code) {
 
 	kiv_hal::TRegisters regs;
 	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);

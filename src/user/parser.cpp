@@ -72,6 +72,11 @@ std::vector<executable> Parse(const char *line, const size_t line_length) {
 		}
 		else if (line[i] == '>') {
 			Update_Executable(strs, item, property);
+
+			if (property == 3 && line[i - 1] == '>') {
+				item.file_out_rewrite = true;
+			}
+
 			property = 3;
 		}
 		else if (line[i] == ' ') {

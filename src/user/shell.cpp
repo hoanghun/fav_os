@@ -3,6 +3,8 @@
 #include "stdio.h"
 #include "parser.h"
 
+#include <sstream>
+
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
@@ -37,3 +39,58 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 	return 0;
 }
+
+//Pripravime soubory a pipy
+void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, kiv_os::THandle sout) {
+
+	//TODO zkontrolovat zda jsou exes validni
+
+	kiv_os::THandle last_pipe = 0;
+	for (executable &exe : exes) {
+	
+		if (exe.file_in.empty() == false) {
+			//TODO otevrit soubor
+		}
+		else if (exe.pipe_in) {
+			//TODO otevrit pipe a ulozit handler
+			exe.in_handle = last_pipe;
+		}
+		else {
+			exe.in_handle = sin;
+		}
+
+		if (exe.file_out.empty() == false) {
+			if (exe.file_out_rewrite) {
+
+			}
+			else {
+			//TODO otevrit soubor
+			}
+		}
+		else if (exe.pipe_out) {
+			//TODO otevrit pipe a ulozit handler
+			//last_pipe = exe.pipe_out;
+		}
+		else {
+			exe.out_handle = sout;
+		}
+	}
+}
+
+void Execute(std::vector<executable> &exes) {
+
+	for (const executable &exe : exes) {
+		size_t handle;
+
+		//Pripravime argumenty programu
+		std::stringstream args;
+		args.str("");
+		for (std::string arg: exe.args) {
+			args << ' ' << arg;
+		}
+
+		kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
+		//TODO kontrolovat chyby
+	}
+}
+
