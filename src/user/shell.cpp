@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "rtl.h"
 #include "stdio.h"
+#include "parser.h"
 
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const size_t buffer_size = 256;
@@ -19,6 +20,8 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 		if (counter > 0) {
 			if (counter == buffer_size) counter--;
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
+
+			std::vector<executable> items = Parse(buffer, strlen(buffer));
 
 			const char* new_line = "\n";
 			kiv_std_lib::Print_Line(regs, new_line, strlen(new_line));

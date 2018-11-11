@@ -240,7 +240,10 @@ namespace kiv_process {
 
 				//Uzavirani vsech otevrenych souboru
 				for (auto &item : pcb->fd_table) {
-					kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(item.second);
+					//TODO zavreni stdin a stdout?
+					if (item.second != 0 && item.second != 1) {
+						kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(item.second);
+					}
 				}
 
 				pcb->fd_table.clear();
