@@ -18,10 +18,12 @@ namespace kiv_fs_fat {
 
 	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
 		// TODO
+		return 0;
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
 		// TODO
+		return 0;
 	}
 
 	bool CFile::Is_Available_For_Write() {
