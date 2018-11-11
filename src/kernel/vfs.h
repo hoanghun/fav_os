@@ -69,8 +69,8 @@ namespace kiv_vfs {
 		protected:
 			TPath mPath;
 			kiv_os::NFile_Attributes mAttributes;
-			unsigned int mRead_count;
-			unsigned int mWrite_count;
+			unsigned int mRead_count = 0;
+			unsigned int mWrite_count = 0;
 	};
 
 	// Abstract class from which concrete file systems inherit
