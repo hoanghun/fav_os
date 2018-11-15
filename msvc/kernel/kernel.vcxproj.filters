@@ -45,6 +45,9 @@
     <ClCompile Include="..\..\src\kernel\fs_fat.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\kernel\pipe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\kernel\kernel.h">
@@ -81,6 +84,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\kernel\fs_fat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\kernel\pipe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

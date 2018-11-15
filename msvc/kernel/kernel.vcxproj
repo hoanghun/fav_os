@@ -26,6 +26,7 @@
     <ClCompile Include="..\..\src\kernel\handles.cpp" />
     <ClCompile Include="..\..\src\kernel\io.cpp" />
     <ClCompile Include="..\..\src\kernel\kernel.cpp" />
+    <ClCompile Include="..\..\src\kernel\pipe.cpp" />
     <ClCompile Include="..\..\src\kernel\process.cpp" />
     <ClCompile Include="..\..\src\kernel\thread.cpp" />
     <ClCompile Include="..\..\src\kernel\vfs.cpp" />
@@ -38,6 +39,7 @@
     <ClInclude Include="..\..\src\kernel\fs_stdio.h" />
     <ClInclude Include="..\..\src\kernel\handles.h" />
     <ClInclude Include="..\..\src\kernel\kernel.h" />
+    <ClInclude Include="..\..\src\kernel\pipe.h" />
     <ClInclude Include="..\..\src\kernel\process.h" />
     <ClInclude Include="..\..\src\kernel\file_table.h" />
     <ClInclude Include="..\..\src\kernel\thread.h" />
