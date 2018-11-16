@@ -47,6 +47,10 @@ namespace kiv_vfs {
 		return mAttributes;
 	}
 
+	void IFile::Close(const TFD_Attributes attrs) {
+		return;
+	}
+
 	IFile::~IFile() {
 
 	}
@@ -78,7 +82,6 @@ namespace kiv_vfs {
 
 	// Default implementations (concrete filesystem can override those methods)
 	std::shared_ptr<IFile> IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
-		std::cout << "wtf" << std::endl;
 		return nullptr;
 	}
 

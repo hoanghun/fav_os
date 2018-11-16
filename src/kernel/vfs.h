@@ -50,6 +50,7 @@ namespace kiv_vfs {
 		public:
 			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) = 0;
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) = 0;
+			virtual void Close(const TFD_Attributes attrs);
 			virtual bool Is_Available_For_Write() = 0;
 			virtual size_t Get_Size();
 
