@@ -30,22 +30,21 @@ namespace kiv_thread {
 
 		}
 
-		// Vyvoti vlakno pro proces
-		bool CThread_Manager::Create_Thread(const size_t pid, kiv_hal::TRegisters& context) {
+		void __stdcall Crt0(const kiv_hal::TRegisters &context, const kiv_os::TThread_Proc &func) {
 
-			kiv_hal::TRegisters regs;
+			kiv_hal::TRegisters &regs = kiv_hal::TRegisters();
 			regs.rax.x = context.rbx.e >> 16;
-			regs.rbx.x = context.rbx.e && 0xFFFF;
+			regs.rbx.x = context.rbx.e & 0XFFFF;
+			regs.rdi.r = context.rdi.r;
 
-			const char* func_name = (char*)(context.rdx.r);
+			func(regs);
+
+		}
+
+		// Vyvoti vlakno pro proces
+		bool CThread_Manager::Create_Thread(const size_t pid, kiv_hal::TRegisters& context, kiv_os::TThread_Proc &func) {
 
 			std::shared_ptr<kiv_process::TProcess_Control_Block> pcb = kiv_process::CProcess_Manager::Get_Instance().process_table[pid];
-
-			kiv_os::TThread_Proc func = (kiv_os::TThread_Proc) GetProcAddress(User_Programs, func_name);
-
-			if (!func) {
-				return false;
-			}
 
 			std::shared_ptr<TThread_Control_Block> tcb = std::make_shared<TThread_Control_Block>();
 
@@ -56,7 +55,7 @@ namespace kiv_thread {
 
 				std::unique_lock<std::mutex> tm_lock(maps_lock);
 				{
-					tcb->thread = std::thread(func, regs);
+					tcb->thread = std::thread(Crt0, context, func);
 
 					tcb->pcb = pcb;
 					tcb->state = NThread_State::RUNNING;
@@ -88,7 +87,9 @@ namespace kiv_thread {
 			std::shared_ptr<TThread_Control_Block> tcb;
 
 			if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
-				Create_Thread(tcb->pcb->pid, context);
+
+				kiv_os::TThread_Proc func = reinterpret_cast<kiv_os::TThread_Proc>(context.rdx.r);
+				Create_Thread(tcb->pcb->pid, context, func);
 			}
 			else {
 				return false;

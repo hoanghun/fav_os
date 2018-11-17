@@ -74,7 +74,7 @@ namespace kiv_process {
 				static std::mutex ptable;
 				static CProcess_Manager *instance;
 				CPid_Manager *pid_manager;
-				std::vector<std::shared_ptr<TProcess_Control_Block>> process_table;
+				std::map<size_t, std::shared_ptr<TProcess_Control_Block>> process_table;
 
 				CProcess_Manager();
 				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb);

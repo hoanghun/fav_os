@@ -56,7 +56,7 @@ namespace kiv_thread {
 				static CThread_Manager & Get_Instance();
 				static void Destroy();
 
-				bool Create_Thread(size_t pid, kiv_hal::TRegisters& context);
+				bool Create_Thread(const size_t pid, kiv_hal::TRegisters& context, kiv_os::TThread_Proc &func);
 				bool Create_Thread(kiv_hal::TRegisters& context);
 
 				bool Thread_Exit(kiv_hal::TRegisters& context);

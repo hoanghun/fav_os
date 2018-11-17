@@ -4,15 +4,20 @@
 #include "parser.h"
 
 #include <sstream>
+#include <map>
 
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
 	size_t counter;
 	
+	const kiv_os::THandle sin = regs.rax.x;
+	const kiv_os::THandle sout = regs.rbx.x;
+
 	const char* intro = "Vitejte v kostre semestralni prace z KIV/OS.\n" \
 						"Shell zobrazuje echo zadaneho retezce. Prikaz exit ukonci shell.\n";
 	
+
 	kiv_std_lib::Print_Line(regs, intro, strlen(intro));
 	const char* prompt = "C:\\>";
 	do {
@@ -24,6 +29,8 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
 
 			std::vector<executable> items = Parse(buffer, strlen(buffer));
+			Prepare_For_Execution(items, sin, sout);
+			Execute(items);
 
 			const char* new_line = "\n";
 			kiv_std_lib::Print_Line(regs, new_line, strlen(new_line));
@@ -42,7 +49,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 }
 
 //Pripravime soubory a pipy
-void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, kiv_os::THandle sout) {
+void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout) {
 
 	//TODO zkontrolovat zda jsou exes validni
 
@@ -50,10 +57,9 @@ void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, k
 	for (executable &exe : exes) {
 	
 		if (exe.file_in.empty() == false) {
-			//TODO otevrit soubor
+			kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
 		}
-		else if (exe.pipe_in) {
-			//TODO otevrit pipe a ulozit handler
+		else if (exe.pipe_in) {		
 			exe.in_handle = last_pipe;
 		}
 		else {
@@ -62,15 +68,15 @@ void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, k
 
 		if (exe.file_out.empty() == false) {
 			if (exe.file_out_rewrite) {
-
+				kiv_os_rtl::Open_File(exe.file_in.c_str(), static_cast<kiv_os::NOpen_File>(0), static_cast<kiv_os::NFile_Attributes>(0), exe.in_handle);
 			}
 			else {
-			//TODO otevrit soubor
+				kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, static_cast<kiv_os::NFile_Attributes>(0), exe.in_handle);
 			}
 		}
 		else if (exe.pipe_out) {
-			//TODO otevrit pipe a ulozit handler
-			//last_pipe = exe.pipe_out;
+			//This pipe will be stdin for next process
+			kiv_os_rtl::Create_Pipe(last_pipe, exe.out_handle);
 		}
 		else {
 			exe.out_handle = sout;
@@ -78,19 +84,31 @@ void Prepare_For_Execution(std::vector<executable> &exes, kiv_os::THandle sin, k
 	}
 }
 
+std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}};
+
 void Execute(std::vector<executable> &exes) {
 
 	for (const executable &exe : exes) {
 		size_t handle;
+		
+		if (executables.find(exe.name) == executables.end()) {
+			continue;
+		}
 
 		//Pripravime argumenty programu
 		std::stringstream args;
 		args.str("");
-		for (std::string arg: exe.args) {
-			args << ' ' << arg;
+		if (exe.args.empty() == false) {
+			args << exe.args[0];
+		}
+		
+		for (int i = 1; i < exe.args.size(); i++) {
+			args << ' ' << exe.args[i];
 		}
 
 		kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
+		size_t signaled;
+		kiv_os_rtl::Wait_For(&handle, 1, signaled);
 		//TODO kontrolovat chyby
 	}
 }

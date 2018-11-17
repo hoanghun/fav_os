@@ -159,28 +159,35 @@ namespace kiv_process {
 			}
 
 			pcb->fd_table[0] = context.rbx.e >> 16 ;
-			pcb->fd_table[1] = context.rbx.e && 65536;
+			pcb->fd_table[1] = context.rbx.e & 0xFFFF;
 
 			pcb->ppid = ppcb->pid;
 			pcb->working_directory = ppcb->working_directory;
 			ppcb->cpids.push_back(pid);
 			
-			process_table.push_back(pcb);
+			process_table.emplace(pcb->pid, pcb);
 		}
 		lock.unlock();
 
-		kiv_thread::CThread_Manager::Get_Instance().Create_Thread(pid, context);
+		const char* func_name = (char*)(context.rdx.r);
+		kiv_os::TThread_Proc func = (kiv_os::TThread_Proc) GetProcAddress(User_Programs, func_name);
+
+		if (!func) {
+			return false;
+		}
+
+		kiv_thread::CThread_Manager::Get_Instance().Create_Thread(pid, context, func);
 
 		return true;
 	}
 
 	bool CProcess_Manager::Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb) {
-		for(std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
-			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
+		for(auto tpcb : process_table) {
+			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
 				if (ttcb->tid == tid) {
 					
 					if (pcb != nullptr) {
-						pcb = tpcb;
+						pcb = tpcb.second;
 					}
 					
 					return true;
@@ -192,8 +199,8 @@ namespace kiv_process {
 	}
 
 	bool CProcess_Manager::Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
-		for (std::shared_ptr<TProcess_Control_Block> tpcb : process_table) {
-			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb->thread_table) {
+		for (auto tpcb : process_table) {
+			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
 				if (ttcb->tid == tid) {
 
 					if (tcb != nullptr) {
@@ -217,22 +224,21 @@ namespace kiv_process {
 		{
 
 			bool terminated = true;
-			size_t position = 0;
-			for (auto tcb : pcb->thread_table) {
+			auto itr = pcb->thread_table.begin();
+			while (itr != pcb->thread_table.end()) {
 
 				//Pokud vlakno skoncilo tak ho smazeme
-				if (tcb->state == kiv_thread::NThread_State::TERMINATED) {
+				if ((*itr)->state == kiv_thread::NThread_State::TERMINATED) {
 
-					tcb->pcb = nullptr;
-					tcb->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
-					pcb->thread_table.erase(pcb->thread_table.begin() + position);
+					(*itr)->pcb = nullptr;
+					(*itr)->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
+					itr = pcb->thread_table.erase(itr);
 
 				}
 				else {
 					terminated = false;
+					itr++;
 				}
-
-				position++;
 			}
 
 			//Pokud jiz nebezi zadne vlakno v procesu tzn. proces je ukoncen
@@ -255,7 +261,7 @@ namespace kiv_process {
 					}
 				}
 
-				process_table.erase(process_table.begin() + pcb->pid);
+				process_table.erase(pcb->pid);
 				pid_manager->Release_Pid(pcb->pid);
 
 			}
@@ -273,32 +279,35 @@ namespace kiv_process {
 		//Zastavi vsechny systemove procesy
 		system_shutdown = true;
 
-		for (const auto pcb : process_table) {
-			for (const auto tcb : pcb->thread_table) {
+		for (auto pcb : process_table) {
+
+			for (auto tcb : pcb.second->thread_table) {
 
 				//Systemove procesy nebudeme ukoncovat nasilne
-				uint16_t exit_code;
-				if (pcb->pid == 0) {
+				if (pcb.second->pid == 0) {
 					tcb->thread.join();
-					kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(tcb->tid, exit_code);
 					tcb->pcb = nullptr;
 				}
-				if (tcb->terminate_handler == nullptr) {
+				else if (tcb->terminate_handler == nullptr) {
 					//NO TIME FOR MERCY, KILL IT!
+					tcb->thread.detach();
 					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
-					kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(tcb->tid, exit_code);
 					tcb->pcb = nullptr;
 				}
 				else {
 					tcb->terminate_handler(regs);
 					// TODO mohlo by se stat ze se nedockam
 					tcb->thread.join();
-					kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(tcb->tid, exit_code);
 					tcb->pcb = nullptr;
 				}
 
 			}
+
+			pcb.second->thread_table.clear();
 		}
+		
+		process_table.clear();
+		kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
 
 	}
 
@@ -438,7 +447,7 @@ namespace kiv_process {
 			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
 
 			pcb->thread_table.push_back(tcb);
-			process_table.push_back(pcb);
+			process_table.emplace(pcb->pid, pcb);
 		}
 		lock.unlock();
 	}
