@@ -5,7 +5,7 @@
 
 class Semaphore {
 public:
-	Semaphore(size_t semaphore_value);
+	Semaphore(int semaphore_value);
 	/*
 	 * Semaphore P operation, has to wait if mSemValue <= 0
 	 */
@@ -19,6 +19,6 @@ public:
 private:
 	std::condition_variable mWait_Condition;
 	std::mutex mMutex_Lck;
-	size_t mSem_Value;
+	int mSem_Value;
 	size_t mQueueSize;
 };

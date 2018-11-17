@@ -29,4 +29,18 @@ namespace kiv_os_rtl {
 
 	bool Read_Exit_Code(const kiv_os::TThread_Proc *handler, int &exit_code);
 
+	bool Open_File(const char * file_name, const kiv_os::NOpen_File flags, const kiv_os::NFile_Attributes attributes, kiv_os::THandle &handle);
+
+	bool Seek(const kiv_os::THandle handle, const size_t new_position, kiv_os::NFile_Seek pos_type, size_t &position);
+
+	bool Close_Handle(const kiv_os::THandle handle);
+
+	bool Delete_File(const char *file_name);
+
+	bool Set_Working_Dir(const char *path);
+
+	bool Get_Working_Dir(char* const buffer, const size_t buffer_size, size_t &read);
+
+	bool Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out);
+
 }

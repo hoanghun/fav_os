@@ -1,4 +1,5 @@
 #include <memory>
+#include <algorithm>
 
 #include "thread.h"
 #include "process.h"
@@ -34,7 +35,7 @@ namespace kiv_thread {
 
 			kiv_hal::TRegisters regs;
 			regs.rax.x = context.rbx.e >> 16;
-			regs.rbx.x = context.rbx.e && 65536;
+			regs.rbx.x = context.rbx.e && 0xFFFF;
 
 			const char* func_name = (char*)(context.rdx.r);
 
@@ -112,10 +113,16 @@ namespace kiv_thread {
 				}
 
 				//Signalizace ukonceni procesu tem kdo na to cekaji
-				for (auto const & e : tcb->waiting) {
-					*e = true;
+				for (auto const & tid : tcb->waiting_threads) {
+					
+					std::shared_ptr<TThread_Control_Block> tcb;
+					if (Get_Thread_Control_Block(tid, &tcb) == true) {
+						if (tcb->wait_semaphore != nullptr) {
+							tcb->wait_semaphore->Signal();
+						}
+					}
 				}
-				tcb->waiting.clear();
+				tcb->waiting_threads.clear();
 
 			}
 			plock.unlock();
@@ -165,39 +172,44 @@ namespace kiv_thread {
 			}
 			lock.unlock();
 
-			int index = Wait(tids, tids_count);
-			context.rax.r = tids[index]; 
+			context.rax.r = Wait(tids, tids_count);
 
 		}
 
-		int CThread_Manager::Wait(const size_t * tids, const size_t tids_count) {
+		size_t CThread_Manager::Wait(const size_t * tids, const size_t tids_count) {
 
-			bool * events = new bool[tids_count];
-			for (int i = 0; i < tids_count; i++) {
-				events[i] = false;
+			const size_t my_tid = Hash_Thread_Id(std::this_thread::get_id());
+			std::shared_ptr<TThread_Control_Block> tcb;
+
+			//TODO potencial error
+			if (Get_Thread_Control_Block(my_tid, &tcb) == false) {
+				return 0;
 			}
 
+			tcb->wait_semaphore = new Semaphore(0);
+
 			for (int i = 0; i < tids_count; i++) {
-				Add_Event(tids[i], &events[i]);
-				events[i] = false;
+				Add_Event(tids[i], my_tid);
 				i++;
 			}
+			tcb->wait_semaphore->Wait();
 
-			for (;;) {
-				for (int i = 0; i < tids_count; i++) {
-
-					if (events[i]) {
-						delete events;
-						return i;
-					}
+			//TODO erase others form waiting quees
+			size_t terminated = 0;
+			for (int i = 0; i < tids_count; i++) {
+				bool result = Check_Event(tids[i], my_tid);
+				if (result) {
+					terminated = tids[i];
 				}
-
-				std::this_thread::yield();
 			}
 
+			delete tcb->wait_semaphore;
+			tcb->wait_semaphore = nullptr;
+
+			return terminated;
 		}
 
-		void CThread_Manager::Add_Event(const size_t tid, bool * e) {
+		void CThread_Manager::Add_Event(const size_t tid, const size_t my_tid) {
 			
 			std::shared_ptr<TThread_Control_Block> tcb;
 
@@ -207,9 +219,31 @@ namespace kiv_thread {
 
 			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
 			{
-				tcb->waiting.push_back(e);
+				tcb->waiting_threads.push_back(my_tid);
 			}
 			e_lock.unlock();
+
+		}
+
+		bool CThread_Manager::Check_Event(const size_t tid, const size_t my_tid) {
+
+			std::shared_ptr<TThread_Control_Block> tcb;
+			// Thread removed -> thread terminated
+			if (Get_Thread_Control_Block(tid, &tcb) == false) {
+				return true;
+			}
+
+			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+			{
+				tcb->waiting_threads.erase(std::remove(tcb->waiting_threads.begin(), tcb->waiting_threads.end(), my_tid), tcb->waiting_threads.end());
+			}
+			e_lock.unlock();
+
+			if (tcb->state == NThread_State::TERMINATED) {
+				return true;
+			}
+
+			return false;
 
 		}
 

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <mutex>
+#include <condition_variable>
 #include <vector>
 #include <map>
 #include <thread>
 #include <Windows.h>
 
+#include "semaphore.h"
 #include "..\api\api.h"
 
 namespace kiv_process {
@@ -14,8 +16,6 @@ namespace kiv_process {
 }
 
 namespace kiv_thread {
-		
-		void Wait_For_Multiple(std::vector<bool> &events);
 
 		enum NThread_State {
 			RUNNING = 1,
@@ -32,8 +32,9 @@ namespace kiv_thread {
 			kiv_os::TThread_Proc terminate_handler;
 			uint16_t exit_code;
 			//Wait for
+			Semaphore *wait_semaphore;
 			std::mutex waiting_lock;
-			std::vector<bool*> waiting;
+			std::vector<size_t> waiting_threads;
 		};
 			
 
@@ -63,7 +64,8 @@ namespace kiv_thread {
 			
 
 				void Wait_For(kiv_hal::TRegisters& context);
-				void Add_Event(const size_t tid, bool *e);
+				void Add_Event(const size_t tid, const size_t my_tid);
+				bool Check_Event(const size_t tid, const size_t my_tid);
 				bool Read_Exit_Code(kiv_hal::TRegisters &context);
 				bool Read_Exit_Code(const size_t handle, uint16_t &exit_code);
 
@@ -72,7 +74,7 @@ namespace kiv_thread {
 				std::map<size_t, std::shared_ptr<TThread_Control_Block>> thread_map;
 				std::mutex maps_lock;
 		
-				int Wait(const size_t * tids, const size_t tids_count);
+				size_t Wait(const size_t * tids, const size_t tids_count);
 				bool Get_Thread_Control_Block(const size_t &tid, std::shared_ptr<TThread_Control_Block> *tcb);
 
 				static CThread_Manager * instance;
