@@ -30,12 +30,12 @@ namespace kiv_thread {
 
 		}
 
-		void __stdcall Crt0(const kiv_hal::TRegisters &context, const kiv_os::TThread_Proc &func) {
+		void __stdcall Crt0(const kiv_os::TThread_Proc &func, const kiv_os::THandle sin, const kiv_os::THandle sout, const char * data) {
 
 			kiv_hal::TRegisters &regs = kiv_hal::TRegisters();
-			regs.rax.x = context.rbx.e >> 16;
-			regs.rbx.x = context.rbx.e & 0XFFFF;
-			regs.rdi.r = context.rdi.r;
+			regs.rax.x = sin;
+			regs.rbx.x = sout;
+			regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(data);
 
 			func(regs);
 
@@ -55,7 +55,7 @@ namespace kiv_thread {
 
 				std::unique_lock<std::mutex> tm_lock(maps_lock);
 				{
-					tcb->thread = std::thread(Crt0, context, func);
+					tcb->thread = std::thread(Crt0, func, pcb->fd_table[0], pcb->fd_table[1], reinterpret_cast<char *>(context.rdi.r));
 
 					tcb->pcb = pcb;
 					tcb->state = NThread_State::RUNNING;
