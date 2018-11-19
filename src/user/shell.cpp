@@ -84,7 +84,8 @@ void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle 
 	}
 }
 
-std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}};
+//TODO PROCESS CHECK
+std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
 
 void Execute(std::vector<executable> &exes) {
 

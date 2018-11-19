@@ -138,6 +138,8 @@ namespace kiv_process {
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {
 
+		//TODO NOT CREATE NEW PROCESS UNTIL FUNCTION WILL BE FOUND
+
 		size_t pid;
 		if (!pid_manager->Get_Free_Pid(&pid)) {
 			// TODO process cannot be created

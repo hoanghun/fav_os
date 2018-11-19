@@ -63,7 +63,7 @@ bool kiv_os_rtl::Clone(const char *prog_name, const char *args, kiv_os::THandle 
 	return result;
 }
 
-bool kiv_os_rtl::Thread(const char *prog_name, const char *data, size_t &handle) {
+bool kiv_os_rtl::Thread(const kiv_os::TThread_Proc *func, const char *data, size_t &handle) {
 
 	kiv_hal::TRegisters regs;
 
@@ -71,13 +71,12 @@ bool kiv_os_rtl::Thread(const char *prog_name, const char *data, size_t &handle)
 	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Clone);
 	regs.rcx.r = static_cast<uint8_t>(kiv_os::NClone::Create_Thread);
 
-	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(prog_name);
+	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(func);
 	regs.rdi.r = reinterpret_cast<decltype(regs.rdx.r)>(data);
 
 	bool result = kiv_os::Sys_Call(regs);
 
 	handle = regs.rax.r;
-
 
 	return result;
 }

@@ -21,7 +21,7 @@ namespace kiv_os_rtl {
 
 	bool Clone(const char *prog_name, const char *args, kiv_os::THandle in, kiv_os::THandle out, size_t &handle);
 
-	bool Thread(const char *prog_name, const char *data, size_t &handle);
+	bool Thread(const kiv_os::TThread_Proc *func, const char *data, size_t &handle);
 
 	bool Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled);
 
