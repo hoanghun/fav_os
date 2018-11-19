@@ -63,7 +63,7 @@ bool kiv_os_rtl::Clone(const char *prog_name, const char *args, kiv_os::THandle 
 	return result;
 }
 
-bool kiv_os_rtl::Thread(const kiv_os::TThread_Proc *func, const char *data, size_t &handle) {
+bool kiv_os_rtl::Thread(const kiv_os::TThread_Proc func, const void *data, size_t &handle) {
 
 	kiv_hal::TRegisters regs;
 
@@ -82,7 +82,6 @@ bool kiv_os_rtl::Thread(const kiv_os::TThread_Proc *func, const char *data, size
 }
 
 bool kiv_os_rtl::Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled) {
-
 
 	kiv_hal::TRegisters regs;
 	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
@@ -209,7 +208,6 @@ bool kiv_os_rtl::Get_Working_Dir(char* const buffer, const size_t buffer_size, s
 	const bool result = kiv_os::Sys_Call(regs);
 	read = regs.rax.r;
 	return result;
-
 }
 
 bool kiv_os_rtl::Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out) {
@@ -226,4 +224,26 @@ bool kiv_os_rtl::Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out) {
 
 	return result;
 
+}
+
+size_t kiv_os_rtl::Print_Line(const kiv_hal::TRegisters &regs, const char *buffer, size_t size) {
+	const kiv_os::THandle std_out = static_cast<kiv_os::THandle>(regs.rbx.x);
+	size_t printed;
+
+	if (kiv_os_rtl::Write_File(std_out, buffer, size, printed)) {
+		return printed;
+	}
+
+	return -1; // something went wrong? didn't print anything?
+}
+
+size_t kiv_os_rtl::Read_Line(const kiv_hal::TRegisters &regs, char* const buffer, size_t size) {
+	const kiv_os::THandle std_in = static_cast<kiv_os::THandle>(regs.rax.x);
+	size_t read;
+
+	if (kiv_os_rtl::Read_File(std_in, buffer, size, read)) {
+		return read;
+	}
+
+	return -1;
 }

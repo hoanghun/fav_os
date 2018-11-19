@@ -28,7 +28,6 @@ void Initialize_Kernel() {
 	 * Mounting registered
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_Registered();
-	std::cout << "penis" << std::endl;
 }
 
 void Shutdown_Kernel() {

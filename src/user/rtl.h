@@ -21,7 +21,7 @@ namespace kiv_os_rtl {
 
 	bool Clone(const char *prog_name, const char *args, kiv_os::THandle in, kiv_os::THandle out, size_t &handle);
 
-	bool Thread(const kiv_os::TThread_Proc *func, const char *data, size_t &handle);
+	bool Thread(const kiv_os::TThread_Proc func, const void *data, size_t &handle);
 
 	bool Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled);
 
@@ -42,5 +42,9 @@ namespace kiv_os_rtl {
 	bool Get_Working_Dir(char* const buffer, const size_t buffer_size, size_t &read);
 
 	bool Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out);
+
+	size_t Print_Line(const kiv_hal::TRegisters &regs, const char *buffer, size_t size);
+
+	size_t Read_Line(const kiv_hal::TRegisters &regs, char* const buffer, size_t size);
 
 }
