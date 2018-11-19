@@ -4,19 +4,23 @@
 #include "..\api\api.h"
 #include "rtl.h"
 
+#include <iostream>
+
 size_t _stdcall generate_floats(const kiv_hal::TRegisters &context) {
 	kiv_hal::TRegisters regs = context;
 	bool *run = reinterpret_cast<bool *>(context.rdi.r);
 
 	std::string float_num;
-	float number;
+	double number;
 
 	while (*run) {
-		number = static_cast<float>(rand() / RAND_MAX);
+		number = static_cast<double>(rand()) / RAND_MAX;
+		float_num = std::to_string(number);
 		kiv_os_rtl::Print_Line(regs, float_num.c_str(), strlen(float_num.c_str()));
 	}
-	kiv_os_rtl::Exit(0);
 
+	kiv_os_rtl::Exit(0);
+		
 	return 0;
 }
 
