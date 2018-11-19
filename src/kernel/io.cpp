@@ -191,9 +191,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
 	size_t bytes_read;
 	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
-#ifdef _DEBUG
-		printf("FD not found\n");
-#endif
+
 	}
 
 	kiv_os::NOS_Error result;
@@ -253,8 +251,27 @@ void Get_Working_Dir(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &v
 	regs.rax.r = static_cast<size_t>(chars_written);
 }
 
-void Create_Pipe(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
-	// TODO
+void Create_Pipe(kiv_hal::TRegisters &regs) {
+	kiv_os::NOS_Error result;
+	kiv_os::THandle *handle_pair = reinterpret_cast<kiv_os::THandle *>(regs.rdx.r);
+	kiv_os::THandle in;
+	kiv_os::THandle out;
+
+	try {
+		vfs.Create_Pipe(in, out);
+		result = kiv_os::NOS_Error::Success;
+	}
+	catch (kiv_vfs::TFd_Table_Full_Exception e) {
+		result = kiv_os::NOS_Error::Out_Of_Memory;
+	}
+	catch (...) {
+		result = kiv_os::NOS_Error::Unknown_Error;
+	}
+
+	handle_pair[0] = in;
+	handle_pair[1] = out;
+	
+	Set_Result(regs, result);
 }
 
 
@@ -270,7 +287,7 @@ void Handle_IO(kiv_hal::TRegisters &regs) {
 	//	case kiv_os::NOS_File_System::Seek:				return Seek(regs, vfs);
 	//	case kiv_os::NOS_File_System::Set_Working_Dir:	return Set_Working_Dir(regs, vfs);
 	//	case kiv_os::NOS_File_System::Get_Working_Dir:	return Get_Working_Dir(regs, vfs);
-	//	case kiv_os::NOS_File_System::Create_Pipe:		return Create_Pipe(regs, vfs);
+		case kiv_os::NOS_File_System::Create_Pipe:		return Create_Pipe(regs);
 	//	default:										return; // TODO Handle unknown operation
 	}
 

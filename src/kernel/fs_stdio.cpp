@@ -122,7 +122,6 @@ namespace kiv_fs_stdio {
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
-		std::cout << "ajaj" << std::endl;
 		if (mStdioFiles.count(path.file)) {
 			return mStdioFiles.at(path.file);
 		}

@@ -1,10 +1,11 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "../api/api.h"
 #include <cstdint>
 #include <map>
 #include <array>
+
+#include "../api/api.h"
 
 namespace kiv_vfs {
 	using TDisk_Number = std::uint8_t;
@@ -139,7 +140,7 @@ namespace kiv_vfs {
 			size_t Get_Position(kiv_os::THandle fd_index);
 
 			// TODO
-			bool Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
+			void Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
 			// Throws	File_Not_Found_Exception
 			void Set_Working_Directory(char *path);

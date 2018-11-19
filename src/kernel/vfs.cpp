@@ -1,6 +1,7 @@
-#include "vfs.h"
-
 #include <iostream>
+
+#include "vfs.h"
+#include "pipe.h"
 
 namespace kiv_vfs {
 
@@ -312,9 +313,13 @@ namespace kiv_vfs {
 		return file_desc.position;
 	}
 
-	bool CVirtual_File_System::Create_Pipe(kiv_os::THandle & write_end, kiv_os::THandle & read_end) {
-		// TODO
-		return false;
+	void CVirtual_File_System::Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end) {
+		write_end = Get_Free_Fd_Index();
+		read_end = Get_Free_Fd_Index();
+
+		std::shared_ptr<kiv_vfs::IFile> pipe = std::make_shared<CPipe>();
+		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
+		Put_File_Descriptor(read_end, pipe, kiv_os::NFile_Attributes::Read_Only);
 	}
 
 	void CVirtual_File_System::Set_Working_Directory(char *path) {
