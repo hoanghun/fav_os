@@ -92,6 +92,8 @@ namespace kiv_thread {
 				Create_Thread(tcb->pcb->pid, context, func);
 			}
 			else {
+				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+				context.flags.carry = 1;
 				return false;
 			}
 
@@ -110,6 +112,8 @@ namespace kiv_thread {
 				}
 				else {
 					plock.unlock();
+					context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+					context.flags.carry = 1;
 					return false;
 				}
 
@@ -132,11 +136,13 @@ namespace kiv_thread {
 		}
 
 		// Prida vlaknu/procesu hendler na funkci, ktera ho ukonci
-		bool CThread_Manager::Add_Terminate_Handler(const kiv_hal::TRegisters& context) {
+		bool CThread_Manager::Add_Terminate_Handler(kiv_hal::TRegisters& context) {
 
 			std::shared_ptr<TThread_Control_Block> tcb;
 
 			if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb) == false) {
+				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+				context.flags.carry = 1;
 				return false;
 			}
 
@@ -160,7 +166,8 @@ namespace kiv_thread {
 
 					if (result == thread_map.end()) {
 						//TODO raise some error??
-						context.rax.r = -1;
+						context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Invalid_Argument);
+						context.flags.carry = 1;
 						lock.unlock();
 						return;
 					}
@@ -201,7 +208,6 @@ namespace kiv_thread {
 				tcb->wait_semaphore->Wait();
 			}
 
-			//TODO erase others form waiting quees
 			size_t terminated = 0;
 			for (int i = 0; i < tids_count; i++) {
 				bool result = Check_Event(tids[i], my_tid);
@@ -261,8 +267,13 @@ namespace kiv_thread {
 
 		bool CThread_Manager::Read_Exit_Code(kiv_hal::TRegisters &context) {
 
-			return Read_Exit_Code(context.rdx.r, context.rcx.x);
+			if (Read_Exit_Code(context.rdx.r, context.rcx.x) == false) {
+				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+				context.flags.carry = 1;
+				return false;
+			}
 
+			return true;
 		}
 
 		bool CThread_Manager::Read_Exit_Code(const size_t handle, uint16_t &exit_code) {

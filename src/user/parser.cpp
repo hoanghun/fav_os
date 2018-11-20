@@ -15,7 +15,7 @@
 //	return tokens;
 //}
 
-void Update_Executable(std::stringstream  &strs, executable &item, size_t property) {
+bool Update_Executable(std::stringstream  &strs, executable &item, size_t property) {
 
 	//Pokud neni stringstream prazdny
 	if (strs.rdbuf()->in_avail() != 0) {
@@ -36,9 +36,13 @@ void Update_Executable(std::stringstream  &strs, executable &item, size_t proper
 			item.file_out = str;
 			break;
 		}
+
+		strs.str("");
+		return true;
 	}
 
 	strs.str("");
+	return false;
 
 }
 
@@ -80,8 +84,9 @@ std::vector<executable> Parse(const char *line, const size_t line_length) {
 			property = 3;
 		}
 		else if (line[i] == ' ') {
-			Update_Executable(strs, item, property);
-			property = 1;
+			if (Update_Executable(strs, item, property) == true) {
+				property = 1;
+			}
 		}
 		else {
 			strs << line[i];

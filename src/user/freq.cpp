@@ -32,7 +32,6 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 				}
 			}
 		}
-		//std::cout << "2jdu si neco precist" << std::endl;
 	}
 
 	const char* new_line = "\n";

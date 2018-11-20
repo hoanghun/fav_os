@@ -23,5 +23,5 @@ struct executable {
 
 };
 
-void Update_Executable(std::stringstream &strs, executable &item, size_t property);
+bool Update_Executable(std::stringstream &strs, executable &item, size_t property);
 std::vector<executable> Parse(const char *line, const size_t line_length);

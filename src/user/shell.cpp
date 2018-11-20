@@ -81,15 +81,15 @@ void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle 
 }
 
 //TODO PROCESS CHECK
-std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
+//std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
 
 void Execute(std::vector<executable> &exes) {
 	size_t handle;
 	for (const executable &exe : exes) {
 		
-		if (executables.find(exe.name) == executables.end()) {
+		/*if (executables.find(exe.name) == executables.end()) {
 			continue;
-		}
+		}*/
 
 		//Pripravime argumenty programu
 		std::stringstream args;

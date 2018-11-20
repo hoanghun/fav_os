@@ -138,11 +138,19 @@ namespace kiv_process {
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {
 
-		//TODO NOT CREATE NEW PROCESS UNTIL FUNCTION WILL BE FOUND
+		const char* func_name = (char*)(context.rdx.r);
+		kiv_os::TThread_Proc func = (kiv_os::TThread_Proc) GetProcAddress(User_Programs, func_name);
+
+		if (!func) {
+			context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Invalid_Argument);
+			context.flags.carry = 1;
+			return false;
+		}
 
 		size_t pid;
 		if (!pid_manager->Get_Free_Pid(&pid)) {
-			// TODO process cannot be created
+			context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Out_Of_Memory);
+			context.flags.carry = 1;
 			return false;
 		}
 
@@ -157,6 +165,8 @@ namespace kiv_process {
 			pcb->name = std::string((char*)(context.rdx.r));
 			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
 			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
+				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+				context.flags.carry = 1;
 				return false;
 			}
 
@@ -170,13 +180,6 @@ namespace kiv_process {
 			process_table.emplace(pcb->pid, pcb);
 		}
 		lock.unlock();
-
-		const char* func_name = (char*)(context.rdx.r);
-		kiv_os::TThread_Proc func = (kiv_os::TThread_Proc) GetProcAddress(User_Programs, func_name);
-
-		if (!func) {
-			return false;
-		}
 
 		kiv_thread::CThread_Manager::Get_Instance().Create_Thread(pid, context, func);
 
@@ -311,6 +314,9 @@ namespace kiv_process {
 		process_table.clear();
 		kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
 
+		//stdin and stdout closing
+		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
+		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
 	}
 
 	bool CProcess_Manager::Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir) {
@@ -393,11 +399,12 @@ namespace kiv_process {
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
 		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {	
-			if (tcb->pcb->fd_table.size() < position) { // FIX
+			auto result = tcb->pcb->fd_table.find(position);
+			if (result == tcb->pcb->fd_table.end()) {
 				return false;
 			}
 			else {
-				fd = tcb->pcb->fd_table.at(position);
+				fd = result->second;
 				return true;
 			}
 		}
