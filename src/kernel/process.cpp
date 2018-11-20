@@ -393,13 +393,13 @@ namespace kiv_process {
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
 		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {	
-			if (tcb->pcb->fd_table.size() < position) {
+			if (tcb->pcb->fd_table.size() < position) { // FIX
 				return false;
 			}
 			else {
 				fd = tcb->pcb->fd_table.at(position);
 				return true;
-			}	
+			}
 		}
 		else {
 			return false;

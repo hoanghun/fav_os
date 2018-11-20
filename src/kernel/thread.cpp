@@ -33,8 +33,8 @@ namespace kiv_thread {
 		void __stdcall Crt0(const kiv_os::TThread_Proc &func, const kiv_os::THandle sin, const kiv_os::THandle sout, const char * data) {
 
 			kiv_hal::TRegisters &regs = kiv_hal::TRegisters();
-			regs.rax.x = sin;
-			regs.rbx.x = sout;
+			regs.rax.x = 0;
+			regs.rbx.x = 1;
 			regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(data);
 
 			func(regs);
@@ -234,6 +234,7 @@ namespace kiv_thread {
 			}
 			e_lock.unlock();
 
+			return true;
 		}
 
 		bool CThread_Manager::Check_Event(const size_t tid, const size_t my_tid) {

@@ -258,7 +258,7 @@ void Create_Pipe(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle out;
 
 	try {
-		vfs.Create_Pipe(in, out);
+		vfs.Create_Pipe(out, in);
 		result = kiv_os::NOS_Error::Success;
 	}
 	catch (kiv_vfs::TFd_Table_Full_Exception e) {
@@ -268,8 +268,8 @@ void Create_Pipe(kiv_hal::TRegisters &regs) {
 		result = kiv_os::NOS_Error::Unknown_Error;
 	}
 
-	handle_pair[0] = in;
-	handle_pair[1] = out;
+	handle_pair[0] = out;
+	handle_pair[1] = in;
 	
 	Set_Result(regs, result);
 }

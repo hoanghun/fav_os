@@ -4,6 +4,7 @@
 
 #include <map>
 #include <sstream>
+#include <iostream>
 
 extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 	
@@ -11,13 +12,15 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
-	size_t counter;
+	size_t counter = 0;
 
 	bool run = true;
 	while (run) {
-		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+		//std::cout << "jdu si neco precist" << std::endl;
+		//counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+		//std::cout << "neco jsem si precist" << std::endl;
 		for (int i = 0; i < counter; i++) {
-			if (buffer[i] == kiv_hal::NControl_Codes::NUL || buffer[i] == kiv_hal::NControl_Codes::EOT || buffer[i] == kiv_hal::NControl_Codes::ETX) {
+			if (buffer[i] == kiv_hal::NControl_Codes::NUL || buffer[i] == kiv_hal::NControl_Codes::EOT || buffer[i] == kiv_hal::NControl_Codes::ETX || EOF) {
 				run = false;
 				break;
 			}
@@ -31,6 +34,7 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 				}
 			}
 		}
+		//std::cout << "2jdu si neco precist" << std::endl;
 	}
 
 	for (const auto &item : freq_table) {

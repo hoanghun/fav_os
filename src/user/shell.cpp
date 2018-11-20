@@ -31,11 +31,6 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			std::vector<executable> items = Parse(buffer, strlen(buffer));
 			Prepare_For_Execution(items, sin, sout);
 			Execute(items);
-
-			const char* new_line = "\n";
-			kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
-			kiv_os_rtl::Print_Line(regs, buffer, strlen(buffer));
-			kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
 		}
 		else
 			break;	//EOF
@@ -43,7 +38,6 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 
 	kiv_os_rtl::Exit(0);
-
 
 	return 0;
 }
@@ -88,9 +82,8 @@ void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle 
 std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
 
 void Execute(std::vector<executable> &exes) {
-
+	size_t handle;
 	for (const executable &exe : exes) {
-		size_t handle;
 		
 		if (executables.find(exe.name) == executables.end()) {
 			continue;
@@ -108,9 +101,11 @@ void Execute(std::vector<executable> &exes) {
 		}
 
 		kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
-		size_t signaled;
-		kiv_os_rtl::Wait_For(&handle, 1, signaled);
 		//TODO kontrolovat chyby
 	}
+
+	size_t signaled;
+	kiv_os_rtl::Wait_For(&handle, 1, signaled);
+
 }
 

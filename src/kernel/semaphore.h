@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <condition_variable>
+#include <string>
 
 class Semaphore {
 public:
@@ -10,11 +11,14 @@ public:
 	 * Semaphore P operation, has to wait if mSemValue <= 0
 	 */
 	void Wait();
+	void Wait(std::string);
 
 	/*
 	 * Semaphore V operation, either signals one thread waiting for lock or increases mSemValue
 	 */
 	void Signal();
+
+	void Signal(std::string);
 
 private:
 	std::condition_variable mWait_Condition;

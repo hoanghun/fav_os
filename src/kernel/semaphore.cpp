@@ -1,5 +1,7 @@
 #include "semaphore.h"
 
+#include <iostream>
+
 Semaphore::Semaphore(int semaphore_value) : mSem_Value(semaphore_value), mQueueSize(0) {
 
 }
@@ -9,8 +11,13 @@ void Semaphore::Wait() {
 	mSem_Value--;
 	while (mSem_Value < 0) { 
 		mQueueSize++; // adding him into queue
+		std::cout << "CEKAM NA SIGNAL: SEM VALUE " << mSem_Value << std::endl;
 		mWait_Condition.wait(lock); // waiting for someone to signal the release
 	}
+}
+void Semaphore::Wait(std::string foo) {
+	std::cout << foo << std::endl;
+	Wait();
 }
 
 void Semaphore::Signal() {
@@ -20,4 +27,9 @@ void Semaphore::Signal() {
 		mQueueSize--;
 		mWait_Condition.notify_one();
 	}
+}
+
+void Semaphore::Signal(std::string foo) {
+	std::cout << foo << std::endl;
+	Signal();
 }
