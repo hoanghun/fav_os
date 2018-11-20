@@ -164,11 +164,11 @@ namespace kiv_thread {
 						lock.unlock();
 						return;
 					}
-					else if (result->second->state == NThread_State::TERMINATED) {
+					/*else if (result->second->state == NThread_State::TERMINATED) {
 						context.rax.r = tids[i];
 						lock.unlock();
 						return;
-					}
+					}*/
 				}
 			}
 			lock.unlock();
@@ -189,11 +189,17 @@ namespace kiv_thread {
 
 			tcb->wait_semaphore = new Semaphore(0);
 
+			bool t = false;
 			for (int i = 0; i < tids_count; i++) {
-				Add_Event(tids[i], my_tid);
+				if (Add_Event(tids[i], my_tid) == false) {
+					t = true;
+					break;
+				}
 				i++;
 			}
-			tcb->wait_semaphore->Wait();
+			if (t == false) {
+				tcb->wait_semaphore->Wait();
+			}
 
 			//TODO erase others form waiting quees
 			size_t terminated = 0;
@@ -210,12 +216,16 @@ namespace kiv_thread {
 			return terminated;
 		}
 
-		void CThread_Manager::Add_Event(const size_t tid, const size_t my_tid) {
+		bool CThread_Manager::Add_Event(const size_t tid, const size_t my_tid) {
 			
 			std::shared_ptr<TThread_Control_Block> tcb;
 
 			if (Get_Thread_Control_Block(tid, &tcb) == false) {
-				return;
+				return false;
+			}
+			
+			if (tcb->state == NThread_State::TERMINATED) {
+				return false;
 			}
 
 			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);

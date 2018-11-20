@@ -64,7 +64,7 @@ namespace kiv_thread {
 			
 
 				void Wait_For(kiv_hal::TRegisters& context);
-				void Add_Event(const size_t tid, const size_t my_tid);
+				bool Add_Event(const size_t tid, const size_t my_tid);
 				bool Check_Event(const size_t tid, const size_t my_tid);
 				bool Read_Exit_Code(kiv_hal::TRegisters &context);
 				bool Read_Exit_Code(const size_t handle, uint16_t &exit_code);
