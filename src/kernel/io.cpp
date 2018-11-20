@@ -54,7 +54,7 @@ void Set_Result(kiv_hal::TRegisters &regs, kiv_os::NOS_Error result) {
 	}
 }
 
-kiv_os::NOS_Error Get_Position(kiv_os::THandle vfs_handle, kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
+kiv_os::NOS_Error Get_Position(kiv_os::THandle vfs_handle, kiv_hal::TRegisters &regs) {
 	try {
 		size_t position = vfs.Get_Position(vfs_handle);
 		regs.rax.r = static_cast<decltype(regs.rax.r)>(position);
@@ -65,22 +65,52 @@ kiv_os::NOS_Error Get_Position(kiv_os::THandle vfs_handle, kiv_hal::TRegisters &
 	}
 }
 
-kiv_os::NOS_Error Set_Position(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type, kiv_vfs::CVirtual_File_System &vfs) {
+kiv_os::NOS_Error Set_Position(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
 	try {
 		vfs.Set_Position(vfs_handle, position, seek_offset_type);
 		return kiv_os::NOS_Error::Success;
 	}
 	catch (kiv_vfs::TPosition_Out_Of_Range_Exception e) {
-		return kiv_os::NOS_Error::Invalid_Argument; // TODO ??
+		return kiv_os::NOS_Error::Invalid_Argument; // TODO Correct error?
 	}
 	catch (...) { // Including TInvalid_Fd_Exception
 		return kiv_os::NOS_Error::Unknown_Error;
 	}
 }
 
-kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type, kiv_vfs::CVirtual_File_System &vfs) {
+kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
 	// TODO
 	return kiv_os::NOS_Error::Unknown_Error;
+}
+
+void Seek(kiv_hal::TRegisters &regs) {
+	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
+	kiv_os::NFile_Seek seek_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.l);
+	kiv_os::NFile_Seek seek_offset_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.h);
+	int position = static_cast<int>(regs.rdi.r);
+
+	kiv_os::THandle vfs_handle;
+	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
+		Set_Result(regs, kiv_os::NOS_Error::Unknown_Error);
+		return;
+	}
+
+	kiv_os::NOS_Error result;
+	switch (seek_type) {
+		case kiv_os::NFile_Seek::Get_Position:
+			result = Get_Position(vfs_handle, regs);
+			break;
+
+		case kiv_os::NFile_Seek::Set_Position:
+			result = Set_Position(vfs_handle, position, seek_offset_type);
+			break;
+
+		case kiv_os::NFile_Seek::Set_Size:
+			result = Set_Size(vfs_handle, position, seek_offset_type);
+			break;
+	}
+
+	Set_Result(regs, result);
 }
 
 void Open_File(kiv_hal::TRegisters &regs) {
@@ -120,10 +150,14 @@ void Open_File(kiv_hal::TRegisters &regs) {
 	Set_Result(regs, result);
 }
 
-void Close_File(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
+void Close_File(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
-	kiv_os::THandle vfs_handle = proc_handle; // TODO
-	// TODO proc_handle -> vfs_handle (check if proc_handle is correct)
+
+	kiv_os::THandle vfs_handle;
+	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
+		Set_Result(regs, kiv_os::NOS_Error::File_Not_Found);
+		return;
+	}
 
 	kiv_os::NOS_Error result;
 	try {
@@ -137,7 +171,7 @@ void Close_File(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
 	Set_Result(regs, result);
 }
 
-void Delete_File(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
+void Delete_File(kiv_hal::TRegisters &regs) {
 	std::string path = reinterpret_cast<char *>(regs.rdx.r);
 
 	kiv_os::NOS_Error result;
@@ -158,20 +192,24 @@ void Delete_File(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) 
 }
 
 void Write_File(kiv_hal::TRegisters &regs) {
-	kiv_os::THandle vfs_handle;
 	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
 	char *buffer = reinterpret_cast<char *>(regs.rdi.r);
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
 
+	size_t bytes_written = 0;
+
+	kiv_os::THandle vfs_handle;
 	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
 #ifdef _DEBUG
 		printf("FD not found\n");
 #endif
+		Set_Result(regs, kiv_os::NOS_Error::File_Not_Found);
+		return;
 	}
 
 	kiv_os::NOS_Error result;
 	try {
-		vfs.Write_File(vfs_handle, buffer, buf_size);
+		bytes_written = vfs.Write_File(vfs_handle, buffer, buf_size);
 		result = kiv_os::NOS_Error::Success;
 	}
 	catch (kiv_vfs::TPermission_Denied_Exception e) {
@@ -181,17 +219,24 @@ void Write_File(kiv_hal::TRegisters &regs) {
 		result = kiv_os::NOS_Error::Unknown_Error;
 	}
 
+	regs.rax.r = bytes_written;
 	Set_Result(regs, result);
 }
 
 void Read_File(kiv_hal::TRegisters &regs) {
-	kiv_os::THandle vfs_handle;
 	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
 	char *buffer = reinterpret_cast<char *>(regs.rdi.r);
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
-	size_t bytes_read;
-	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
 
+	size_t bytes_read = 0;
+
+	kiv_os::THandle vfs_handle;
+	if (!kiv_process::CProcess_Manager::Get_Instance().Get_Fd(proc_handle, vfs_handle)) {
+#ifdef _DEBUG
+		printf("Read - FD not found\n");
+#endif
+		Set_Result(regs, kiv_os::NOS_Error::Unknown_Error);
+		return;
 	}
 
 	kiv_os::NOS_Error result;
@@ -202,47 +247,21 @@ void Read_File(kiv_hal::TRegisters &regs) {
 	catch (kiv_vfs::TPermission_Denied_Exception e) {
 		result = kiv_os::NOS_Error::Permission_Denied;
 	}
-	catch (...) { // including TInvalid_Fd_Exception
-		result = kiv_os::NOS_Error::Unknown_Error;
+	catch (...)	{ 
+		result = kiv_os::NOS_Error::Unknown_Error; 
 	}
+
 	regs.rax.r = bytes_read;
 	Set_Result(regs, result);
 }
 
-void Seek(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
-	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
-	kiv_os::NFile_Seek seek_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.l);
-	kiv_os::NFile_Seek seek_offset_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.h);
-	int position = static_cast<int>(regs.rdi.r);
-
-	kiv_os::THandle vfs_handle = proc_handle; // TODO
-	// TODO proc_handle -> vfs_handle (check if proc_handle is correct)
-
-	kiv_os::NOS_Error result;
-	switch (seek_type) {
-		case kiv_os::NFile_Seek::Get_Position:
-			result = Get_Position(vfs_handle, regs, vfs);
-			break;
-
-		case kiv_os::NFile_Seek::Set_Position:
-			result = Set_Position(vfs_handle, position, seek_offset_type, vfs);
-			break;
-
-		case kiv_os::NFile_Seek::Set_Size:
-			result = Set_Size(vfs_handle, position, seek_offset_type, vfs);
-			break;
-	}
-
-	Set_Result(regs, result);
-}
-
-void Set_Working_Dir(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
+void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *path = reinterpret_cast<char *>(regs.rdx.r); // null terminated
 
 	// TODO
 }
 
-void Get_Working_Dir(kiv_hal::TRegisters &regs, kiv_vfs::CVirtual_File_System &vfs) {
+void Get_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *buffer = reinterpret_cast<char *>(regs.rdx.r);
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
 
@@ -280,15 +299,33 @@ void Handle_IO(kiv_hal::TRegisters &regs) {
 		case kiv_os::NOS_File_System::Open_File:		
 			Open_File(regs);
 			break;
-	//	case kiv_os::NOS_File_System::Close_Handle:		return Close_File(regs, vfs);
-	//	case kiv_os::NOS_File_System::Delete_File:		return Delete_File(regs, vfs);
-		case kiv_os::NOS_File_System::Write_File:		return Write_File(regs);
-		case kiv_os::NOS_File_System::Read_File:		return Read_File(regs);
-	//	case kiv_os::NOS_File_System::Seek:				return Seek(regs, vfs);
-	//	case kiv_os::NOS_File_System::Set_Working_Dir:	return Set_Working_Dir(regs, vfs);
-	//	case kiv_os::NOS_File_System::Get_Working_Dir:	return Get_Working_Dir(regs, vfs);
-		case kiv_os::NOS_File_System::Create_Pipe:		return Create_Pipe(regs);
-	//	default:										return; // TODO Handle unknown operation
+		case kiv_os::NOS_File_System::Close_Handle:	
+			Close_File(regs);
+			break;
+		case kiv_os::NOS_File_System::Delete_File: 
+			Delete_File(regs);
+			break;
+		case kiv_os::NOS_File_System::Write_File: 
+			Write_File(regs);
+			break;
+		case kiv_os::NOS_File_System::Read_File: 
+			Read_File(regs);
+			break;
+		case kiv_os::NOS_File_System::Seek: 
+			Seek(regs);
+			break;
+		case kiv_os::NOS_File_System::Set_Working_Dir: 
+			Set_Working_Dir(regs);
+			break;
+		case kiv_os::NOS_File_System::Get_Working_Dir:
+			Get_Working_Dir(regs);
+			break;
+		case kiv_os::NOS_File_System::Create_Pipe: 
+			Create_Pipe(regs);
+			break;
+		default:
+			Set_Result(regs, kiv_os::NOS_Error::Unknown_Error);
+			break;
 	}
 
 	//V ostre verzi pochopitelne do switche dejte volani funkci a ne primo vykonny kod
