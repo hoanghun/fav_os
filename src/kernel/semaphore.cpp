@@ -11,7 +11,6 @@ void Semaphore::Wait() {
 	mSem_Value--;
 	while (mSem_Value < 0) { 
 		mQueueSize++; // adding him into queue
-		std::cout << "CEKAM NA SIGNAL: SEM VALUE " << mSem_Value << std::endl;
 		mWait_Condition.wait(lock); // waiting for someone to signal the release
 	}
 }

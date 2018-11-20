@@ -16,11 +16,9 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 
 	bool run = true;
 	while (run) {
-		//std::cout << "jdu si neco precist" << std::endl;
-		//counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
-		//std::cout << "neco jsem si precist" << std::endl;
+		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
 		for (int i = 0; i < counter; i++) {
-			if (buffer[i] == kiv_hal::NControl_Codes::NUL || buffer[i] == kiv_hal::NControl_Codes::EOT || buffer[i] == kiv_hal::NControl_Codes::ETX || EOF) {
+			if (buffer[i] == kiv_hal::NControl_Codes::NUL || buffer[i] == kiv_hal::NControl_Codes::EOT || buffer[i] == kiv_hal::NControl_Codes::ETX || buffer[i] == EOF) {
 				run = false;
 				break;
 			}
@@ -37,6 +35,8 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 		//std::cout << "2jdu si neco precist" << std::endl;
 	}
 
+	const char* new_line = "\n";
+	kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
 	for (const auto &item : freq_table) {
 
 		std::stringstream s;
@@ -48,6 +48,8 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 		kiv_os_rtl::Print_Line(regs, line, strlen(line));
 
 	}
+
+	kiv_os_rtl::Exit(0);
 
 	return 0;
 }

@@ -20,6 +20,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 	kiv_os_rtl::Print_Line(regs, intro, strlen(intro));
 	const char* prompt = "C:\\>";
+	const char* new_line = "\n";
 	do {
 		kiv_os_rtl::Print_Line(regs, prompt, strlen(prompt));
 
@@ -34,8 +35,9 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 		}
 		else
 			break;	//EOF
-	} while (strcmp(buffer, "exit") != 0);
 
+		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+	} while (strcmp(buffer, "exit") != 0);
 
 	kiv_os_rtl::Exit(0);
 

@@ -21,7 +21,7 @@ size_t _stdcall generate_floats(const kiv_hal::TRegisters &context) {
 	}
 
 	char buffer[1] = { EOF };
-	kiv_os_rtl::Print_Line(regs, buffer, 1);
+	kiv_os_rtl::Print_Line(regs, buffer, sizeof(buffer));
 	
 	kiv_os_rtl::Exit(0);
 		
@@ -44,8 +44,6 @@ extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) {
 
 	kiv_os_rtl::Wait_For(&handle, 1, tmp);
 	kiv_os_rtl::Exit(0);
-
-	std::cout << "jsem dead" << std::endl;
 
 	return 0; 
 }
