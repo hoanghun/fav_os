@@ -42,6 +42,8 @@ extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) {
 
 	run = false;
 
+
+
 	kiv_os_rtl::Wait_For(&handle, 1, tmp);
 	kiv_os_rtl::Exit(0);
 
