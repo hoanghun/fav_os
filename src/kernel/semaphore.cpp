@@ -14,10 +14,6 @@ void Semaphore::Wait() {
 		mWait_Condition.wait(lock); // waiting for someone to signal the release
 	}
 }
-void Semaphore::Wait(std::string foo) {
-	std::cout << foo << std::endl;
-	Wait();
-}
 
 void Semaphore::Signal() {
 	std::unique_lock<std::mutex> lock(mMutex_Lck);
@@ -26,9 +22,4 @@ void Semaphore::Signal() {
 		mQueueSize--;
 		mWait_Condition.notify_one();
 	}
-}
-
-void Semaphore::Signal(std::string foo) {
-	std::cout << foo << std::endl;
-	Signal();
 }

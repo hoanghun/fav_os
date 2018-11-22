@@ -7,21 +7,21 @@ namespace kiv_vfs {
 
 #pragma region File
 
-	// Default implementation (concrete filesystem can override this method)
+	// Default implementations (concrete filesystem can override those methods)
 	size_t IFile::Write(const char *buffer, size_t buffer_size, size_t position) {
 		return 0;
 	}
-
 	size_t IFile::Read(char *buffer, size_t buffer_size, size_t position) {
 		return 0;
 	}
-
 	bool IFile::Is_Available_For_Write() {
 		return false;
 	}
-
 	size_t IFile::Get_Size() {
 		return 0;
+	}
+	bool IFile::Is_Empty() {
+		return false;
 	}
 
 	void IFile::Increase_Write_Count() {
@@ -200,6 +200,9 @@ namespace kiv_vfs {
 			else if ((file->Get_Attributes() == kiv_os::NFile_Attributes::Read_Only) && attributes != kiv_os::NFile_Attributes::Read_Only) {
 				throw TPermission_Denied_Exception();
 			}
+			else if ((attributes == kiv_os::NFile_Attributes::Directory) && (file->Get_Attributes() != kiv_os::NFile_Attributes::Directory)) {
+				throw TFile_Not_Found_Exception();
+			}
 			Cache_File(file);
 		}
 
@@ -268,9 +271,12 @@ namespace kiv_vfs {
 		auto mount = Resolve_Mount(normalized_path); // Throws TFile_Not_Found_Exception
 
 		auto file = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0);
+		if (!file) {
+			throw TFile_Not_Found_Exception();
+		}
 
 		// Cannot delete a non-empty directory
-		if (file->Is_Directory() && (file->Get_Size() != 0)) {
+		if (file->Is_Directory() && !file->Is_Empty()) {
 			throw TDirectory_Not_Empty_Exception();
 		}
 
@@ -541,9 +547,13 @@ namespace kiv_vfs {
 			throw TFile_Not_Found_Exception();
 		}
 
-		// Handle dots
+		// Handle dots and empty parts
 		for (auto itr = result.path.begin(); itr != result.path.end(); ++itr) {
-			if (*itr == "..") {
+			if (*itr == "") {
+				itr = result.path.erase(itr);
+			}
+
+			else if (*itr == "..") {
 				// ".." on the root -> do nothing
 				if (itr == result.path.begin()) {
 					itr = result.path.erase(itr);

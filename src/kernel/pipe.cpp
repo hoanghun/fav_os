@@ -11,10 +11,6 @@ size_t CPipe::Write(const char *buffer, size_t buffer_size, size_t position) {
 	
 	for (size_t i = 0; i < buffer_size; i++) {
 		mEmptyCount.Wait(); // is buffer empty?
-		
-		if (Get_Read_Count() == 0) {
-			return bytes_written;
-		}
 
 		mBuffer[mWrite_Index] = buffer[i];
 		
@@ -37,11 +33,11 @@ size_t CPipe::Read(char *buffer, size_t buffer_size, size_t position) {
 		mRead_Index = (mRead_Index + 1) % BUFFER_SIZE;	
 		bytes_read++;
 		
+		mEmptyCount.Signal();
+		
 		if (mRead_Index == mWrite_Index) {
 			return bytes_read;
 		}
-
-		mEmptyCount.Signal();
 	}
 	
 	return bytes_read;

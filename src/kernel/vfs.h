@@ -54,6 +54,7 @@ namespace kiv_vfs {
 			virtual void Close(const TFD_Attributes attrs);
 			virtual bool Is_Available_For_Write();
 			virtual size_t Get_Size();
+			virtual bool Is_Empty();
 
 			void Increase_Write_Count();
 			void Decrease_Write_Count();
