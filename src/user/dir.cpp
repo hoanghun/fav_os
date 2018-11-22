@@ -5,6 +5,9 @@
 #include <string>
 #include <iostream>
 bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs) {
+
+	// TODO Otestovat výpis souborù (ne složek)
+
 	kiv_os::THandle handle;
 	// Check if file or directory with that name already exists
 	bool exists = kiv_os_rtl::Open_File(dir_name.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, handle);
@@ -27,11 +30,14 @@ bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs
 			line += "\n";
 			kiv_os_rtl::Print_Line(regs, line.c_str(), line.size());
 		}
+
+		kiv_os_rtl::Close_Handle(handle);
 	}
 	else {
 		line = "\nDirectory '" + dir_name + "' doesn't exist.\n";
 		kiv_os_rtl::Print_Line(regs, line.c_str(), line.size());
 	}
+
 	return exists;
 }
 
