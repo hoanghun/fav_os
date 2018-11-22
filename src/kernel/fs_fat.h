@@ -56,6 +56,7 @@ namespace kiv_fs_fat {
 		public:
 			IDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+			virtual bool Is_Empty() final override;
 			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes);
 			virtual bool Remove_File(const kiv_vfs::TPath &path);
 			virtual bool Find(std::string filename, TFAT_Dir_Entry &first_entry) final; 

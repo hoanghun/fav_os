@@ -247,7 +247,7 @@ namespace kiv_fs_fat {
 
 	size_t IDirectory::Read(char *buffer, size_t buffer_size, size_t position) {
 		if (!Load()) {
-			return false;
+			return 0;
 		}
 		// Buffer is not big enough even for one entry
 		if (buffer_size < sizeof(kiv_os::TDir_Entry)) {
@@ -280,6 +280,14 @@ namespace kiv_fs_fat {
 		}
 
 		return read_count;
+	}
+
+	bool IDirectory::Is_Empty() {
+		if (!Load()) {
+			return false;
+		}
+
+		return (mEntries.size() == 0);
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> IDirectory::Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes) {
