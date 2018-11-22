@@ -548,11 +548,12 @@ namespace kiv_vfs {
 		}
 
 		// Handle dots and empty parts
-		for (auto itr = result.path.begin(); itr != result.path.end(); ++itr) {
+		auto itr = result.path.begin();
+		while (itr != result.path.end()) {
 			if (*itr == "") {
 				itr = result.path.erase(itr);
+				continue;
 			}
-
 			else if (*itr == "..") {
 				// ".." on the root -> do nothing
 				if (itr == result.path.begin()) {
@@ -562,24 +563,29 @@ namespace kiv_vfs {
 				// ".." is at the end
 				else if ((itr + 1) == result.path.end()) {
 					result.path.pop_back();
-					if (!result.path.empty())
+					if (!result.path.empty()) {
 						result.path.pop_back();
-					break;
+					}
 				}
 
 				else {
 					itr = result.path.erase(itr - 1, itr + 1);
 				}
+				continue;
 			}
-
 			else if (*itr == ".") {
 				itr = result.path.erase(itr);
+				continue;
 			}
+
+			itr++;
 		}
 
 		// Remove filename from 'result->path' and insert it into a 'result->file'
-		result.file = result.path.back();
-		result.path.pop_back();
+		if (!result.path.empty()) {
+			result.file = result.path.back();
+			result.path.pop_back();
+		}
 
 		// Create absolute path
 		result.absolute_path += result.mount + mount_delimiter; // 'C:\'
