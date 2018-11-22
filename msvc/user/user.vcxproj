@@ -21,15 +21,20 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\api\api.h" />
     <ClInclude Include="..\..\src\api\hal.h" />
+    <ClInclude Include="..\..\src\user\common.h" />
     <ClInclude Include="..\..\src\user\parser.h" />
     <ClInclude Include="..\..\src\user\rtl.h" />
     <ClInclude Include="..\..\src\user\shell.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\api\api.cpp" />
+    <ClCompile Include="..\..\src\user\common.cpp" />
+    <ClCompile Include="..\..\src\user\dir.cpp" />
     <ClCompile Include="..\..\src\user\echo.cpp" />
     <ClCompile Include="..\..\src\user\freq.cpp" />
+    <ClCompile Include="..\..\src\user\md.cpp" />
     <ClCompile Include="..\..\src\user\parser.cpp" />
+    <ClCompile Include="..\..\src\user\rd.cpp" />
     <ClCompile Include="..\..\src\user\rgen.cpp" />
     <ClCompile Include="..\..\src\user\rtl.cpp" />
     <ClCompile Include="..\..\src\user\shell.cpp" />

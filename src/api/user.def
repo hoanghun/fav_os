@@ -5,6 +5,7 @@ EXPORTS
 	type
 	md
 	rd
+	dir
 	echo
 	wc
 	sort
