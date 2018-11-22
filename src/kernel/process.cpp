@@ -170,8 +170,9 @@ namespace kiv_process {
 				return false;
 			}
 
-			pcb->fd_table[0] = context.rbx.e >> 16 ;
+			pcb->fd_table[0] = context.rbx.e >> 16;
 			pcb->fd_table[1] = context.rbx.e & 0xFFFF;
+			pcb->last_fd = 2;
 
 			pcb->ppid = ppcb->pid;
 			pcb->working_directory = ppcb->working_directory;
@@ -452,8 +453,8 @@ namespace kiv_process {
 			tm_lock.unlock();
 
 			kiv_os::THandle fd_index = 0;
-			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdin", kiv_os::NFile_Attributes::System_File, fd_index);
-			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:stdout", kiv_os::NFile_Attributes::System_File, fd_index);
+			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:\\stdin", kiv_os::NFile_Attributes::System_File, fd_index);
+			kiv_vfs::CVirtual_File_System::Get_Instance().Open_File("stdio:\\stdout", kiv_os::NFile_Attributes::System_File, fd_index);
 
 			pcb->thread_table.push_back(tcb);
 			process_table.emplace(pcb->pid, pcb);

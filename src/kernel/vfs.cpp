@@ -8,6 +8,18 @@ namespace kiv_vfs {
 #pragma region File
 
 	// Default implementation (concrete filesystem can override this method)
+	size_t IFile::Write(const char *buffer, size_t buffer_size, size_t position) {
+		return 0;
+	}
+
+	size_t IFile::Read(char *buffer, size_t buffer_size, size_t position) {
+		return 0;
+	}
+
+	bool IFile::Is_Available_For_Write() {
+		return false;
+	}
+
 	size_t IFile::Get_Size() {
 		return 0;
 	}
@@ -28,7 +40,7 @@ namespace kiv_vfs {
 		mRead_count--;
 	}
 
-	TPath &IFile::Get_Path() {
+	TPath IFile::Get_Path() {
 		return mPath;
 	}
 
@@ -42,6 +54,10 @@ namespace kiv_vfs {
 
 	bool IFile::Is_Opened() {
 		return (Get_Write_Count() + Get_Read_Count() == 0);
+	}
+
+	bool IFile::Is_Directory() {
+		return (mAttributes == kiv_os::NFile_Attributes::Directory);
 	}
 
 	kiv_os::NFile_Attributes IFile::Get_Attributes() {
@@ -122,8 +138,9 @@ namespace kiv_vfs {
 		}
 		
 		for (auto &reg_file_system : mRegistered_file_systems) {
-			if (fs.Get_Name() == reg_file_system->Get_Name())
+			if (fs.Get_Name() == reg_file_system->Get_Name()) {
 				return false;
+			}
 		}
 
 		mRegistered_file_systems.push_back(&fs);
@@ -133,7 +150,19 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Mount_File_System(std::string fs_name, std::string label, TDisk_Number disk) {
-		// TODO
+		if (mMounted_fs_count == MAX_FS_MOUNTED) {
+			return false;
+		}
+
+		for (auto fs : mRegistered_file_systems) {
+			if (fs->Get_Name() == fs_name) {
+				IMounted_File_System *mount = fs->Create_Mount(label, disk);
+				mMounted_file_systems.insert(std::make_pair(label, mount));
+				mMounted_fs_count++;
+				return true;
+			}
+		}
+
 		return false;
 	}
 
@@ -194,9 +223,8 @@ namespace kiv_vfs {
 				throw TPermission_Denied_Exception();
 			}
 
-			// File is not opened -> can override this file (delete it)
+			// File is not opened -> can override this file
 			else {
-				//file->Get_Mount()->Delete_File(file->Get_Path());
 				Decache_File(file);
 			}
 		}
@@ -212,11 +240,10 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
-		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Excep
+		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
 
 		Remove_File_Descriptor(fd_index);
-		
-		// TODO Remove record in PCB
+
 		return false;
 	}
 
@@ -227,48 +254,57 @@ namespace kiv_vfs {
 		if (Is_File_Cached(normalized_path)) {
 			auto file = Get_Cached_File(normalized_path);
 
-			// File is opened -> cannot delete that file
+			// File is opened
 			if (file->Is_Opened()) {
 				throw TPermission_Denied_Exception();
 			}
 
-			// File is not opened -> can delete that file
+			// File is not opened
 			else {
-				// file->Get_Mount()->Delete_File(file->Get_Path()); fix
 				Decache_File(file);
-				return true;
 			}
 		}
 
-		// File is not cached
-		else {
-			auto mount = Resolve_Mount(normalized_path); // Throws TFile_Not_Found_Exception
-			if (mount->Delete_File(normalized_path)) {
-				throw TFile_Not_Found_Exception();
-			}
+		auto mount = Resolve_Mount(normalized_path); // Throws TFile_Not_Found_Exception
+
+		auto file = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0);
+
+		// Cannot delete a non-empty directory
+		if (file->Is_Directory() && (file->Get_Size() != 0)) {
+			throw TDirectory_Not_Empty_Exception();
+		}
+
+		if (!mount->Delete_File(normalized_path)) {
+			throw TFile_Not_Found_Exception();
 		}
 
 		return true;
 	}
 
 	size_t CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
-		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
 
 		if (!(file_desc.attributes & FD_ATTR_WRITE)) {
 			throw TPermission_Denied_Exception();
 		}
 
-		return file_desc.file->Write(buffer, buffer_size, file_desc.position);
+		size_t bytes_written = file_desc.file->Write(buffer, buffer_size, file_desc.position);
+		file_desc.position += bytes_written;
+
+		return bytes_written;
 	}
 
 	size_t CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
-		auto file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
 
 		if (!(file_desc.attributes & FD_ATTR_READ)) {
 			throw TPermission_Denied_Exception();
 		}
 
-		return file_desc.file->Read(buffer, buffer_size, file_desc.position);
+		size_t bytes_read = file_desc.file->Read(buffer, buffer_size, file_desc.position);
+		file_desc.position += bytes_read;
+
+		return bytes_read;
 	}
 
 	bool CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
@@ -344,7 +380,6 @@ namespace kiv_vfs {
 			return 0;
 		}
 		
-		// UNSAFE std::copy(working_dir.begin(), working_dir.end(), buffer);
 		stdext::checked_array_iterator<char *> chai(buffer, buf_size);
 		std::copy(working_dir.begin(), working_dir.end(), chai);
 
@@ -406,7 +441,9 @@ namespace kiv_vfs {
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
-		// TODO throw TFile_Not_Found_Exception when bad mount
+		if (mMounted_file_systems.find(normalized_path.mount) == mMounted_file_systems.end()) {
+			throw TFile_Not_Found_Exception();
+		}
 		return mMounted_file_systems.at(normalized_path.mount);
 	}
 
@@ -466,14 +503,11 @@ namespace kiv_vfs {
 
 	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
 		// Known issues 
-		//	- two ".." on the end are handled incorrectly (e.g. "a\\b\\..\\..")
-		//	- process's working directory will be TPath, not string
-		//	- absolute path is not yet filled
+		//	- two ".." at the end are handled incorrectly (e.g. "a\\b\\..\\..")
 
-		// Move these constants
-		std::string path_delimiter = "\\";
-		std::string mount_delimiter = ":";
-		size_t mount_max_size = 6;
+		const std::string path_delimiter = "\\";
+		const std::string mount_delimiter = ":" + path_delimiter;
+		const size_t mount_max_size = 6;
 
 		TPath result;
 
@@ -487,7 +521,7 @@ namespace kiv_vfs {
 
 		// Relative path
 		else if (splitted_by_mount.size() == 1) {
-			std::string working_dir = "C:\\aa\\bb\\cc"; // TODO process:Get_Working_Dir();
+			std::string working_dir = "C:\\"; // TODO process:Get_Working_Dir();
 
 			std::vector<std::string> working_dir_splitted_by_mount = Split(working_dir, mount_delimiter);
 
@@ -534,8 +568,15 @@ namespace kiv_vfs {
 		}
 
 		// Remove filename from 'result->path' and insert it into a 'result->file'
-		result.file = result.path.at(result.path.size() - 1);
-		result.path.erase(result.path.end() - 1);
+		result.file = result.path.back();
+		result.path.pop_back();
+
+		// Create absolute path
+		result.absolute_path += result.mount + mount_delimiter; // 'C:\'
+		for (std::vector<std::string>::iterator it = result.path.begin(); it != result.path.end(); ++it) {
+			result.absolute_path += *it + path_delimiter;
+		}
+		result.absolute_path += result.file;
 
 		return result;
 	}

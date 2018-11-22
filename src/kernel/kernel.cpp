@@ -8,6 +8,7 @@
 #include "common.h"
 #include "process.h"
 #include "fs_stdio.h"
+#include "fs_fat.h"
 
 #include <iostream>
 
@@ -20,14 +21,17 @@ void Initialize_Kernel() {
 	/*
 	 * Registering all known file systems crucial for kernel
 	 */
-	kiv_fs_stdio::CFile_System stdio_system("stdio");
+	kiv_fs_stdio::CFile_System fs_stdio;
+	kiv_fs_fat::CFile_System fs_fat;
 
-	stdio_system.Register();
+	fs_stdio.Register();
+	fs_fat.Register();
 
 	/*
 	 * Mounting registered
 	 */
-	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_Registered();
+	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("stdio", "stdio");
+	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fat", "C", 0x81); // TODO Change disk
 }
 
 void Shutdown_Kernel() {

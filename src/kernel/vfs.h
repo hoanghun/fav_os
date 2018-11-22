@@ -11,8 +11,8 @@ namespace kiv_vfs {
 	using TDisk_Number = std::uint8_t;
 	using TFD_Attributes = std::uint8_t;
 
-	const std::string STDIN_PATH = "stdio:stdin";
-	const std::string STDOUT_PATH = "stdio:stdout";
+	const std::string STDIN_PATH = "stdio:\\stdin";
+	const std::string STDOUT_PATH = "stdio:\\stdout";
 
 	// All possible file descriptor attributes and their combinations
 	const TFD_Attributes FD_ATTR_FREE = 0x00;
@@ -49,10 +49,10 @@ namespace kiv_vfs {
 	// Instances of inherited classes represent one file
 	class IFile {
 		public:
-			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) = 0;
-			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) = 0;
+			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position);
+			virtual size_t Read(char *buffer, size_t buffer_size, size_t position);
 			virtual void Close(const TFD_Attributes attrs);
-			virtual bool Is_Available_For_Write() = 0;
+			virtual bool Is_Available_For_Write();
 			virtual size_t Get_Size();
 
 			void Increase_Write_Count();
@@ -60,10 +60,11 @@ namespace kiv_vfs {
 			void Increase_Read_Count();
 			void Decrease_Read_Count();
 
-			TPath &Get_Path();
+			TPath Get_Path();
 			unsigned int Get_Write_Count();
 			unsigned int Get_Read_Count();
 			bool Is_Opened();
+			bool Is_Directory();
 			kiv_os::NFile_Attributes Get_Attributes();
 
 			virtual ~IFile();
@@ -169,7 +170,6 @@ namespace kiv_vfs {
 			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
 
 			std::vector<IFile_System*> mRegistered_file_systems; // Pøedìlat na mapu fs_name -> fs ?
-			//std::array<std::shared_ptr<IMounted_File_System>, MAX_FS_MOUNTED> mMounted_file_systems{ nullptr };
 			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
 			
 			
@@ -194,15 +194,13 @@ namespace kiv_vfs {
 	 */
 	struct TInvalid_Fd_Exception : public std::exception {};
 	struct TFd_Table_Full_Exception : public std::exception {};
-	
 	struct TPermission_Denied_Exception : public std::exception {};
 	struct TFile_Not_Found_Exception : public std::exception {};
+	struct TDirectory_Not_Empty_Exception : public std::exception {};
 	struct TPosition_Out_Of_Range_Exception : public std::exception {};
 	struct TNot_Enough_Space_Exception : public std::exception {};
 	struct TInvalid_Operation_Exception : public std::exception {};
-
 	struct TInvalid_Path_Exception : public std::exception {};
 	struct TInvalid_Mount_Exception : public std::exception {};
-
 	struct TInternal_Error_Exception : public std::exception {};
 }

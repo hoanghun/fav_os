@@ -49,8 +49,10 @@ namespace tmp { // todo remove tmp
 
 #pragma region Register
 namespace kiv_fs_stdio {
-	CFile_System::CFile_System(std::string name) {
-		mName = name;
+	const char *STDIO_NAME = "stdio";
+
+	CFile_System::CFile_System() {
+		mName = STDIO_NAME;
 	}
 
 	bool CFile_System::Register() {
@@ -66,7 +68,7 @@ namespace kiv_fs_stdio {
 
 #pragma region File
 namespace kiv_fs_stdio {
-	CFile::CFile(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+	CFile::CFile(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes) {
 		mPath = path;
 		mAttributes = attributes;
 	}
@@ -105,7 +107,7 @@ namespace kiv_fs_stdio {
 		
 		/* during mount creating both stdin file and stdout file */
 		kiv_vfs::TPath stdin_path;
-		stdin_path.absolute_path = "stdio:stdin";
+		stdin_path.absolute_path = "stdio:\\stdin";
 		stdin_path.file = "stdin";
 		stdin_path.mount = "stdio";
 		
@@ -113,7 +115,7 @@ namespace kiv_fs_stdio {
 		mStdioFiles.insert(std::pair<std::string, std::shared_ptr<kiv_vfs::IFile>>("stdin", stdin_file));
 
 		kiv_vfs::TPath stdout_path;
-		stdout_path.absolute_path = "stdio:stdout";
+		stdout_path.absolute_path = "stdio:\\stdout";
 		stdout_path.file = "stdout";
 		stdout_path.mount = "stdio";
 

@@ -128,6 +128,7 @@ void Open_File(kiv_hal::TRegisters &regs) {
 			vfs.Create_File(path, attributes, handle);
 		}
 		handle = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(handle);
+
 		regs.rax.x = static_cast<decltype(regs.rax.x)>(handle);
 		result = kiv_os::NOS_Error::Success;
 	}
@@ -162,6 +163,7 @@ void Close_File(kiv_hal::TRegisters &regs) {
 	kiv_os::NOS_Error result;
 	try {
 		vfs.Close_File(vfs_handle);
+		// TODO Remove file from pcb?
 		result = kiv_os::NOS_Error::Success;
 	}
 	catch (...) { // including TInvalid_Fd_Exception
@@ -177,9 +179,13 @@ void Delete_File(kiv_hal::TRegisters &regs) {
 	kiv_os::NOS_Error result;
 	try {
 		vfs.Delete_File(path);
+		result = kiv_os::NOS_Error::Success;
 	}
 	catch (kiv_vfs::TFile_Not_Found_Exception e) {
 		result = kiv_os::NOS_Error::File_Not_Found;
+	}
+	catch (kiv_vfs::TDirectory_Not_Empty_Exception e) {
+		result = kiv_os::NOS_Error::Directory_Not_Empty;
 	}
 	catch (kiv_vfs::TPermission_Denied_Exception e) {
 		result = kiv_os::NOS_Error::Permission_Denied;
