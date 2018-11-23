@@ -19,8 +19,12 @@ namespace kiv_fs_fat {
 
 
 #pragma region IO Utils
+	CFAT_Utils::CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number)
+		: mSb(sb), mDisk_number(disk_number)
+	{
+	}
 
-	bool Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors) {
 		kiv_hal::TRegisters regs;
 		kiv_hal::TDisk_Address_Packet dap;
 
@@ -29,7 +33,7 @@ namespace kiv_fs_fat {
 		dap.sectors = sectors;
 
 		regs.rax.h = static_cast<decltype(regs.rax.h)>(kiv_hal::NDisk_IO::Write_Sectors);;
-		regs.rdx.l = static_cast<decltype(regs.rdx.l)>(disk_number);
+		regs.rdx.l = static_cast<decltype(regs.rdx.l)>(mDisk_number);
 		regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(&dap);
 
 		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Disk_IO, regs);
@@ -37,7 +41,7 @@ namespace kiv_fs_fat {
 		return (regs.flags.carry == 0);
 	}
 
-	bool Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors) {
 		kiv_hal::TRegisters regs;
 		kiv_hal::TDisk_Address_Packet dap;
 
@@ -46,7 +50,7 @@ namespace kiv_fs_fat {
 		dap.sectors = buffer;
 
 		regs.rax.h = static_cast<decltype(regs.rax.h)>(kiv_hal::NDisk_IO::Read_Sectors);;
-		regs.rdx.l = static_cast<decltype(regs.rdx.l)>(disk_number);
+		regs.rdx.l = static_cast<decltype(regs.rdx.l)>(mDisk_number);
 		regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(&dap);
 
 		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Disk_IO, regs);
@@ -54,36 +58,36 @@ namespace kiv_fs_fat {
 		return (regs.flags.carry == 0);
 	}
 
-	bool Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
-		return Write_To_Disk(clusters, first_cluster * sb.sectors_per_cluster, num_of_clusters * sb.sectors_per_cluster, disk_number);
+	bool CFAT_Utils::Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters) {
+		return Write_To_Disk(clusters, first_cluster * sb.sectors_per_cluster, num_of_clusters * sb.sectors_per_cluster);
 	}
 
-	bool Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
-		return Read_From_Disk(buffer, first_cluster * sb.sectors_per_cluster, num_of_clusters * sb.sectors_per_cluster, disk_number);
+	bool CFAT_Utils::Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters) {
+		return Read_From_Disk(buffer, first_cluster * sb.sectors_per_cluster, num_of_clusters * sb.sectors_per_cluster);
 	}
 
-	bool Write_Data_Cluster(char *clusters, TFAT_Entry fat_entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
-		return Write_Clusters(clusters, sb.data_first_cluster + fat_entry, 1, sb, disk_number);
+	bool CFAT_Utils::Write_Data_Cluster(char *clusters, TFAT_Entry fat_entry) {
+		return Write_Clusters(clusters, sb.data_first_cluster + fat_entry, 1);
 	}
 
-	bool Read_Data_Cluster(char *buffer, TFAT_Entry fat_entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
-		return Read_Clusters(buffer, sb.data_first_cluster + fat_entry, 1, sb, disk_number);
+	bool CFAT_Utils::Read_Data_Cluster(char *buffer, TFAT_Entry fat_entry) {
+		return Read_Clusters(buffer, sb.data_first_cluster + fat_entry, 1);
 	}
 
-	bool Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value) {
 		std::map<TFAT_Entry, TFAT_Entry> map;
 		for (auto it = entries.begin(); it != entries.end(); ++it) {
 			map.insert(std::pair<TFAT_Entry, TFAT_Entry>(*it, value));
 		}
 
-		if (!Write_Fat_Entries(map, sb, disk_number)) {
+		if (!Write_Fat_Entries(map)) {
 			return false;
 		}
 
 		return true;
 	}
 
-	bool Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries) {
 		size_t cluster_size = sb.sectors_per_cluster * sb.disk_params.bytes_per_sector;
 		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
 		
@@ -97,7 +101,7 @@ namespace kiv_fs_fat {
 
 			// Read new cluster if needed
 			if (curr_entry % entries_per_cluster == 0) {
-				Read_Clusters(cluster_buffer, curr_cluster, 1, sb, disk_number);
+				Read_Clusters(cluster_buffer, curr_cluster, 1);
 				curr_cluster++;
 			}
 
@@ -118,10 +122,10 @@ namespace kiv_fs_fat {
 			curr_entry++;
 		}
 
-		return Set_Fat_Entries_Value(entries, FAT_RESERVED, sb, disk_number);
+		return Set_Fat_Entries_Value(entries, FAT_RESERVED);
 	}
 
-	bool Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries) {
 		size_t cluster_size = sb.sectors_per_cluster * sb.disk_params.bytes_per_sector;
 		char *cluster_buffer = new char[cluster_size];
 
@@ -141,7 +145,7 @@ namespace kiv_fs_fat {
 
 				// Store current cluster
 				if (cluster_loaded != static_cast<size_t>(-1)) {
-					if (!Write_Clusters(cluster_buffer, cluster_needed, 1, sb, disk_number)) {
+					if (!Write_Clusters(cluster_buffer, cluster_needed, 1)) {
 						delete[] cluster_buffer;
 						return false;
 					}
@@ -174,7 +178,7 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	bool Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries) {
 		size_t cluster_size = sb.sectors_per_cluster * sb.disk_params.bytes_per_sector;
 		char *cluster_buffer = new char[cluster_size];
 
@@ -191,7 +195,7 @@ namespace kiv_fs_fat {
 
 			// FAT entry is not located in currently loaded cluster -> Load needed cluster
 			if (cluster_needed != cluster_loaded) {
-				if (!Read_Clusters(cluster_buffer, cluster_needed, 1, sb, disk_number)) {
+				if (!Read_Clusters(cluster_buffer, cluster_needed, 1)) {
 					delete[] cluster_buffer;
 					return false;
 				}
@@ -209,17 +213,17 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) {
+	bool CFAT_Utils::Free_File_Fat_Entries(TFAT_Dir_Entry &entry) {
 		std::vector<TFAT_Entry> entries;
 
-		if (!Get_File_Fat_Entries(entry.start, entries, sb, disk_number)) {
+		if (!Get_File_Fat_Entries(entry.start, entries)) {
 			return false;
 		}
 
-		return Set_Fat_Entries_Value(entries, FAT_FREE, sb, disk_number);;
+		return Set_Fat_Entries_Value(entries, FAT_FREE);;
 	}
 
-	bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, TSuperblock &sb, kiv_vfs::TDisk_Number disk, std::shared_ptr<IDirectory> &directory) {
+	bool CFAT_Utils::Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory) {
 		TFAT_Dir_Entry dir_entry = dirs_from_root.back();
 
 		// Dir is root
@@ -240,8 +244,8 @@ namespace kiv_fs_fat {
 
 #pragma region Abstract directory
 
-	IDirectory::IDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number) 
-		: mSuperblock(sb), mDisk_number(disk_number)
+	IDirectory::IDirectory(CFAT_Utils *utils) 
+		: mUtils(utils)
 	{
 	}
 
@@ -757,10 +761,12 @@ namespace kiv_fs_fat {
 			}
 		}
 
+		utils = new FAT_Utils(mSuperblock, mDisk_Number);
 		root = std::make_shared<CRoot>(mSuperblock, mDisk_Number); // TODO Handle error
 	}
 
 	CMount::~CMount() {
+		delete utils;
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
