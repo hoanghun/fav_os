@@ -603,7 +603,6 @@ namespace kiv_fs_fat {
 		if (mFat_entries.size() < clusters_needed) {
 			// Get free entries
 			size_t num_of_new_entries = clusters_needed - mFat_entries.size();
-			cout << mPath.file << ": " << "new clusters needed (" << num_of_new_entries << ")" << endl;
 			if (!Get_Free_Fat_Entries(new_entries, num_of_new_entries, mSuperblock, mDisk_number)) {
 				return 0;
 			}
@@ -656,7 +655,7 @@ namespace kiv_fs_fat {
 
 		// Change filesize if needed
 		if (position + bytes_to_write > mSize) {
-			mSize = position + bytes_to_write;
+			mSize = static_cast<uint32_t>(position + bytes_to_write);
 			std::shared_ptr<IDirectory> parent;
 			if (!Load_Directory(mDirs_to_parent, mSuperblock, mDisk_number, parent)) {
 				return 0;
