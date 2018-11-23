@@ -52,6 +52,8 @@ namespace kiv_fs_fat {
 			bool Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries);
 			bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry);
 			bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory);
+
+			TSuperblock &Get_Superblock();
 		private:
 			TSuperblock &mSb;
 			kiv_vfs::TDisk_Number mDisk_number;
@@ -83,8 +85,8 @@ namespace kiv_fs_fat {
 	// Subdirectory
 	class CDirectory : public IDirectory {
 		public:
-			CDirectory(kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent);
-			CDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry);
+			CDirectory(kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
+			CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils);
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -92,13 +94,12 @@ namespace kiv_fs_fat {
 		private:
 			TFAT_Dir_Entry mDir_entry;
 			std::vector<TFAT_Dir_Entry> mDirs_to_parent;
-
 	};
 
 	// Root directory
 	class CRoot : public IDirectory {
 		public:
-			CRoot(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number); 
+			CRoot(CFAT_Utils *utils); 
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -107,7 +108,7 @@ namespace kiv_fs_fat {
 	// File
 	class CFile : public kiv_vfs::IFile {
 		public:
-			CFile(const kiv_vfs::TPath path, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent);
+			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
 			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Available_For_Write() final override;
@@ -115,12 +116,10 @@ namespace kiv_fs_fat {
 
 		private:
 			std::string filename;
-			kiv_vfs::TDisk_Number mDisk_number;
-			TSuperblock &mSuperblock;
 			uint32_t mSize;
 			std::vector<TFAT_Entry> mFat_entries;
 			std::vector<TFAT_Dir_Entry> mDirs_to_parent;
-			FAT_Utils *utils;
+			CFAT_Utils *mUtils;
 	};
 
 	class CFile_System : public kiv_vfs::IFile_System {
@@ -143,7 +142,7 @@ namespace kiv_fs_fat {
 			kiv_vfs::TDisk_Number mDisk_Number;
 			TSuperblock mSuperblock;
 			std::shared_ptr<CRoot> root;
-			FAT_Utils *utils;
+			CFAT_Utils *mUtils;
 
 			bool Load_Superblock(kiv_hal::TDrive_Parameters &params);
 			bool Chech_Superblock();
