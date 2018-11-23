@@ -9,7 +9,8 @@ bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs
 	// TODO Otestovat výpis souborù (ne složek)
 
 	kiv_os::THandle handle;
-	// Check if file or directory with that name already exists
+
+	// Check if directory exists
 	bool exists = kiv_os_rtl::Open_File(dir_name.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, handle);
 
 	std::string line;

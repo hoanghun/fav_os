@@ -61,15 +61,17 @@ namespace kiv_fs_fat {
 			virtual bool Remove_File(const kiv_vfs::TPath &path);
 			virtual bool Find(std::string filename, TFAT_Dir_Entry &first_entry) final; 
 			virtual bool Change_Entry_Size(std::string filename, uint32_t filesize) final;
+			virtual bool IDirectory::Get_Entry_Size(std::string filename, uint32_t &filesize) final;
+
 			virtual bool Load() = 0;
 			virtual bool Save() = 0;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) = 0;
 
 		protected:
-				TSuperblock &mSuperblock;
-				kiv_vfs::TDisk_Number mDisk_number;
-				std::vector<TFAT_Dir_Entry> mEntries;
-				uint16_t mSize;
+			TSuperblock &mSuperblock;
+			kiv_vfs::TDisk_Number mDisk_number;
+			std::vector<TFAT_Dir_Entry> mEntries;
+			uint32_t mSize;
 	};
 
 	// Subdirectory
@@ -77,8 +79,6 @@ namespace kiv_fs_fat {
 		public:
 			CDirectory(kiv_vfs::TPath path, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent);
 			CDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry);
-			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath filename, kiv_os::NFile_Attributes attributes) override final;
-			virtual bool Remove_File(const kiv_vfs::TPath &path) override final;
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;

@@ -390,7 +390,6 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Change_Entry_Size(std::string filename, uint32_t filesize) {
-		cout << "Change entry size: " << filename << ": " << filesize << endl;
 		if (!Load()) {
 			return false;
 		}
@@ -401,6 +400,21 @@ namespace kiv_fs_fat {
 				if (!Save()) {
 					return false;
 				}
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool IDirectory::Get_Entry_Size(std::string filename, uint32_t &filesize) {
+		if (!Load()) {
+			return false;
+		}
+
+		for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
+			if (it->name == filename) {
+				filesize = it->filesize;
 				return true;
 			}
 		}
@@ -425,19 +439,6 @@ namespace kiv_fs_fat {
 		CDirectory(path, sb, disk_number, dir_entry, std::vector<TFAT_Dir_Entry>{});
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CDirectory::Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes) {
-		auto created_file = IDirectory::Create_File(path, attributes);
-		if (created_file) {
-			std::shared_ptr<IDirectory> parent;
-			if (!Load_Directory(mDirs_to_parent, mSuperblock, mDisk_number, parent)) {
-				return nullptr;
-			}
-			parent->Change_Entry_Size(mPath.file, mSize);
-		}
-
-		return created_file;
-	}
-
 	std::shared_ptr<kiv_vfs::IFile> CDirectory::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
 		std::vector<TFAT_Dir_Entry> dirs_to_this = { mDirs_to_parent };
 		dirs_to_this.push_back(mDir_entry);
@@ -450,21 +451,17 @@ namespace kiv_fs_fat {
 		}
 	}
 
-	bool CDirectory::Remove_File(const kiv_vfs::TPath &path) {
-		if (!IDirectory::Remove_File(path)) {
-			return false;
-		}
-
-		std::shared_ptr<IDirectory> parent;
-		if (!Load_Directory(mDirs_to_parent, mSuperblock, mDisk_number, parent)) {
-			return nullptr;
-		}
-		return parent->Change_Entry_Size(mPath.file, mSize);
-	}
-
 	bool CDirectory::Load() {
 		mEntries.clear();
 
+		// Load size
+		std::shared_ptr<IDirectory> parent;
+		if (!Load_Directory(mDirs_to_parent, mSuperblock, mDisk_number, parent)) {
+			return false;
+		}
+		parent->Get_Entry_Size(mPath.file, mSize);
+
+		// Read data from disk
 		char *buffer = new char[mSuperblock.sectors_per_cluster * mSuperblock.disk_params.bytes_per_sector];
 		if (!Read_Data_Cluster(buffer, mDir_entry.start, mSuperblock, mDisk_number)) {
 			delete[] buffer;
@@ -495,8 +492,20 @@ namespace kiv_fs_fat {
 			address += sizeof(TFAT_Dir_Entry);
 		}
 
+		TFAT_Dir_Entry entry;
+		for (int i = 0; i < mEntries.size(); i++) {
+			memcpy(&entry, buffer + i * sizeof(TFAT_Dir_Entry), sizeof(TFAT_Dir_Entry));
+		}
+
 		bool res = Write_Data_Cluster(buffer, mDir_entry.start, mSuperblock, mDisk_number);
 		delete[] buffer;
+
+		// Save size of directory
+		std::shared_ptr<IDirectory> parent;
+		if (!Load_Directory(mDirs_to_parent, mSuperblock, mDisk_number, parent)) {
+			return nullptr;
+		}
+		parent->Change_Entry_Size(mPath.file, mEntries.size() * sizeof(TFAT_Dir_Entry));
 
 		return res;
 	}
@@ -852,7 +861,6 @@ namespace kiv_fs_fat {
 		// Open file's parent
 		auto parent_file = Open_File(parent_path, (kiv_os::NFile_Attributes)(0));
 		if (!parent_file || !parent_file->Is_Directory()) {
-			cout << parent_file->Is_Directory() << endl;
 			return false;
 		}
 
@@ -977,7 +985,7 @@ namespace kiv_fs_fat {
 	bool CMount::Init_Root() {
 		char *buffer = new char[mSuperblock.sectors_per_cluster * mSuperblock.disk_params.bytes_per_sector];
 
-		uint16_t size = 0;
+		uint32_t size = 0;
 		memcpy(buffer, &size, sizeof(size));
 
 		bool result = Write_Clusters(buffer, mSuperblock.root_cluster, 1, mSuperblock, mDisk_Number);
