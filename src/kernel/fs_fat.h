@@ -40,6 +40,7 @@ namespace kiv_fs_fat {
 	class CFAT_Utils {
 		public:
 			CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
+			CFAT_Utils(kiv_vfs::TDisk_Number disk_number);
 			bool Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors);
 			bool Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors);
 			bool Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters);
@@ -53,9 +54,10 @@ namespace kiv_fs_fat {
 			bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry);
 			bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory);
 
+			void Set_Superblock(TSuperblock sb);
 			TSuperblock &Get_Superblock();
 		private:
-			TSuperblock &mSb;
+			TSuperblock mSb;
 			kiv_vfs::TDisk_Number mDisk_number;
 	};
 

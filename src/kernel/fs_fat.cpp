@@ -15,7 +15,7 @@ namespace kiv_fs_fat {
 
 	const size_t MAX_DIR_ENTRIES = 21;
 	const char *FAT_NAME = "fat";
-	const TFAT_Dir_Entry root_dir_entry{"\\"};
+	const TFAT_Dir_Entry root_dir_entry{ "\\" };
 
 
 #pragma region IO Utils
@@ -23,6 +23,12 @@ namespace kiv_fs_fat {
 		: mSb(sb), mDisk_number(disk_number)
 	{
 	}
+
+	CFAT_Utils::CFAT_Utils(kiv_vfs::TDisk_Number disk_number)
+		: mSb(TSuperblock{}), mDisk_number(disk_number)
+	{
+	}
+
 
 	bool CFAT_Utils::Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors) {
 		kiv_hal::TRegisters regs;
@@ -238,6 +244,10 @@ namespace kiv_fs_fat {
 		}
 
 		return true;
+	}
+
+	void CFAT_Utils::Set_Superblock(TSuperblock sb) {
+		mSb = sb;
 	}
 
 	TSuperblock &CFAT_Utils::Get_Superblock() {
@@ -540,7 +550,6 @@ namespace kiv_fs_fat {
 
 	bool CRoot::Load() {
 		mEntries.clear();
-
 		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
 		if (!mUtils->Read_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1)) {
 			delete[] buffer;
@@ -742,6 +751,8 @@ namespace kiv_fs_fat {
 	CMount::CMount(std::string label, kiv_vfs::TDisk_Number disk_number) {
 		mLabel = label;
 		mDisk_Number = disk_number;
+		mUtils = new CFAT_Utils(disk_number);
+
 		kiv_hal::TDrive_Parameters disk_params;
 		if (!Load_Disk_Params(disk_params)) {
 			cout << "FAT - Couldn't load disk params" << endl;
@@ -765,7 +776,7 @@ namespace kiv_fs_fat {
 			}
 		}
 
-		mUtils = new CFAT_Utils(mSuperblock, mDisk_Number);
+		mUtils->Set_Superblock(mSuperblock);
 		root = std::make_shared<CRoot>(mUtils); // TODO Handle error
 	}
 
