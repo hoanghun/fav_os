@@ -61,7 +61,7 @@ namespace kiv_vfs {
 
 	bool IFile::Is_Opened() {
 		std::unique_lock<std::mutex> lock(mFile_lock);
-		return (Get_Write_Count() + Get_Read_Count() == 0);
+		return (Get_Write_Count() + Get_Read_Count() != 0);
 	}
 
 	bool IFile::Is_Directory() {
