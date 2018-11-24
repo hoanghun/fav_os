@@ -116,10 +116,10 @@ namespace kiv_vfs {
 
 
 #pragma region Virtual file system
-	std::mutex CVirtual_File_System::mFd_lock;
+	std::recursive_mutex CVirtual_File_System::mFd_lock;
 	std::mutex CVirtual_File_System::mRegistered_fs_lock;
 	std::mutex CVirtual_File_System::mMounted_fs_lock;
-	std::mutex CVirtual_File_System::mFiles_lock;
+	std::recursive_mutex CVirtual_File_System::mFiles_lock;
 
 	CVirtual_File_System *CVirtual_File_System::instance;
 
@@ -409,7 +409,7 @@ namespace kiv_vfs {
 	// ====================
 
 	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
-		std::unique_lock<std::mutex> lock(mFd_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (fd_index > MAX_FILE_DESCRIPTORS || !mFile_descriptors[fd_index].file) {
 			throw TInvalid_Fd_Exception();
@@ -419,7 +419,7 @@ namespace kiv_vfs {
 	}
 
 	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
-		std::unique_lock<std::mutex> lock(mFd_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		TFile_Descriptor &file_desc = mFile_descriptors[fd_index];
 
@@ -438,7 +438,7 @@ namespace kiv_vfs {
 	}
 
 	void CVirtual_File_System::Remove_File_Descriptor(kiv_os::THandle fd_index) {
-		std::unique_lock<std::mutex> lock(mFd_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		TFile_Descriptor &file_desc = mFile_descriptors[fd_index];
 
@@ -450,7 +450,7 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::THandle CVirtual_File_System::Get_Free_Fd_Index() {
-		std::unique_lock<std::mutex> lock(mFd_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (mFd_count == MAX_FILE_DESCRIPTORS) {
 			throw TFd_Table_Full_Exception();
@@ -476,20 +476,21 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Is_File_Cached(const TPath& path) {
-		std::unique_lock<std::mutex> lock(mFiles_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
 		return (mCached_files.find(path.absolute_path) != mCached_files.end());
 	}
 
 	void CVirtual_File_System::Cache_File(std::shared_ptr<IFile> &file) {
-		std::unique_lock<std::mutex> lock(mFiles_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
 		mCached_files.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path().absolute_path, file));
 	}
 
 	void CVirtual_File_System::Decache_File(std::shared_ptr<IFile> &file) {
-		std::unique_lock<std::mutex> lock(mFiles_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
+		auto path = file->Get_Path();
 		if (!Is_File_Cached(file->Get_Path())) {
 			throw TInternal_Error_Exception();
 		}
@@ -498,7 +499,7 @@ namespace kiv_vfs {
 	}
 
 	std::shared_ptr<IFile> CVirtual_File_System::Get_Cached_File(const TPath &path) {
-		std::unique_lock<std::mutex> lock(mFiles_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
 		return mCached_files.find(path.absolute_path)->second;
 	}

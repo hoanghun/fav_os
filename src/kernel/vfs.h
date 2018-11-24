@@ -158,10 +158,10 @@ namespace kiv_vfs {
 			bool Mount_File_System(std::string fs_name, std::string label, TDisk_Number = 0);
 
 		private:
-			static std::mutex mFd_lock;
+			static std::recursive_mutex mFd_lock;
 			static std::mutex mRegistered_fs_lock;
 			static std::mutex mMounted_fs_lock;
-			static std::mutex mFiles_lock;;
+			static std::recursive_mutex mFiles_lock;;
 
 			unsigned int mFd_count = 0;
 			unsigned int mRegistered_fs_count = 0;
