@@ -77,8 +77,8 @@ namespace kiv_process {
 				std::map<size_t, std::shared_ptr<TProcess_Control_Block>> process_table;
 
 				CProcess_Manager();
-				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb);
-				bool Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
+				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> *ppcb);
+				//bool Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
 				void Check_Process_State(std::shared_ptr<TProcess_Control_Block> pid);
 				void Create_Sys_Process();
 				void Reap_Process();

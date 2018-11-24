@@ -6,8 +6,14 @@
 #include <iostream>
 namespace kiv_process {
 
+#pragma region "SYSTEM VARIABLES"
+
 	bool system_shutdown = false;
-	int waiting_time = 50;
+	
+	std::mutex reap_mutex;
+	std::condition_variable reap_cv;
+
+#pragma endregion
 
 	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
@@ -163,8 +169,9 @@ namespace kiv_process {
 			pcb->pid = pid;
 			pcb->state = NProcess_State::RUNNING;
 			pcb->name = std::string((char*)(context.rdx.r));
-			std::shared_ptr<TProcess_Control_Block> ppcb = std::make_shared<TProcess_Control_Block>();
-			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), ppcb)) {
+
+			std::shared_ptr<TProcess_Control_Block> ppcb;
+			if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &ppcb)) {
 				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
 				context.flags.carry = 1;
 				return false;
@@ -187,40 +194,36 @@ namespace kiv_process {
 		return true;
 	}
 
-	bool CProcess_Manager::Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> pcb) {
-		for(auto tpcb : process_table) {
-			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
-				if (ttcb->tid == tid) {
-					
-					if (pcb != nullptr) {
-						pcb = tpcb.second;
-					}
-					
-					return true;
-				}
-			}
+	bool CProcess_Manager::Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> *pcb) {
+
+		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb) == false) {
+			return false;
+		}
+		else {
+			*pcb = tcb->pcb;
+			return true;
 		}
 
-		return false;
 	}
 
-	bool CProcess_Manager::Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
-		for (auto tpcb : process_table) {
-			for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
-				if (ttcb->tid == tid) {
+	//bool CProcess_Manager::Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
+	//	for (auto tpcb : process_table) {
+	//		for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
+	//			if (ttcb->tid == tid) {
 
-					if (tcb != nullptr) {
-						tcb = ttcb;
-					}
+	//				if (tcb != nullptr) {
+	//					tcb = ttcb;
+	//				}
 
-					return true;
-				}
-			}
-		}
+	//				return true;
+	//			}
+	//		}
+	//	}
 
-		return false;
+	//	return false;
 
-	}
+	//}
 
 	//Zkontroluje zda process skoncil tzn. vsechny vlakna jsou ve stavu terminated
 	//a provede potrebne akce
@@ -249,7 +252,7 @@ namespace kiv_process {
 
 			//Pokud jiz nebezi zadne vlakno v procesu tzn. proces je ukoncen
 			if (terminated) {
-
+				
 				//Uzavirani vsech otevrenych souboru
 				for (auto &item : pcb->fd_table) {
 					//TODO zavreni stdin a stdout?
@@ -264,8 +267,15 @@ namespace kiv_process {
 				for (size_t cpid : pcb->cpids) {
 					if (process_table[cpid]->state != NProcess_State::TERMINATED) {
 						process_table[pcb->ppid]->cpids.push_back(cpid);
+						process_table[cpid]->ppid = pcb->ppid;
+						//SIGNALIZE SYSTEM PROCESS
+						reap_cv.notify_all();
 					}
 				}
+
+				//
+				std::vector<size_t> &vec = process_table[pcb->ppid]->cpids;
+				vec.erase(std::remove(vec.begin(), vec.end(), pcb->pid), vec.end());
 
 				process_table.erase(pcb->pid);
 				pid_manager->Release_Pid(pcb->pid);
@@ -284,14 +294,15 @@ namespace kiv_process {
 
 		//Zastavi vsechny systemove procesy
 		system_shutdown = true;
+		reap_cv.notify_all();
+		process_table[0]->thread_table[0]->thread.join();
 
 		for (auto pcb : process_table) {
 
 			for (auto tcb : pcb.second->thread_table) {
 
 				//Systemove procesy nebudeme ukoncovat nasilne
-				if (pcb.second->pid == 0) {
-					tcb->thread.join();
+				if (pcb.second->pid == 0) {		
 					tcb->pcb = nullptr;
 				}
 				else if (tcb->terminate_handler == nullptr) {
@@ -471,6 +482,10 @@ namespace kiv_process {
 
 		while (!system_shutdown) {
 
+			std::unique_lock<std::mutex> lock(reap_mutex);
+			reap_cv.wait(lock);
+			lock.unlock();
+
 			if (ptable.try_lock()) {
 				
 				child_pids = process_table[0]->cpids;
@@ -485,10 +500,11 @@ namespace kiv_process {
 				}
 				ptable.unlock();
 			}
-			else {
-				//Pokud nedostaneme zamek nad process_table nema cenu pokracovat, ale chceme se dostat k praci co nejdrive
-				std::this_thread::yield();
-			}
+			//else {
+			//	//Pokud nedostaneme zamek nad process_table nema cenu pokracovat, ale chceme se dostat k praci co nejdrive
+			//	//TODO lock with semaphore
+			//	std::this_thread::yield();
+			//}
 			
 
 			uint16_t exit_code;
@@ -496,7 +512,7 @@ namespace kiv_process {
 				kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(handle, exit_code);
 			}
 
-			std::this_thread::yield();
+			/*std::this_thread::yield();*/
 		}
 
 	}

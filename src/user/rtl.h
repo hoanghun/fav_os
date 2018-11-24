@@ -27,7 +27,7 @@ namespace kiv_os_rtl {
 
 	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler);
 
-	bool Read_Exit_Code(const kiv_os::TThread_Proc *handler, int &exit_code);
+	bool Read_Exit_Code(const size_t handler, int &exit_code);
 
 	bool Open_File(const char * file_name, const kiv_os::NOpen_File flags, const kiv_os::NFile_Attributes attributes, kiv_os::THandle &handle);
 

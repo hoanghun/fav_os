@@ -91,6 +91,7 @@ bool kiv_os_rtl::Wait_For(const size_t *handles, const size_t handles_count, siz
 	regs.rcx.r = handles_count;
 
 	bool result = kiv_os::Sys_Call(regs);
+	signaled = regs.rax.r;
 
 	return result;
 }
@@ -110,13 +111,13 @@ bool kiv_os_rtl::Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *h
 
 }
 
-bool kiv_os_rtl::Read_Exit_Code(const kiv_os::TThread_Proc *handler, int &exit_code) {
+bool kiv_os_rtl::Read_Exit_Code(const size_t handler, int &exit_code) {
 
 	kiv_hal::TRegisters regs;
 	regs.rax.h = static_cast<uint8_t>(kiv_os::NOS_Service_Major::Process);
 	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Read_Exit_Code);
 
-	regs.rdx.r = reinterpret_cast<size_t>(handler);
+	regs.rdx.r = handler;
 
 	bool result = kiv_os::Sys_Call(regs);
 

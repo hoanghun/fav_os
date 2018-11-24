@@ -38,7 +38,9 @@
     <ClCompile Include="..\..\src\user\rgen.cpp" />
     <ClCompile Include="..\..\src\user\rtl.cpp" />
     <ClCompile Include="..\..\src\user\shell.cpp" />
+    <ClCompile Include="..\..\src\user\sort.cpp" />
     <ClCompile Include="..\..\src\user\type.cpp" />
+    <ClCompile Include="..\..\src\user\wc.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A5F63FF3-DE9A-4B0B-BBF9-AD27200CE81F}</ProjectGuid>

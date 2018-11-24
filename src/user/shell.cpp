@@ -5,6 +5,7 @@
 
 #include <sstream>
 #include <map>
+#include <algorithm>
 
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const size_t buffer_size = 256;
@@ -84,7 +85,10 @@ void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle 
 //std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
 
 void Execute(std::vector<executable> &exes) {
-	size_t handle;
+
+	std::vector<size_t> handles;
+	size_t handle = 0;
+
 	for (const executable &exe : exes) {
 		
 		/*if (executables.find(exe.name) == executables.end()) {
@@ -103,11 +107,19 @@ void Execute(std::vector<executable> &exes) {
 		}
 
 		kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
+		handles.push_back(handle);
 		//TODO kontrolovat chyby
 	}
 
 	size_t signaled;
-	kiv_os_rtl::Wait_For(&handle, 1, signaled);
+	int exit_code;
+	do {
+		kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
+		//TODO kontrolovat chyby
+		handles.erase(std::remove(handles.begin(), handles.end(), signaled), handles.end());
+		//kiv_os_rtl::Read_Exit_Code(signaled, exit_code);
+
+	} while (handles.size() > 0);
 
 }
 
