@@ -15,7 +15,7 @@ namespace kiv_vfs {
 		return 0;
 	}
 	bool IFile::Is_Available_For_Write() {
-		return false;
+		return true;
 	}
 	size_t IFile::Get_Size() {
 		return 0;
@@ -23,20 +23,27 @@ namespace kiv_vfs {
 	bool IFile::Is_Empty() {
 		return false;
 	}
+	void IFile::Close(const TFD_Attributes attrs) {
+		return;
+	}
 
 	void IFile::Increase_Write_Count() {
+		std::unique_lock<std::mutex> lock(mFile_lock);
 		mWrite_count++;
 	}
 
 	void IFile::Decrease_Write_Count() {
+		std::unique_lock<std::mutex> lock(mFile_lock);
 		mWrite_count--;
 	}
 
 	void IFile::Increase_Read_Count() {
+		std::unique_lock<std::mutex> lock(mFile_lock);
 		mRead_count++;
 	}
 
 	void IFile::Decrease_Read_Count() {
+		std::unique_lock<std::mutex> lock(mFile_lock);
 		mRead_count--;
 	}
 
@@ -53,6 +60,7 @@ namespace kiv_vfs {
 	}
 
 	bool IFile::Is_Opened() {
+		std::unique_lock<std::mutex> lock(mFile_lock);
 		return (Get_Write_Count() + Get_Read_Count() == 0);
 	}
 
@@ -64,9 +72,6 @@ namespace kiv_vfs {
 		return mAttributes;
 	}
 
-	void IFile::Close(const TFD_Attributes attrs) {
-		return;
-	}
 
 	IFile::~IFile() {
 
@@ -77,12 +82,11 @@ namespace kiv_vfs {
 
 #pragma region File system
 
-	std::string IFile_System::Get_Name() {
-		return mName;
+	IFile_System::~IFile_System() {
 	}
 
-	IFile_System::~IFile_System() {
-
+	std::string IFile_System::Get_Name() {
+		return mName;
 	}
 
 #pragma endregion
@@ -101,23 +105,30 @@ namespace kiv_vfs {
 	std::shared_ptr<IFile> IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
 		return nullptr;
 	}
-
 	std::shared_ptr<IFile> IMounted_File_System::Create_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
 		return nullptr;
 	}
-
 	bool IMounted_File_System::Delete_File(const TPath &path) {
 		return false;
 	}
+
 #pragma endregion
 
 
 #pragma region Virtual file system
+	std::mutex CVirtual_File_System::mFd_lock;
+	std::mutex CVirtual_File_System::mRegistered_fs_lock;
+	std::mutex CVirtual_File_System::mMounted_fs_lock;
+	std::mutex CVirtual_File_System::mFiles_lock;
 
-	CVirtual_File_System *CVirtual_File_System::instance = nullptr;
+	CVirtual_File_System *CVirtual_File_System::instance;
 
 	CVirtual_File_System::CVirtual_File_System() : mFd_count(0) {
-		mRegistered_file_systems.reserve(MAX_FS_REGISTERED);
+	}
+
+	CVirtual_File_System::~CVirtual_File_System() {
+		Unregister_All();
+		Unmount_All();
 	}
 
 	void CVirtual_File_System::Destroy() {
@@ -128,28 +139,32 @@ namespace kiv_vfs {
 		if (instance == nullptr) {
 			instance = new CVirtual_File_System();
 		}
-
 		return *instance;
 	}
 
-	bool CVirtual_File_System::Register_File_System(IFile_System &fs) {
+	bool CVirtual_File_System::Register_File_System(IFile_System *fs) {
+		std::unique_lock<std::mutex> lock(mRegistered_fs_lock);
+
 		if (mRegistered_fs_count == MAX_FS_REGISTERED) {
 			return false;
 		}
 		
 		for (auto &reg_file_system : mRegistered_file_systems) {
-			if (fs.Get_Name() == reg_file_system->Get_Name()) {
+			if (fs->Get_Name() == reg_file_system->Get_Name()) {
+				delete fs;
 				return false;
 			}
 		}
 
-		mRegistered_file_systems.push_back(&fs);
+		mRegistered_file_systems.push_back(fs);
 		mRegistered_fs_count++;
 
 		return true;
 	}
 
 	bool CVirtual_File_System::Mount_File_System(std::string fs_name, std::string label, TDisk_Number disk) {
+		std::unique_lock<std::mutex> lock(mMounted_fs_lock);
+
 		if (mMounted_fs_count == MAX_FS_MOUNTED) {
 			return false;
 		}
@@ -166,14 +181,13 @@ namespace kiv_vfs {
 		return false;
 	}
 
-	void CVirtual_File_System::Mount_Registered() {
-		for (auto reg_file_system : mRegistered_file_systems) {
-			auto mount = reg_file_system->Create_Mount(reg_file_system->Get_Name());
-			mMounted_file_systems.insert(std::make_pair(reg_file_system->Get_Name(), mount));
+	void CVirtual_File_System::Unregister_All() {
+		for (auto fs : mRegistered_file_systems) {
+			delete fs;
 		}
 	}
 
-	void CVirtual_File_System::UMount() {
+	void CVirtual_File_System::Unmount_All() {
 		for (auto mount : mMounted_file_systems) {
 			delete mount.second;
 		}
@@ -362,8 +376,6 @@ namespace kiv_vfs {
 		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
 		read_end = Get_Free_Fd_Index();
 		Put_File_Descriptor(read_end, pipe, kiv_os::NFile_Attributes::Read_Only);
-
-		
 	}
 
 	void CVirtual_File_System::Set_Working_Directory(char *path) {
@@ -397,6 +409,8 @@ namespace kiv_vfs {
 	// ====================
 
 	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
+		std::unique_lock<std::mutex> lock(mFd_lock);
+
 		if (fd_index > MAX_FILE_DESCRIPTORS || !mFile_descriptors[fd_index].file) {
 			throw TInvalid_Fd_Exception();
 		}
@@ -405,6 +419,8 @@ namespace kiv_vfs {
 	}
 
 	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
+		std::unique_lock<std::mutex> lock(mFd_lock);
+
 		TFile_Descriptor &file_desc = mFile_descriptors[fd_index];
 
 		file_desc.position = 0;
@@ -422,6 +438,8 @@ namespace kiv_vfs {
 	}
 
 	void CVirtual_File_System::Remove_File_Descriptor(kiv_os::THandle fd_index) {
+		std::unique_lock<std::mutex> lock(mFd_lock);
+
 		TFile_Descriptor &file_desc = mFile_descriptors[fd_index];
 
 		mFd_count--;
@@ -432,10 +450,12 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::THandle CVirtual_File_System::Get_Free_Fd_Index() {
+		std::unique_lock<std::mutex> lock(mFd_lock);
+
 		if (mFd_count == MAX_FILE_DESCRIPTORS) {
 			throw TFd_Table_Full_Exception();
 		}
-
+		
 		// TODO optimize (keep last free fd that was found?)
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
 			if (mFile_descriptors[i].file == nullptr) { // TODO (compare attribute with FD_ATTR_FREE)
@@ -447,6 +467,8 @@ namespace kiv_vfs {
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
+		std::unique_lock<std::mutex> lock(mMounted_fs_lock);
+
 		if (mMounted_file_systems.find(normalized_path.mount) == mMounted_file_systems.end()) {
 			throw TFile_Not_Found_Exception();
 		}
@@ -454,14 +476,20 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Is_File_Cached(const TPath& path) {
+		std::unique_lock<std::mutex> lock(mFiles_lock);
+
 		return (mCached_files.find(path.absolute_path) != mCached_files.end());
 	}
 
 	void CVirtual_File_System::Cache_File(std::shared_ptr<IFile> &file) {
+		std::unique_lock<std::mutex> lock(mFiles_lock);
+
 		mCached_files.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path().absolute_path, file));
 	}
 
 	void CVirtual_File_System::Decache_File(std::shared_ptr<IFile> &file) {
+		std::unique_lock<std::mutex> lock(mFiles_lock);
+
 		if (!Is_File_Cached(file->Get_Path())) {
 			throw TInternal_Error_Exception();
 		}
@@ -470,6 +498,8 @@ namespace kiv_vfs {
 	}
 
 	std::shared_ptr<IFile> CVirtual_File_System::Get_Cached_File(const TPath &path) {
+		std::unique_lock<std::mutex> lock(mFiles_lock);
+
 		return mCached_files.find(path.absolute_path)->second;
 	}
 

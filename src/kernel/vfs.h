@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <map>
 #include <array>
+#include <mutex>
 
 #include "../api/api.h"
 
@@ -75,17 +76,17 @@ namespace kiv_vfs {
 			kiv_os::NFile_Attributes mAttributes;
 			unsigned int mRead_count = 0;
 			unsigned int mWrite_count = 0;
+			std::mutex mFile_lock;
 	};
 
 	// Abstract class from which concrete file systems inherit
 	// Instances of inherited classes represent one registered file system 
 	class IFile_System {
 		public:
-			virtual bool Register() = 0;
+			virtual ~IFile_System();
 			virtual IMounted_File_System *Create_Mount(std::string label, TDisk_Number = 0) = 0;
 			std::string Get_Name();
 
-			virtual ~IFile_System();
 		protected:
 			std::string mName;
 	};
@@ -108,6 +109,7 @@ namespace kiv_vfs {
 		public:
 			static CVirtual_File_System &Get_Instance();
 			static void Destroy();
+			~CVirtual_File_System();
 
 			/*
 			 * Sys calls
@@ -152,34 +154,32 @@ namespace kiv_vfs {
 			/*
 			 * mounting systems
 			 */
-			bool Register_File_System(IFile_System &fs);
+			bool Register_File_System(IFile_System *fs);
 			bool Mount_File_System(std::string fs_name, std::string label, TDisk_Number = 0);
-			void Mount_Registered();
-			void UMount();
-			unsigned int mFd_count;
-		// TODO Locks
-		private:
-			CVirtual_File_System(); 
-			static CVirtual_File_System *instance;
 
-			
-			unsigned int mCached_files_count = 0;
+		private:
+			static std::mutex mFd_lock;
+			static std::mutex mRegistered_fs_lock;
+			static std::mutex mMounted_fs_lock;
+			static std::mutex mFiles_lock;;
+
+			unsigned int mFd_count = 0;
 			unsigned int mRegistered_fs_count = 0;
 			unsigned int mMounted_fs_count = 0;
+			unsigned int mCached_files_count = 0;
 
 			std::array<TFile_Descriptor, MAX_FILE_DESCRIPTORS> mFile_descriptors;
 			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
-
 			std::vector<IFile_System*> mRegistered_file_systems; // Pøedìlat na mapu fs_name -> fs ?
 			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
+
+			static CVirtual_File_System *instance;
+			CVirtual_File_System(); 
 			
-			
-			// Throws TInvalid_Fd_Exception whed FD is not found
-			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index);
+			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index); // Throws TInvalid_Fd_Exception whed FD is not found
 			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
 			void Remove_File_Descriptor(kiv_os::THandle fd_index);
-			// Throws TFd_Table_Full_Exception when mFile_descriptors is full
-			kiv_os::THandle Get_Free_Fd_Index();
+			kiv_os::THandle Get_Free_Fd_Index(); // Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			IMounted_File_System *Resolve_Mount(const TPath &normalized_path);
 			TPath Create_Normalized_Path(std::string path);
 			void Increase_File_References(TFile_Descriptor &file_desc);
@@ -188,6 +188,9 @@ namespace kiv_vfs {
 			void Cache_File(std::shared_ptr<IFile> &file);
 			void Decache_File(std::shared_ptr<IFile> &file);
 			std::shared_ptr<IFile> Get_Cached_File(const TPath &path);
+
+			void Unmount_All();
+			void Unregister_All();
 	};
 
 	/*

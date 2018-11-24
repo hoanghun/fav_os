@@ -55,10 +55,6 @@ namespace kiv_fs_stdio {
 		mName = STDIO_NAME;
 	}
 
-	bool CFile_System::Register() {
-		return kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(*this);
-	}
-
 	kiv_vfs::IMounted_File_System *CFile_System::Create_Mount(const std::string label, const kiv_vfs::TDisk_Number) {
 		return new CMount(label);
 	}

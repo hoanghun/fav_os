@@ -59,6 +59,7 @@ namespace kiv_fs_fat {
 		private:
 			TSuperblock mSb;
 			kiv_vfs::TDisk_Number mDisk_number;
+			std::mutex mDisk_access_lock;
 	};
 
 	// Abstract directory (root and subdirectories)
@@ -127,7 +128,6 @@ namespace kiv_fs_fat {
 	class CFile_System : public kiv_vfs::IFile_System {
 		public:
 			CFile_System();
-			virtual bool Register() final override;
 			virtual kiv_vfs::IMounted_File_System *Create_Mount(const std::string label, const kiv_vfs::TDisk_Number disk_number) final override;
 	};
 
