@@ -244,6 +244,7 @@ namespace kiv_vfs {
 
 	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
 		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+		file_desc.file->Close(file_desc.attributes);
 
 		Remove_File_Descriptor(fd_index);
 
