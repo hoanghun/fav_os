@@ -163,7 +163,7 @@ void Close_File(kiv_hal::TRegisters &regs) {
 	kiv_os::NOS_Error result;
 	try {
 		vfs.Close_File(vfs_handle);
-		// TODO Remove file from pcb?
+		kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
 		result = kiv_os::NOS_Error::Success;
 	}
 	catch (...) { // including TInvalid_Fd_Exception
