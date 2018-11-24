@@ -11,7 +11,6 @@ public:
 	CPipe();
 	virtual size_t Write(const char *buffer, size_t buffer_size, size_t position = 0) final override;
 	virtual size_t Read(char *buffer, size_t buffer_size, size_t position = 0) final override;
-	virtual bool Is_Available_For_Write() override;
 	void Close(const kiv_vfs::TFD_Attributes attrs) override;
 
 private:

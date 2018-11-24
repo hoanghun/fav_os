@@ -55,10 +55,6 @@ size_t CPipe::Read(char *buffer, size_t buffer_size, size_t position) {
 	return bytes_read;
 }
 
-bool CPipe::Is_Available_For_Write() {
-	return true;
-}
-
 void CPipe::Close(const kiv_vfs::TFD_Attributes attrs) {
 	switch (attrs) {
 	case kiv_vfs::FD_ATTR_READ:

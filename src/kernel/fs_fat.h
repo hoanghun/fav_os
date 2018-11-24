@@ -37,24 +37,35 @@ namespace kiv_fs_fat {
 		uint32_t filesize;
 	};
 
-	// IO Utils
-	bool Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors, kiv_vfs::TDisk_Number disk_number);
-	bool Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors, kiv_vfs::TDisk_Number disk_number);
-	bool Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Write_Data_Cluster(char *clusters, TFAT_Entry fat_entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Read_Data_Cluster(char *buffer, TFAT_Entry fat_entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-	bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, TSuperblock &sb, kiv_vfs::TDisk_Number disk, std::shared_ptr<IDirectory> &directory);
+	class CFAT_Utils {
+		public:
+			CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
+			CFAT_Utils(kiv_vfs::TDisk_Number disk_number);
+			bool Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors);
+			bool Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors);
+			bool Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters);
+			bool Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters);
+			bool Write_Data_Cluster(char *clusters, TFAT_Entry fat_entry);
+			bool Read_Data_Cluster(char *buffer, TFAT_Entry fat_entry);
+			bool Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value);
+			bool Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries);
+			bool Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries);
+			bool Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries);
+			bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry);
+			bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory);
+
+			void Set_Superblock(TSuperblock sb);
+			TSuperblock &Get_Superblock();
+		private:
+			TSuperblock mSb;
+			kiv_vfs::TDisk_Number mDisk_number;
+			std::mutex mDisk_access_lock;
+	};
 
 	// Abstract directory (root and subdirectories)
 	class IDirectory : public kiv_vfs::IFile {
 		public:
-			IDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
+			IDirectory(CFAT_Utils *utils);
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Empty() final override;
 			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes);
@@ -68,17 +79,17 @@ namespace kiv_fs_fat {
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) = 0;
 
 		protected:
-			TSuperblock &mSuperblock;
-			kiv_vfs::TDisk_Number mDisk_number;
+			// TODO Optimalization : entries can be map
 			std::vector<TFAT_Dir_Entry> mEntries;
 			uint32_t mSize;
+			CFAT_Utils *mUtils;
 	};
 
 	// Subdirectory
 	class CDirectory : public IDirectory {
 		public:
-			CDirectory(kiv_vfs::TPath path, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent);
-			CDirectory(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry);
+			CDirectory(kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
+			CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils);
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -86,13 +97,12 @@ namespace kiv_fs_fat {
 		private:
 			TFAT_Dir_Entry mDir_entry;
 			std::vector<TFAT_Dir_Entry> mDirs_to_parent;
-
 	};
 
 	// Root directory
 	class CRoot : public IDirectory {
 		public:
-			CRoot(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number); 
+			CRoot(CFAT_Utils *utils); 
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -101,7 +111,7 @@ namespace kiv_fs_fat {
 	// File
 	class CFile : public kiv_vfs::IFile {
 		public:
-			CFile(const kiv_vfs::TPath path, TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent);
+			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
 			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Available_For_Write() final override;
@@ -109,17 +119,15 @@ namespace kiv_fs_fat {
 
 		private:
 			std::string filename;
-			kiv_vfs::TDisk_Number mDisk_number;
-			TSuperblock &mSuperblock;
 			uint32_t mSize;
 			std::vector<TFAT_Entry> mFat_entries;
 			std::vector<TFAT_Dir_Entry> mDirs_to_parent;
+			CFAT_Utils *mUtils;
 	};
 
 	class CFile_System : public kiv_vfs::IFile_System {
 		public:
 			CFile_System();
-			virtual bool Register() final override;
 			virtual kiv_vfs::IMounted_File_System *Create_Mount(const std::string label, const kiv_vfs::TDisk_Number disk_number) final override;
 	};
 
@@ -136,6 +144,7 @@ namespace kiv_fs_fat {
 			kiv_vfs::TDisk_Number mDisk_Number;
 			TSuperblock mSuperblock;
 			std::shared_ptr<CRoot> root;
+			CFAT_Utils *mUtils;
 
 			bool Load_Superblock(kiv_hal::TDrive_Parameters &params);
 			bool Chech_Superblock();

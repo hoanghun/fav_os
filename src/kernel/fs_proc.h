@@ -23,7 +23,6 @@ namespace kiv_fs_proc {
 	class CFile_System : public kiv_vfs::IFile_System {
 		public:
 			CFile_System();
-			virtual bool Register() final override;
 			virtual kiv_vfs::IMounted_File_System *Create_Mount(const std::string label, const kiv_vfs::TDisk_Number = 0) final override;
 	};
 
