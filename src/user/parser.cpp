@@ -15,7 +15,44 @@
 //	return tokens;
 //}
 
-bool Update_Executable(std::stringstream  &strs, executable &item, size_t property) {
+bool TExecutable::Check() const {
+
+	if (name.length() == 0) {
+		return false;
+	}
+
+	if (file_in.length() > 0 && pipe_in == true) {
+		return false;
+	}
+
+	if (file_out.length() > 0 && pipe_out == true) {
+		return false;
+	}
+
+	return true;
+}
+
+void TExecutable::Close_Stdin() const {
+
+	if (file_in.length() > 0 || pipe_in == true) {
+		if (in_handle > 0) {
+			kiv_os_rtl::Close_Handle(in_handle);
+		}
+	}
+
+}
+
+void TExecutable::Close_Stdout() const {
+
+	if (file_out.length() > 0 || pipe_out == true) {
+		if (out_handle > 0) {
+			kiv_os_rtl::Close_Handle(out_handle);
+		}
+	}
+
+}
+
+bool Update_Executable(std::stringstream  &strs, TExecutable &item, size_t property) {
 
 	//Pokud neni stringstream prazdny
 	if (strs.rdbuf()->in_avail() != 0) {
@@ -46,12 +83,12 @@ bool Update_Executable(std::stringstream  &strs, executable &item, size_t proper
 
 }
 
-std::vector<executable> Parse(const char *line, const size_t line_length) {
+std::vector<TExecutable> Parse(const char *line, const size_t line_length) {
 	
-	std::vector<executable> items;
+	std::vector<TExecutable> items;
 
 	size_t property = 0;
-	executable item;
+	TExecutable item;
 	std::stringstream strs;
 
 	for (int i = 0; i < line_length; i++) {
@@ -63,7 +100,7 @@ std::vector<executable> Parse(const char *line, const size_t line_length) {
 			item.pipe_out = true;
 			items.push_back(item);
 
-			item = executable();
+			item = TExecutable();
 			item.pipe_in = true;
 
 			property = 0;

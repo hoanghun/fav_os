@@ -186,6 +186,13 @@ namespace kiv_process {
 			ppcb->cpids.push_back(pid);
 			
 			process_table.emplace(pcb->pid, pcb);
+			
+			/*kiv_vfs::TPath tpath;
+			tpath.mount = "proc";
+			tpath.path = std::vector<std::string>{ pcb->name};
+			tpath.file = pcb->pid;
+			tpath.absolute_path = "proc:/" + pcb->pid + '/';*/
+
 		}
 		lock.unlock();
 

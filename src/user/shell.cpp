@@ -30,9 +30,14 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			if (counter == buffer_size) counter--;
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
 
-			std::vector<executable> items = Parse(buffer, strlen(buffer));
-			Prepare_For_Execution(items, sin, sout);
-			Execute(items);
+			std::vector<TExecutable> items = Parse(buffer, strlen(buffer));
+			if (Prepare_For_Execution(items, sin, sout) == false) {
+				const char *error = "\nCommand is not valid.";
+				kiv_os_rtl::Print_Line(regs, error, strlen(error));
+			}
+			else {
+				Execute(items, regs);
+			}
 		}
 		else
 			break;	//EOF
@@ -46,12 +51,22 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 }
 
 //Pripravime soubory a pipy
-void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout) {
+bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout) {
 
-	//TODO zkontrolovat zda jsou exes validni
+	//kontrola zda jsou exes validni
+	for (const TExecutable &exe : exes) {
+		if (exe.Check() == false) {
+			return false;
+		}
+	}
+	
+	if (exes.back().pipe_out == true || exes.front().pipe_in == true) {
+		false;
+	}
+
 
 	kiv_os::THandle last_pipe = 0;
-	for (executable &exe : exes) {
+	for (TExecutable &exe : exes) {
 	
 		if (exe.file_in.empty() == false) {
 			kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
@@ -79,36 +94,48 @@ void Prepare_For_Execution(std::vector<executable> &exes, const kiv_os::THandle 
 			exe.out_handle = sout;
 		}
 	}
+
+	return true;
 }
 
-//TODO PROCESS CHECK
-//std::map<std::string, bool> executables = { {"echo", true}, {"shell", true}, {"freq", true}, {"rgen", true}};
-
-void Execute(std::vector<executable> &exes) {
+void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
 	std::vector<size_t> handles;
 	size_t handle = 0;
+	bool result = true;
 
-	for (const executable &exe : exes) {
+	for (const TExecutable &exe : exes) {
+
+		if (result == true) {
+			//Pripravime argumenty programu
+			std::stringstream args;
+			args.str("");
+			if (exe.args.empty() == false) {
+				args << exe.args[0];
+			}
 		
-		/*if (executables.find(exe.name) == executables.end()) {
-			continue;
-		}*/
+			for (int i = 1; i < exe.args.size(); i++) {
+				args << ' ' << exe.args[i];
+			}
 
-		//Pripravime argumenty programu
-		std::stringstream args;
-		args.str("");
-		if (exe.args.empty() == false) {
-			args << exe.args[0];
-		}
-		
-		for (int i = 1; i < exe.args.size(); i++) {
-			args << ' ' << exe.args[i];
-		}
+			result = kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
 
-		kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
-		handles.push_back(handle);
-		//TODO kontrolovat chyby
+			if (result == false) {
+				switch (kiv_os_rtl::Last_Error) {
+				case kiv_os::NOS_Error::Invalid_Argument:
+					const std::string error = "\n'" + exe.name + "' is not recognized as command.";
+					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
+					break;
+				}
+			}
+
+			handles.push_back(handle);
+		}
+		else {
+			//Pokud nastala pred spustenim programu chyba
+			exe.Close_Stdin();
+			exe.Close_Stdout();
+		}
 	}
 
 	size_t signaled;
