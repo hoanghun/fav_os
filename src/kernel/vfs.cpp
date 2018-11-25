@@ -2,9 +2,9 @@
 
 #include "vfs.h"
 #include "pipe.h"
+#include "process.h"
 
 namespace kiv_vfs {
-
 #pragma region File
 
 	// Default implementations (concrete filesystem can override those methods)
@@ -383,26 +383,12 @@ namespace kiv_vfs {
 		TPath normalized_path = Create_Normalized_Path(path); // Throws File_Not_Found_Exception
 		auto mount = Resolve_Mount(normalized_path); // Throws File_Not_Found_Exception
 
-		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Read_Only)) { // TODO correct attrs?
+		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory)) { // TODO correct attrs?
 			// TODO prevent from deleting working directory?
 			throw TFile_Not_Found_Exception();
 		}
-		
-		// TODO process::Set_Working_Directory(normalized_path);
-	}
-
-	size_t CVirtual_File_System::Get_Working_Directory(char *buffer, size_t buf_size) {
-		TPath tpath; // TODO process::Get_Working_Directory();
-
-		std::string working_dir = tpath.absolute_path;
-		if (buf_size < working_dir.length()) {
-			return 0;
-		}
-		
-		stdext::checked_array_iterator<char *> chai(buffer, buf_size);
-		std::copy(working_dir.begin(), working_dir.end(), chai);
-
-		return working_dir.length();
+	
+		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
 	}
 
 	// ====================
@@ -558,18 +544,17 @@ namespace kiv_vfs {
 
 		// Relative path
 		else if (splitted_by_mount.size() == 1) {
-			std::string working_dir = "C:\\"; // TODO process:Get_Working_Dir();
+			TPath working_dir;
+			kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&working_dir);
+			working_dir.path.push_back(working_dir.file);
 
-			std::vector<std::string> working_dir_splitted_by_mount = Split(working_dir, mount_delimiter);
-
-			result.mount = working_dir_splitted_by_mount.at(0);
-
-			auto wokring_splitted = Split(working_dir_splitted_by_mount.at(1), path_delimiter);
 			auto path_splitted = Split(splitted_by_mount.at(0), path_delimiter);
 
+			result.mount = working_dir.mount;
+
 			// Concatenate working directory and path
-			result.path.reserve(wokring_splitted.size() + path_splitted.size());
-			result.path.insert(result.path.end(), wokring_splitted.begin(), wokring_splitted.end());
+			result.path.reserve(working_dir.path.size() + path_splitted.size());
+			result.path.insert(result.path.end(), working_dir.path.begin(), working_dir.path.end());
 			result.path.insert(result.path.end(), path_splitted.begin(), path_splitted.end());
 		}
 

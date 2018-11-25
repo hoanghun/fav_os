@@ -9,24 +9,13 @@
 #include "../api/api.h"
 
 namespace kiv_vfs {
-	using TDisk_Number = std::uint8_t;
-	using TFD_Attributes = std::uint8_t;
-
-	// All possible file descriptor attributes and their combinations
-	const TFD_Attributes FD_ATTR_FREE = 0x00;
-	const TFD_Attributes FD_ATTR_READ = 0x01;
-	const TFD_Attributes FD_ATTR_WRITE = 0x02;
-	const TFD_Attributes FD_ATTR_RW = FD_ATTR_READ | FD_ATTR_WRITE;
-
-	static const size_t MAX_FILE_DESCRIPTORS = 2048;
-	static const size_t MAX_FILES_CACHED = 1024;
-	static const size_t MAX_FS_REGISTERED = 4;
-	static const size_t MAX_FS_MOUNTED = 10;
-
 	class IFile;
 	class IMounted_File_System;
 	class IFile_System;
 	class CVirtual_File_System;
+
+	using TDisk_Number = std::uint8_t;
+	using TFD_Attributes = std::uint8_t;
 
 	// Opened file
 	struct TFile_Descriptor {
@@ -43,7 +32,18 @@ namespace kiv_vfs {
 		std::string absolute_path;
 	};
 
-	const TPath DEFAULT_WORKING_DIRECTORY = { "C" };
+	// All possible file descriptor attributes and their combinations
+	const TFD_Attributes FD_ATTR_FREE = 0x00;
+	const TFD_Attributes FD_ATTR_READ = 0x01;
+	const TFD_Attributes FD_ATTR_WRITE = 0x02;
+	const TFD_Attributes FD_ATTR_RW = FD_ATTR_READ | FD_ATTR_WRITE;
+
+	static const size_t MAX_FILE_DESCRIPTORS = 2048;
+	static const size_t MAX_FILES_CACHED = 1024;
+	static const size_t MAX_FS_REGISTERED = 4;
+	static const size_t MAX_FS_MOUNTED = 10;
+
+	const TPath DEFAULT_WORKING_DIRECTORY = { "C" , {}, "", "C:\\" };
 
 	// Abstract class from which concrete file systems inherit
 	// Instances of inherited classes represent one file
@@ -147,8 +147,6 @@ namespace kiv_vfs {
 
 			// Throws	File_Not_Found_Exception
 			void Set_Working_Directory(char *path);
-
-			size_t Get_Working_Directory(char *buffer, size_t buf_size);
 			 
 			/*
 			 * mounting systems
