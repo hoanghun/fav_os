@@ -10,13 +10,22 @@ namespace kiv_fs_proc {
 
 	class CFile : public kiv_vfs::IFile {
 		public:
-			CFile(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes);
-			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
+			CFile(const kiv_vfs::TPath path, size_t pid);
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Available_For_Write() final override;
-
 		private:
-			// data specificky pro soubor tohohle filesystemu (kde se v ramdisku nachazi, ...)
+			size_t mPid;
+			std::string mName;
+	};
+
+	class CDirectory : public kiv_vfs::IFile {
+	public:
+
+		CDirectory(const kiv_vfs::TPath path, const std::map<size_t, std::string> &processes);
+		virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+		virtual bool Is_Available_For_Write() final override;
+	private:
+		std::map<size_t, std::string> mProcesses;
 	};
 
 
@@ -31,12 +40,9 @@ namespace kiv_fs_proc {
 		public:
 			CMount(std::string label);
 			virtual std::shared_ptr<kiv_vfs::IFile> Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
-			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
-			virtual bool Delete_File(const kiv_vfs::TPath &path) final override;
-			kiv_vfs::TDisk_Number Get_Disk_Number();
 
 		private:
-			kiv_vfs::TDisk_Number mDisk;
+			std::shared_ptr<kiv_vfs::IFile> mRoot;
 	};
 
 }

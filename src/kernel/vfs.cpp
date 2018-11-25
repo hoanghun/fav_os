@@ -456,15 +456,14 @@ namespace kiv_vfs {
 		if (mFd_count == MAX_FILE_DESCRIPTORS) {
 			throw TFd_Table_Full_Exception();
 		}
-		
-		// TODO optimize (keep last free fd that was found?)
+
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
-			if (mFile_descriptors[i].file == nullptr) { // TODO (compare attribute with FD_ATTR_FREE)
+			if (mFile_descriptors[i].file == nullptr && mFile_descriptors[i].attributes == FD_ATTR_FREE) { 
 				return i;
 			}
 		}
 
-		return -1; // fix hack not all paths lead to return --- 
+		return -1; 
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {

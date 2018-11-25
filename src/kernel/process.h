@@ -68,6 +68,14 @@ namespace kiv_process {
 				bool Remove_Fd(const kiv_os::THandle &fd_index);
 				bool Get_Fd(const kiv_os::THandle &position, kiv_os::THandle &fd);
 
+
+				/*
+				*/
+				bool Get_Name(const size_t pid, std::string &name);
+
+				std::map<size_t, std::string> Get_Processes();
+
+
 				void Shutdown();
 
 			private:

@@ -425,6 +425,14 @@ namespace kiv_process {
 		}
 	}
 
+	bool CProcess_Manager::Get_Name(const size_t pid, std::string & name) {
+		return false;
+	}
+
+	std::map<size_t, std::string> CProcess_Manager::Get_Processes() {
+		return std::map<size_t, std::string>();
+	}
+
 #pragma region System_Processes
 
 	//  Vytvoøíme systémový init proces
