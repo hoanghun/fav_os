@@ -12,9 +12,6 @@ namespace kiv_vfs {
 	using TDisk_Number = std::uint8_t;
 	using TFD_Attributes = std::uint8_t;
 
-	const std::string STDIN_PATH = "stdio:\\stdin";
-	const std::string STDOUT_PATH = "stdio:\\stdout";
-
 	// All possible file descriptor attributes and their combinations
 	const TFD_Attributes FD_ATTR_FREE = 0x00;
 	const TFD_Attributes FD_ATTR_READ = 0x01;
@@ -45,6 +42,8 @@ namespace kiv_vfs {
 		std::string file;
 		std::string absolute_path;
 	};
+
+	const TPath DEFAULT_WORKING_DIRECTORY = { "C" };
 
 	// Abstract class from which concrete file systems inherit
 	// Instances of inherited classes represent one file
