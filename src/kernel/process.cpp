@@ -331,11 +331,11 @@ namespace kiv_process {
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
 	}
 
-	bool CProcess_Manager::Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir) {
+	bool CProcess_Manager::Set_Working_Directory(const kiv_vfs::TPath &dir) {
+
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
-
-		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
 			std::unique_lock<std::mutex> lock(ptable);
 			{
 				tcb->pcb->working_directory = dir;
@@ -349,11 +349,11 @@ namespace kiv_process {
 		return true;
 	}
 
-	bool CProcess_Manager::Get_Working_Directory(const size_t &tid, kiv_vfs::TPath * dir) const {
+	bool CProcess_Manager::Get_Working_Directory(kiv_vfs::TPath * dir) const {
 
 		std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
 
-		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb)) {
+		if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
 			*dir = tcb->pcb->working_directory;
 		}
 		else {

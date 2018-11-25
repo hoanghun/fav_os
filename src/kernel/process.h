@@ -61,8 +61,8 @@ namespace kiv_process {
 				bool Create_Process(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
 
-				bool Set_Working_Directory(const size_t &tid, const kiv_vfs::TPath &dir);
-				bool Get_Working_Directory(const size_t &tid, kiv_vfs::TPath *dir) const;
+				bool Set_Working_Directory(const kiv_vfs::TPath &dir);
+				bool Get_Working_Directory(kiv_vfs::TPath *dir) const;
 				
 				kiv_os::THandle Save_Fd(const kiv_os::THandle &fd_index);
 				bool Remove_Fd(const kiv_os::THandle &fd_index);
