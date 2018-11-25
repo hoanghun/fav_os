@@ -6,47 +6,6 @@
 
 kiv_vfs::CVirtual_File_System &vfs = kiv_vfs::CVirtual_File_System::Get_Instance();
 
-size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
-	kiv_hal::TRegisters registers;
-
-	size_t pos = 0;
-	while (pos < buffer_size) {
-		//read char
-		registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NKeyboard::Read_Char);
-		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Keyboard, registers);
-		
-		char ch = registers.rax.l;
-
-		//osetrime zname kody
-		switch (static_cast<kiv_hal::NControl_Codes>(ch)) {
-			case kiv_hal::NControl_Codes::BS: {
-					//mazeme znak z bufferu
-					if (pos > 0) pos--;
-
-					registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_Control_Char);
-					registers.rdx.l = ch;
-					kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
-				}
-				break;
-
-			case kiv_hal::NControl_Codes::LF:  break;	//jenom pohltime, ale necteme
-			case kiv_hal::NControl_Codes::NUL:			//chyba cteni?
-			case kiv_hal::NControl_Codes::CR:  return pos;	//docetli jsme az po Enter
-
-
-			default: buffer[pos] = ch;
-					 pos++;	
-					 registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_String);
-					 registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(&ch);
-					 registers.rcx.r = 1;
-					 kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
-					 break;
-		}
-	}
-
-	return pos;
-}
-
 void Set_Result(kiv_hal::TRegisters &regs, kiv_os::NOS_Error result) {
 	regs.flags.carry = (result == kiv_os::NOS_Error::Success) ? 0 : 1;
 	if (regs.flags.carry) {
@@ -264,16 +223,38 @@ void Read_File(kiv_hal::TRegisters &regs) {
 void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *path = reinterpret_cast<char *>(regs.rdx.r); // null terminated
 
-	// TODO
+	kiv_os::NOS_Error result;
+	try {
+		vfs.Set_Working_Directory(path);
+		result = kiv_os::NOS_Error::Success;
+	}
+	catch (kiv_vfs::TFile_Not_Found_Exception e) {
+		result = kiv_os::NOS_Error::File_Not_Found;
+	}
+
+	Set_Result(regs, result);
 }
 
 void Get_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *buffer = reinterpret_cast<char *>(regs.rdx.r);
 	size_t buf_size = static_cast<size_t>(regs.rcx.r);
 
-	size_t chars_written = vfs.Get_Working_Directory(buffer, buf_size);
+	size_t chars_written = 0;
+	kiv_os::NOS_Error result = kiv_os::NOS_Error::Unknown_Error;
 
-	regs.rax.r = static_cast<size_t>(chars_written);
+	kiv_vfs::TPath working_dir;
+	if (kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&working_dir)) {
+
+		// Check whether buffer is big enough to store null terminated working directory
+		if (buf_size >= (working_dir.absolute_path.length() + 1)) { 
+			strcpy_s(buffer, buf_size, working_dir.absolute_path.c_str());
+			result = kiv_os::NOS_Error::Success;
+		}
+
+	}
+
+	regs.rax.r = static_cast<decltype(regs.rax.r)>(chars_written);
+	Set_Result(regs, result);
 }
 
 void Create_Pipe(kiv_hal::TRegisters &regs) {
