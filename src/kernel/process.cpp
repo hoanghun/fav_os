@@ -433,11 +433,36 @@ namespace kiv_process {
 	}
 
 	bool CProcess_Manager::Get_Name(const size_t pid, std::string & name) {
-		return false;
+		
+		std::unique_lock<std::mutex> lock(ptable);
+		{
+			auto result = process_table.find(pid);
+			if (result == process_table.end()) {
+				lock.unlock();
+				return false;
+			}
+			else {
+				name = result->second->name;
+			}
+		}
+		lock.unlock();
+
+		return true;
 	}
 
 	std::map<size_t, std::string> CProcess_Manager::Get_Processes() {
-		return std::map<size_t, std::string>();
+
+		std::map<size_t, std::string> processes;
+
+		std::unique_lock<std::mutex> lock(ptable);
+		{
+			for (const auto &pcb : process_table) {
+				processes.emplace(pcb.second->pid, pcb.second->name);
+			}
+		}
+		lock.unlock();
+
+		return processes;
 	}
 
 #pragma region System_Processes
