@@ -440,7 +440,7 @@ namespace kiv_process {
 			pcb->pid = 0;
 			pcb->ppid = 0; //CHECK negative value could be better, but size_t ....
 			pcb->state = NProcess_State::RUNNING;
-			//TODO pcb->working_directory = DEFAULT;
+			pcb->working_directory = kiv_vfs::DEFAULT_WORKING_DIRECTORY;
 
 			// Nastavíme vlákno pro systémový proces
 			std::shared_ptr<kiv_thread::TThread_Control_Block> tcb = std::make_shared<kiv_thread::TThread_Control_Block>();
