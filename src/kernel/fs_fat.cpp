@@ -84,13 +84,15 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value) {
-		std::map<TFAT_Entry, TFAT_Entry> map;
-		for (auto it = entries.begin(); it != entries.end(); ++it) {
-			map.insert(std::pair<TFAT_Entry, TFAT_Entry>(*it, value));
-		}
+		if (!entries.empty()) {
+			std::map<TFAT_Entry, TFAT_Entry> map;
+			for (auto it = entries.begin(); it != entries.end(); ++it) {
+				map.insert(std::pair<TFAT_Entry, TFAT_Entry>(*it, value));
+			}
 
-		if (!Write_Fat_Entries(map)) {
-			return false;
+			if (!Write_Fat_Entries(map)) {
+				return false;
+			}
 		}
 
 		return true;
@@ -255,6 +257,19 @@ namespace kiv_fs_fat {
 
 	TSuperblock &CFAT_Utils::Get_Superblock() {
 		return mSb;
+	}
+
+	std::map<TFAT_Entry, TFAT_Entry> CFAT_Utils::Create_Fat_Entries_Chain(std::vector<TFAT_Entry> &entries) {
+		std::map<TFAT_Entry, TFAT_Entry> entry_map;
+
+		if (entries.size() != 0) {
+			for (size_t i = 0; i < entries.size() - 1; i++) {
+				entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(entries.at(i), entries.at(i + 1)));
+			}
+			entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(entries.back(), FAT_EOF));
+		}
+
+		return entry_map;
 	}
 
 #pragma endregion
@@ -569,18 +584,19 @@ namespace kiv_fs_fat {
 	bool CRoot::Save() {
 		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
 
-		std::unique_lock<std::mutex> lock(mFile_lock);
-		// Save size of root
-		memcpy(buffer, &mSize, sizeof(mSize));
+		{
+			std::unique_lock<std::mutex> lock(mFile_lock);
 
-		// Save entries
-		size_t address = sizeof(mSize);
+			// Save size of root
+			memcpy(buffer, &mSize, sizeof(mSize));
 
-		for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
-			memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
-			address += sizeof(TFAT_Dir_Entry);
+			// Save entries (start after size of the root)
+			size_t address = sizeof(mSize);
+			for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
+				memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
+				address += sizeof(TFAT_Dir_Entry);
+			}
 		}
-		lock.unlock();
 
 		bool res = mUtils->Write_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1);
 
@@ -643,19 +659,18 @@ namespace kiv_fs_fat {
 				return 0;
 			}
 
+			// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
+			std::vector<TFAT_Entry> tmp_entries = mFat_entries;
+			tmp_entries.insert(tmp_entries.end(), new_entries.begin(), new_entries.end());
+
 			// Write new entries
-			std::map<TFAT_Entry, TFAT_Entry> entry_map;
-			entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(mFat_entries.back(), new_entries.at(0)));
-			for (size_t i = 1; i < new_entries.size(); i++) {
-				entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(new_entries.at(i - 1), new_entries.at(i)));
-			}
+			auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
 			if (!mUtils->Write_Fat_Entries(entry_map)) {
 				mUtils->Set_Fat_Entries_Value(new_entries, FAT_FREE);
 				return 0;
 			}
 
-			// Add new entries to a vector of current entries
-			mFat_entries.insert(mFat_entries.end(), new_entries.begin(), new_entries.end());
+			mFat_entries = tmp_entries;
 		}
 
 		// Write to clusters
@@ -750,10 +765,83 @@ namespace kiv_fs_fat {
 		return bytes_read;
 	}
 
+	bool CFile::Resize(size_t size) {
+
+		// Nothing to do
+		if (size == mSize) {
+			return true;
+		}
+
+		TSuperblock sb = mUtils->Get_Superblock();
+		size_t bytes_per_cluster = sb.sectors_per_cluster * sb.disk_params.bytes_per_sector;
+		size_t clusters_needed = ((size % bytes_per_cluster) == 0)
+			? (size / bytes_per_cluster)
+			: ((size / bytes_per_cluster) + 1);
+		size_t clusters_allocated = mFat_entries.size();
+
+		// Downsize
+		if (size < mSize) {
+
+			// Need to free clusters that became unused
+			if (clusters_needed != clusters_allocated) {
+				size_t clusters_to_free = clusters_allocated - clusters_needed;
+
+				// Remove last N entries and free them
+				std::vector<TFAT_Entry> entries_to_free;
+				for (int i = 0; i < clusters_to_free; i++) {
+					entries_to_free.push_back(mFat_entries.back());
+					mFat_entries.pop_back();
+				}
+				mUtils->Set_Fat_Entries_Value(entries_to_free, FAT_FREE);
+
+				// Modify last entry
+				mUtils->Set_Fat_Entries_Value(std::vector<TFAT_Entry>{mFat_entries.back()}, FAT_EOF);
+			}
+
+		}
+
+		// Upsize
+		else {
+
+			// Need to allocate new clusters
+			if (clusters_needed != clusters_allocated) {
+				size_t clusters_to_allocate = clusters_needed - clusters_allocated;
+
+				std::vector<TFAT_Entry> allocated_entries;
+				if (!mUtils->Get_Free_Fat_Entries(allocated_entries, clusters_to_allocate)) {
+					return false;
+				}
+
+				// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
+				std::vector<TFAT_Entry> tmp_entries = mFat_entries;
+				tmp_entries.insert(tmp_entries.end(), allocated_entries.begin(), allocated_entries.end());
+
+				auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
+				if (!mUtils->Write_Fat_Entries(entry_map)) {
+					mUtils->Set_Fat_Entries_Value(allocated_entries, FAT_FREE);
+					return false;
+				}
+
+				mFat_entries = tmp_entries;
+			}
+
+		}
+
+		// Change filesize
+		mSize = static_cast<uint32_t>(size);
+		std::shared_ptr<IDirectory> parent;
+		if (!mUtils->Load_Directory(mDirs_to_parent, parent)) {
+			return false;
+		}
+		parent->Change_Entry_Size(mPath.file, mSize);
+
+		return true;
+	}
+
 	bool CFile::Is_Available_For_Write() {
 		std::unique_lock<std::mutex> lock(mFile_lock);
 
-		return (mWrite_count == 0); // TODO correct?
+		return (mWrite_count == 0);
 	}
 
 	size_t CFile::Get_Size() {

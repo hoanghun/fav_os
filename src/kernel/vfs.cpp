@@ -14,6 +14,9 @@ namespace kiv_vfs {
 	size_t IFile::Read(char *buffer, size_t buffer_size, size_t position) {
 		return 0;
 	}
+	bool IFile::Resize(size_t size) {
+		return false;
+	}
 	bool IFile::Is_Available_For_Write() {
 		return true;
 	}
@@ -331,25 +334,7 @@ namespace kiv_vfs {
 	bool CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
 		auto file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
 
-		size_t tmp_pos;
-		switch (type) {
-			case kiv_os::NFile_Seek::Beginning:
-				tmp_pos = 0;
-				break;
-
-			case kiv_os::NFile_Seek::Current:
-				tmp_pos = file_desc.position;
-				break;
-
-			case kiv_os::NFile_Seek::End:
-				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
-				break;
-
-			default:
-				throw TInvalid_Operation_Exception();
-		}
-
-		tmp_pos += position;
+		size_t tmp_pos = Calculate_Position(file_desc, position, type);
 
 		if (tmp_pos > file_desc.file->Get_Size() || tmp_pos < 0) {
 			throw TPosition_Out_Of_Range_Exception();
@@ -360,8 +345,17 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		// TODO
-		return false;
+		auto file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
+
+		size_t actual_position = Calculate_Position(file_desc, position, type);
+
+		if (!file_desc.file->Resize(actual_position)) {
+			throw TNot_Enough_Space_Exception();
+		}
+
+		file_desc.position = actual_position;
+
+		return true;
 	}
 
 	size_t CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
@@ -445,11 +439,13 @@ namespace kiv_vfs {
 
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
 			if (mFile_descriptors[i].file == nullptr && mFile_descriptors[i].attributes == FD_ATTR_FREE) { 
+				// TODO Reserve fat entries?
 				return i;
 			}
 		}
 
-		return -1; 
+		// Should be impossible to reach here
+		throw TInternal_Error_Exception();
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
@@ -488,6 +484,28 @@ namespace kiv_vfs {
 		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
 		return mCached_files.find(path.absolute_path)->second;
+	}
+
+	size_t CVirtual_File_System::Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type) {
+		size_t tmp_pos;
+		switch (type) {
+			case kiv_os::NFile_Seek::Beginning:
+				tmp_pos = 0;
+				break;
+
+			case kiv_os::NFile_Seek::Current:
+				tmp_pos = file_desc.position;
+				break;
+
+			case kiv_os::NFile_Seek::End:
+				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
+				break;
+
+			default:
+				throw TInvalid_Operation_Exception();
+		}
+
+		return (tmp_pos + position);
 	}
 
 	void CVirtual_File_System::Increase_File_References(TFile_Descriptor &file_desc) {

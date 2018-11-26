@@ -53,6 +53,7 @@ namespace kiv_fs_fat {
 			bool Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries);
 			bool Free_File_Fat_Entries(TFAT_Dir_Entry &entry);
 			bool Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory);
+			std::map<TFAT_Entry, TFAT_Entry> Create_Fat_Entries_Chain(std::vector<TFAT_Entry> &entries);
 
 			void Set_Superblock(TSuperblock sb);
 			TSuperblock &Get_Superblock();
@@ -114,6 +115,7 @@ namespace kiv_fs_fat {
 			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
 			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+			virtual bool Resize(size_t size) final override;
 			virtual bool Is_Available_For_Write() final override;
 			virtual size_t Get_Size() final override;
 

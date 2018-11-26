@@ -51,6 +51,7 @@ namespace kiv_vfs {
 		public:
 			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position);
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position);
+			virtual bool Resize(size_t size);
 			virtual void Close(const TFD_Attributes attrs);
 			virtual bool Is_Available_For_Write();
 			virtual size_t Get_Size();
@@ -136,13 +137,13 @@ namespace kiv_vfs {
 			// Throws	TInvalid_Fd_Exception, TPosition_Out_Of_Range_Exception
 			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
-			// TODO
+			// Throws	TInvalid_Fd_Exception, TNot_Enough_Space_Exception
 			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
 			// Throws	TInvalid_Fd_Exception
 			size_t Get_Position(kiv_os::THandle fd_index);
 
-			// TODO
+			// Throws	TFd_Table_Full_Exception
 			void Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
 			// Throws	File_Not_Found_Exception
@@ -185,6 +186,7 @@ namespace kiv_vfs {
 			void Cache_File(std::shared_ptr<IFile> &file);
 			void Decache_File(std::shared_ptr<IFile> &file);
 			std::shared_ptr<IFile> Get_Cached_File(const TPath &path);
+			size_t Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type);
 
 			void Unmount_All();
 			void Unregister_All();
