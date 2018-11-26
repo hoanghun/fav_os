@@ -15,8 +15,9 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const kiv_os::THandle sin = regs.rax.x;
 	const kiv_os::THandle sout = regs.rbx.x;
 
-	const char* intro = "Vitejte v kostre semestralni prace z KIV/OS.\n" \
-						"Shell zobrazuje echo zadaneho retezce. Prikaz exit ukonci shell.\n";
+	const char* intro = "FAV Virtual OS [Version 1.0]\n" \
+						"(c) 2018 FAVaci Corporation. All rights reserverd\n";
+	
 	kiv_os_rtl::Print_Line(regs, intro, strlen(intro));
 
 	const char* new_line = "\n";

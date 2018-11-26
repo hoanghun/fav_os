@@ -29,17 +29,14 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 	}
 
 	const char* new_line = "\n";
-	kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
 	for (const auto &item : freq_table) {
-
+		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
 		std::stringstream s;
 		s.str("");
 
-		s << printf("0x%hhx : %d\n", item.first, item.second);
+		s << printf("0x%hhx : %d", item.first, item.second);
 
 		const char * line = s.str().c_str();
-		kiv_os_rtl::Print_Line(regs, line, strlen(line));
-
 	}
 
 	kiv_os_rtl::Exit(0);

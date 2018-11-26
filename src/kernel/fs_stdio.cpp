@@ -3,47 +3,45 @@
 #include <iostream>
 
 #pragma region Util
-namespace tmp { // todo remove tmp
-	size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
-		kiv_hal::TRegisters registers;
+size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
+	kiv_hal::TRegisters registers;
 
-		size_t pos = 0;
-		while (pos < buffer_size) {
-			//read char
-			registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NKeyboard::Read_Char);
-			kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Keyboard, registers);
+	size_t pos = 0;
+	while (pos < buffer_size) {
+		//read char
+		registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NKeyboard::Read_Char);
+		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Keyboard, registers);
 
-			char ch = registers.rax.l;
+		char ch = registers.rax.l;
 
-			//osetrime zname kody
-			switch (static_cast<kiv_hal::NControl_Codes>(ch)) {
-			case kiv_hal::NControl_Codes::BS: {
-				//mazeme znak z bufferu
-				if (pos > 0) pos--;
+		//osetrime zname kody
+		switch (static_cast<kiv_hal::NControl_Codes>(ch)) {
+		case kiv_hal::NControl_Codes::BS: {
+			//mazeme znak z bufferu
+			if (pos > 0) pos--;
 
-				registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_Control_Char);
-				registers.rdx.l = ch;
-				kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
-			}
-											  break;
-
-			case kiv_hal::NControl_Codes::LF:  break;	//jenom pohltime, ale necteme
-			case kiv_hal::NControl_Codes::NUL:			//chyba cteni?
-			case kiv_hal::NControl_Codes::CR:  return pos;	//docetli jsme az po Enter
-
-
-			default: buffer[pos] = ch;
-				pos++;
-				registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_String);
-				registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(&ch);
-				registers.rcx.r = 1;
-				kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
-				break;
-			}
+			registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_Control_Char);
+			registers.rdx.l = ch;
+			kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
 		}
+											break;
 
-		return pos;
+		case kiv_hal::NControl_Codes::LF:  break;	//jenom pohltime, ale necteme
+		case kiv_hal::NControl_Codes::NUL:			//chyba cteni?
+		case kiv_hal::NControl_Codes::CR:  return pos;	//docetli jsme az po Enter
+
+
+		default: buffer[pos] = ch;
+			pos++;
+			registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NVGA_BIOS::Write_String);
+			registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(&ch);
+			registers.rcx.r = 1;
+			kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
+			break;
+		}
 	}
+
+	return pos;
 }
 #pragma endregion
 
@@ -70,7 +68,7 @@ namespace kiv_fs_stdio {
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
-		return tmp::Read_Line_From_Console(buffer, buffer_size);
+		return Read_Line_From_Console(buffer, buffer_size);
 	}
 
 	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {

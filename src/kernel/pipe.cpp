@@ -63,7 +63,7 @@ void CPipe::Close(const kiv_vfs::TFD_Attributes attrs) {
 		break;
 	case kiv_vfs::FD_ATTR_RW: // closing pipe end for writing
 		mWriter_Closed = true;
-		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
+ 		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
 		break;
 	default:
 		break;
