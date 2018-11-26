@@ -125,7 +125,7 @@ namespace kiv_fs_fat {
 
 				// All requested entries found
 				if (entries.size() == number_of_entries) {
-					return true;
+					return Set_Fat_Entries_Value(entries, FAT_RESERVED);
 				}
 
 			}
@@ -133,7 +133,7 @@ namespace kiv_fs_fat {
 			curr_entry++;
 		}
 
-		return Set_Fat_Entries_Value(entries, FAT_RESERVED);
+		return false;
 	}
 
 	bool CFAT_Utils::Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries) {
