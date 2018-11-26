@@ -6,6 +6,7 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
+#include <iostream>
 
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const size_t buffer_size = 256;
@@ -166,6 +167,29 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 }
 
 void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs) {
-	//TODO
+	bool result = true;
+	std::string err_msg;
+
+	if (exe.args.size() != 1) {
+		result = false;
+		err_msg = "Wrong number of arguments.";
+	}
+	else {
+		if (!kiv_os_rtl::Set_Working_Dir(exe.args.front().c_str())) {
+			result = false;
+			switch (kiv_os_rtl::Last_Error) {
+				case kiv_os::NOS_Error::File_Not_Found:
+					err_msg = "Directory does not exist.";
+					break;
+				case kiv_os::NOS_Error::Unknown_Error:
+					err_msg = "Couldn't perform. Try again.";
+					break;
+			}
+		}
+	}
+
+	if (!result) {
+		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.size());
+	}
 }
 

@@ -233,6 +233,9 @@ void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	catch (kiv_vfs::TFile_Not_Found_Exception e) {
 		result = kiv_os::NOS_Error::File_Not_Found;
 	}
+	catch (...) {
+		result = kiv_os::NOS_Error::Unknown_Error;
+	}
 
 	Set_Result(regs, result);
 }
@@ -247,13 +250,12 @@ void Get_Working_Dir(kiv_hal::TRegisters &regs) {
 	kiv_vfs::TPath working_dir;
 	if (kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&working_dir)) {
 		size_t wd_length = working_dir.absolute_path.length();
-		// Check whether buffer is big enough to store null terminated working directory
+		// Check whether buffer is big enough
 		if (buf_size >= wd_length) { 
 			memcpy(buffer, working_dir.absolute_path.c_str(), wd_length);
 			chars_written = wd_length;
 			result = kiv_os::NOS_Error::Success;
 		}
-
 	}
 
 	regs.rax.r = static_cast<decltype(regs.rax.r)>(chars_written);
