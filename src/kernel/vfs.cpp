@@ -543,14 +543,14 @@ namespace kiv_vfs {
 	};
 
 	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
-		// Known issues 
-		//	- two ".." at the end are handled incorrectly (e.g. "a\\b\\..\\..")
-
 		const std::string path_delimiter = "\\";
 		const std::string mount_delimiter = ":" + path_delimiter;
 		const size_t mount_max_size = 6;
 
 		TPath result;
+
+		// Normalize slashes
+		std::replace(path.begin(), path.end(), '/', '\\');
 
 		std::vector<std::string> splitted_by_mount = Split(path, mount_delimiter);
 
@@ -596,9 +596,9 @@ namespace kiv_vfs {
 
 				// ".." is at the end
 				else if ((itr + 1) == result.path.end()) {
-					result.path.pop_back();
+					itr = result.path.erase(itr);
 					if (!result.path.empty()) {
-						result.path.pop_back();
+						itr = result.path.erase(result.path.end() - 1);
 					}
 				}
 
