@@ -1037,6 +1037,8 @@ namespace kiv_fs_fat {
 		mSuperblock.root_cluster = 2;
 		mSuperblock.data_first_cluster = 3;
 
+		mUtils->Set_Superblock(mSuperblock);
+
 		// Write superblock to the first sector
 		char *superblock_sector = reinterpret_cast<char *>(&mSuperblock);
 		if (!mUtils->Write_To_Disk(superblock_sector, 0, 1)) {
