@@ -38,8 +38,16 @@ kiv_os::NOS_Error Set_Position(kiv_os::THandle vfs_handle, int position, kiv_os:
 }
 
 kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
-	// TODO
-	return kiv_os::NOS_Error::Unknown_Error;
+	try {
+		vfs.Set_Size(vfs_handle, position, seek_offset_type);
+		return kiv_os::NOS_Error::Success;
+	}
+	catch (kiv_vfs::TNot_Enough_Space_Exception e) {
+		return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+	}
+	catch (...) {
+		return kiv_os::NOS_Error::Unknown_Error;
+	}
 }
 
 void Seek(kiv_hal::TRegisters &regs) {
