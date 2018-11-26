@@ -230,15 +230,21 @@ namespace kiv_thread {
 				return false;
 			}
 			
-			if (tcb->state == NThread_State::TERMINATED) {
-				return false;
-			}
-
-			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+			std::unique_lock<std::mutex> lock(kiv_process::CProcess_Manager::Get_Instance().ptable); 
 			{
-				tcb->waiting_threads.push_back(my_tid);
+
+				if (tcb->state == NThread_State::TERMINATED) {
+					lock.unlock();
+					return false;
+				}
+
+				std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+				{
+					tcb->waiting_threads.push_back(my_tid);
+				}
+				e_lock.unlock();
 			}
-			e_lock.unlock();
+			lock.unlock();
 
 			return true;
 		}

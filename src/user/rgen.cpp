@@ -21,6 +21,7 @@ size_t _stdcall generate_floats(const kiv_hal::TRegisters &context) {
 	}
 	
 	kiv_os_rtl::Exit(0);
+	//std::cout << "Exit" << std::endl;
 		
 	return 0;
 }

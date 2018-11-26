@@ -139,13 +139,23 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 			if (result == false) {
 				switch (kiv_os_rtl::Last_Error) {
 				case kiv_os::NOS_Error::Invalid_Argument:
+				{
 					const std::string error = "\n'" + exe.name + "' is not recognized as command.";
 					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
 					break;
 				}
+				default:
+				{
+					const std::string error = "\n' Unknown error.";
+					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
+					break;
+				}
+				}
+			}
+			else {
+				handles.push_back(handle);
 			}
 
-			handles.push_back(handle);
 		}
 		else {
 			//Pokud nastala pred spustenim programu chyba
@@ -156,13 +166,15 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
 	size_t signaled;
 	int exit_code;
-	do {
-		kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
-		//TODO kontrolovat chyby
-		handles.erase(std::remove(handles.begin(), handles.end(), signaled), handles.end());
-		kiv_os_rtl::Read_Exit_Code(signaled, exit_code);
+	if (handles.size() != 0) {
+		do {
+			kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
+			//TODO kontrolovat chyby
+			handles.erase(std::remove(handles.begin(), handles.end(), signaled), handles.end());
+			kiv_os_rtl::Read_Exit_Code(signaled, exit_code);
 
-	} while (handles.size() > 0);
+		} while (handles.size() > 0);
+	}
 
 }
 
