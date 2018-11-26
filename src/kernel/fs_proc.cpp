@@ -20,14 +20,19 @@ namespace kiv_fs_proc {
 
 
 #pragma region File
-	CFile::CFile(const kiv_vfs::TPath path, size_t pid) : mPid(pid) {
+	CFile::CFile(const kiv_vfs::TPath path, size_t pid, std::string name) : mPid(pid), mName(name) {
 		mPath = path;
 		mAttributes = kiv_os::NFile_Attributes::Read_Only;
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
-		strcpy_s(buffer, buffer_size, mName.substr(position, buffer_size - 1).c_str());
-		return 0;
+		if (position > mName.length()) {
+			return 0;
+		}
+
+		std::string str_to_write = mName.substr(position, position + buffer_size - 1);
+		strcpy_s(buffer, buffer_size, str_to_write.c_str());
+		return str_to_write.length();
 	}
 
 	bool CFile::Is_Available_For_Write() {
@@ -38,6 +43,10 @@ namespace kiv_fs_proc {
 
 #pragma region Directory
 	CDirectory::CDirectory(const kiv_vfs::TPath path, const std::map<size_t, std::string> &processes) : mProcesses(processes) {
+		mPath = path;
+	}
+
+	CDirectory::CDirectory(const kiv_vfs::TPath path)  {
 		mPath = path;
 	}
 
@@ -76,15 +85,16 @@ namespace kiv_fs_proc {
 	CMount::CMount(std::string label) { 
 		mLabel = label;
 		kiv_vfs::TPath path;
-		path.absolute_path = label;
+		path.mount = label;
+		path.file = "";
 
-		mRoot = std::make_shared<CDirectory>(path, kiv_process::CProcess_Manager::Get_Instance().Get_Processes());
+		mRoot = std::make_shared<CDirectory>(path);
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
 		std::string name;
 
-		if (path.absolute_path == mRoot->Get_Path().absolute_path) {
+		if (path.mount == mRoot->Get_Path().mount && path.file.length() == 0) {
 			mRoot = std::make_shared<CDirectory>(path, kiv_process::CProcess_Manager::Get_Instance().Get_Processes());
 			return mRoot;
 		}
@@ -96,12 +106,12 @@ namespace kiv_fs_proc {
 		if (iss.fail()) {
 			return nullptr;
 		}
-
+		std::shared_ptr<kiv_vfs::IFile> file;
 		if (kiv_process::CProcess_Manager::Get_Instance().Get_Name(pid, name)) {
-			std::shared_ptr<kiv_vfs::IFile> file = std::make_shared<CFile>(path, pid);
+			file = std::make_shared<CFile>(path, pid, name);
 		}
 			
-		return nullptr;
+		return file;
 	}
 
 #pragma endregion

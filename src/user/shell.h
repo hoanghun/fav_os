@@ -21,5 +21,5 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs);
 //extern "C" size_t __stdcall sort(const kiv_hal::TRegisters &regs) { return 0; }
 //extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) { return 0; }
 //extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) { return 0; }
-extern "C" size_t __stdcall ps(const kiv_hal::TRegisters &regs) { return 0; }
+//extern "C" size_t __stdcall ps(const kiv_hal::TRegisters &regs) { return 0; }
 extern "C" size_t __stdcall shutdown(const kiv_hal::TRegisters &regs) { return 0; }

@@ -10,6 +10,7 @@
 #include "vfs.h"
 #include "fs_stdio.h"
 #include "fs_fat.h"
+#include "fs_proc.h"
 
 #include <iostream>
 
@@ -24,12 +25,14 @@ void Initialize_Kernel() {
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_stdio::CFile_System());
 	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_fat::CFile_System());
+	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_proc::CFile_System());
 
 	/*
 	 * Mounting registered
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("stdio", "stdio");
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fat", "C", 0x81); // TODO Change disk
+	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fs_proc", "proc");
 }
 
 void Shutdown_Kernel() {

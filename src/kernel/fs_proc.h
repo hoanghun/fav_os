@@ -10,7 +10,7 @@ namespace kiv_fs_proc {
 
 	class CFile : public kiv_vfs::IFile {
 		public:
-			CFile(const kiv_vfs::TPath path, size_t pid);
+			CFile(const kiv_vfs::TPath path, size_t pid, std::string name);
 			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 			virtual bool Is_Available_For_Write() final override;
 		private:
@@ -22,6 +22,8 @@ namespace kiv_fs_proc {
 	public:
 
 		CDirectory(const kiv_vfs::TPath path, const std::map<size_t, std::string> &processes);
+		CDirectory(const kiv_vfs::TPath path);
+
 		virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 		virtual bool Is_Available_For_Write() final override;
 	private:
