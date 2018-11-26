@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\src\user\freq.cpp" />
     <ClCompile Include="..\..\src\user\md.cpp" />
     <ClCompile Include="..\..\src\user\parser.cpp" />
+    <ClCompile Include="..\..\src\user\ps.cpp" />
     <ClCompile Include="..\..\src\user\rd.cpp" />
     <ClCompile Include="..\..\src\user\rgen.cpp" />
     <ClCompile Include="..\..\src\user\rtl.cpp" />

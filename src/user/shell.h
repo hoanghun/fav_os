@@ -8,6 +8,7 @@
 extern "C" size_t __stdcall shell(const kiv_hal::TRegisters &regs);
 bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout);
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs);
+void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs);
 
 
 //nasledujici funkce si dejte do vlastnich souboru

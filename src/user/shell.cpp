@@ -53,6 +53,8 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 //Pripravime soubory a pipy
 bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout) {
 
+	//if command is cd check validity
+
 	//kontrola zda jsou exes validni
 	for (const TExecutable &exe : exes) {
 		if (exe.Check() == false) {
@@ -104,6 +106,12 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 	size_t handle = 0;
 	bool result = true;
 
+	//cd
+	if (exes.front().name == "cd") {
+		Cd(exes.front(), regs);
+		return;
+	}
+
 	for (const TExecutable &exe : exes) {
 
 		if (result == true) {
@@ -148,5 +156,9 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
 	} while (handles.size() > 0);
 
+}
+
+void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs) {
+	//TODO
 }
 
