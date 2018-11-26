@@ -252,10 +252,11 @@ void Get_Working_Dir(kiv_hal::TRegisters &regs) {
 
 	kiv_vfs::TPath working_dir;
 	if (kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&working_dir)) {
-
+		size_t wd_length = working_dir.absolute_path.length();
 		// Check whether buffer is big enough to store null terminated working directory
-		if (buf_size >= (working_dir.absolute_path.length() + 1)) { 
-			strcpy_s(buffer, buf_size, working_dir.absolute_path.c_str());
+		if (buf_size >= wd_length) { 
+			memcpy(buffer, working_dir.absolute_path.c_str(), wd_length);
+			chars_written = wd_length;
 			result = kiv_os::NOS_Error::Success;
 		}
 

@@ -17,13 +17,19 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 	const char* intro = "Vitejte v kostre semestralni prace z KIV/OS.\n" \
 						"Shell zobrazuje echo zadaneho retezce. Prikaz exit ukonci shell.\n";
-	
-
 	kiv_os_rtl::Print_Line(regs, intro, strlen(intro));
-	const char* prompt = "C:\\>";
+
 	const char* new_line = "\n";
+	const char prompt_char = '>';
+
+	const size_t prompt_size = 512;
+	char prompt[prompt_size];
+	size_t prompt_read_count;
+
 	do {
-		kiv_os_rtl::Print_Line(regs, prompt, strlen(prompt));
+		kiv_os_rtl::Get_Working_Dir(prompt, prompt_size, prompt_read_count);
+		prompt[prompt_read_count] = prompt_char;
+		kiv_os_rtl::Print_Line(regs, prompt, prompt_read_count + 1);
 
 		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
 		if (counter > 0) {
