@@ -34,9 +34,14 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 		kiv_os_rtl::Print_Line(regs, prompt, prompt_read_count + 1);
 
 		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+
 		if (counter > 0) {
 			if (counter == buffer_size) counter--;
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
+
+			if (strcmp(buffer, "exit") == 0) {
+				break;
+			}
 
 			std::vector<TExecutable> items = Parse(buffer, strlen(buffer));
 			if (Prepare_For_Execution(items, sin, sout) == false) {
@@ -166,6 +171,7 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
 	size_t signaled;
 	int exit_code;
+
 	if (handles.size() != 0) {
 		do {
 			kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);

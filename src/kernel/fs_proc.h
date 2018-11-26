@@ -26,6 +26,7 @@ namespace kiv_fs_proc {
 
 		virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
 		virtual bool Is_Available_For_Write() final override;
+		void Refresh_Processes(const std::map<size_t, std::string> &processes);
 	private:
 		std::map<size_t, std::string> mProcesses;
 	};

@@ -2,6 +2,7 @@
 #include "process.h"
 
 #include <sstream>
+
 const size_t file_name_size = 12;
 
 namespace kiv_fs_proc {
@@ -79,6 +80,10 @@ namespace kiv_fs_proc {
 		return false;
 	}
 
+	void CDirectory::Refresh_Processes(const std::map<size_t, std::string> &processes) {
+		mProcesses = processes;
+	}
+
 #pragma endregion
 
 #pragma region Mount
@@ -111,7 +116,7 @@ namespace kiv_fs_proc {
 		if (kiv_process::CProcess_Manager::Get_Instance().Get_Name(pid, name)) {
 			file = std::make_shared<CFile>(path, pid, name);
 		}
-			
+
 		return file;
 	}
 

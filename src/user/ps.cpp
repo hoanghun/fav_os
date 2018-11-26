@@ -32,7 +32,6 @@ extern "C" size_t __stdcall ps(const kiv_hal::TRegisters &regs) {
 				kiv_os::NFile_Attributes::Read_Only, file_handle)) {
 
 				kiv_os_rtl::Read_File(file_handle, buffer, buffer_size, file_read);
-				
 				if (file_read) {
 					kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
 					kiv_os_rtl::Print_Line(regs, tab, strlen(tab));
@@ -43,6 +42,7 @@ extern "C" size_t __stdcall ps(const kiv_hal::TRegisters &regs) {
 			}
 		}
 	}
+	kiv_os_rtl::Close_Handle(root_handle);
 
 	kiv_os_rtl::Exit(0);
 	return 0; 

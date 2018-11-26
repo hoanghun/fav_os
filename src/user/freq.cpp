@@ -7,7 +7,6 @@
 #include <iostream>
 
 extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
-	
 	std::map<char, int> freq_table;
 
 	const size_t buffer_size = 256;

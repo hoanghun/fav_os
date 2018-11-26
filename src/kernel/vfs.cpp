@@ -261,10 +261,18 @@ namespace kiv_vfs {
 
 	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
 		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
-		file_desc.file->Close(file_desc.attributes);
-
 		Remove_File_Descriptor(fd_index);
 
+		if (file_desc.file) {
+			file_desc.file->Close(file_desc.attributes);
+
+			if (file_desc.file->Get_Read_Count() == 0 && file_desc.file->Get_Write_Count() == 0) {
+				Decache_File(file_desc.file);
+			}
+		}
+
+		file_desc.file = nullptr;
+		
 		return false;
 	}
 
@@ -426,7 +434,6 @@ namespace kiv_vfs {
 		mFd_count--;
 		Decrease_File_References(file_desc);
 
-		file_desc.file = nullptr;
 		file_desc.attributes = FD_ATTR_FREE;
 	}
 
@@ -474,7 +481,8 @@ namespace kiv_vfs {
 
 		auto path = file->Get_Path();
 		if (!Is_File_Cached(file->Get_Path())) {
-			throw TInternal_Error_Exception();
+			return;
+			//throw TInternal_Error_Exception();
 		}
 
 		mCached_files.erase(mCached_files.find(file->Get_Path().absolute_path));

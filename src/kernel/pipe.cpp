@@ -10,6 +10,10 @@ CPipe::CPipe() : mRead_Index(0), mWrite_Index(0), mReader_Closed(false), mWriter
 size_t CPipe::Write(const char *buffer, size_t buffer_size, size_t position) {
 	size_t bytes_written = 0;
 	
+	if (mReader_Closed) {
+		return 0;
+	}
+
 	for (size_t i = 0; i < buffer_size; i++) {
 		mEmptyCount.Wait(); // is buffer empty?
 		
@@ -66,6 +70,10 @@ void CPipe::Close(const kiv_vfs::TFD_Attributes attrs) {
  		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
 		break;
 	default:
+		mWriter_Closed = true;
+		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
+		mReader_Closed = true;
+		mEmptyCount.Signal();
 		break;
 	}
 }
