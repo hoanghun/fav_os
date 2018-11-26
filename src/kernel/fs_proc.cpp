@@ -20,9 +20,10 @@ namespace kiv_fs_proc {
 
 
 #pragma region File
-	CFile::CFile(const kiv_vfs::TPath path, size_t pid, std::string name) : mPid(pid), mName(name) {
+	CFile::CFile(const kiv_vfs::TPath path, size_t pid, std::string name) {
 		mPath = path;
 		mAttributes = kiv_os::NFile_Attributes::Read_Only;
+		mName = name + "\t" + std::to_string(pid);
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
