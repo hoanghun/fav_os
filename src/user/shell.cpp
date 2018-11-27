@@ -8,10 +8,10 @@
 #include <algorithm>
 #include <iostream>
 
-bool run = true;
+bool shell_run = true;
 
 size_t __stdcall shell_terminate_handler(const kiv_hal::TRegisters &regs) {
-	run = false;
+	shell_run = false;
 	return 0;
 }
 
