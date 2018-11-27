@@ -5,6 +5,7 @@
 #include <Windows.h>
 
 #include <iostream>
+#include <thread>
 #include "common.h"
 #include "process.h"
 #include "vfs.h"
@@ -97,6 +98,8 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 
 	*/
 
+	kiv_process::CProcess_Manager::Get_Instance().Create_Sys_Process();
+
 	const char* prog_name = "shell";
 
 	// shell start
@@ -145,6 +148,9 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 
 		Sys_Call(sregs);
 	}
+
+	kiv_process::CProcess_Manager::Get_Instance().Shutdown_Wait();
+
 }
 
 

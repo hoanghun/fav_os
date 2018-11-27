@@ -4,6 +4,9 @@
 #include "common.h"
 
 #include <iostream>
+#include <stack>
+#include <queue>
+
 namespace kiv_process {
 
 #pragma region "SYSTEM VARIABLES"
@@ -112,11 +115,11 @@ namespace kiv_process {
 	std::mutex CProcess_Manager::ptable;
 	
 	//Pokud je rovnou nastaveno na instanci, tak se zasekne nacitani DLLka
-	CProcess_Manager *CProcess_Manager::instance = nullptr;
+	CProcess_Manager *CProcess_Manager::instance = new CProcess_Manager();
 
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
-		Create_Sys_Process();
+		//Create_Sys_Process();
 		pid_manager = new CPid_Manager();
 	}
 
@@ -127,9 +130,9 @@ namespace kiv_process {
 
 	CProcess_Manager& CProcess_Manager::Get_Instance() {
 
-		if (instance == nullptr) {
-			instance = new CProcess_Manager();
-		}
+		//if (instance == nullptr) {
+		//	instance = new CProcess_Manager();
+		//}
 
 		return *instance;
 	}
@@ -178,12 +181,6 @@ namespace kiv_process {
 			ppcb->cpids.push_back(pid);
 			
 			process_table.emplace(pcb->pid, pcb);
-			
-			/*kiv_vfs::TPath tpath;
-			tpath.mount = "proc";
-			tpath.path = std::vector<std::string>{ pcb->name};
-			tpath.file = pcb->pid;
-			tpath.absolute_path = "proc:/" + pcb->pid + '/';*/
 
 		}
 		lock.unlock();
@@ -228,6 +225,11 @@ namespace kiv_process {
 	//a provede potrebne akce
 	void CProcess_Manager::Check_Process_State(std::shared_ptr<TProcess_Control_Block> pcb) {
 		
+		//Pokud se systém vypíná, tak už øeší ukonèení procesù podle sebe
+		if (system_shutdown == true) {
+			return;
+		}
+
 		std::unique_lock<std::mutex> lock(ptable);
 		{
 
@@ -291,7 +293,16 @@ namespace kiv_process {
 		system_shutdown = true;
 		reap_cv.notify_all();
 		
-	
+	}
+
+	void CProcess_Manager::Shutdown_Wait() {
+
+		process_table[0]->thread_table[0]->thread.join();
+		process_table[0]->thread_table[0]->pcb = nullptr;
+
+		process_table.clear();
+		kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
+
 	}
 
 	void CProcess_Manager::Execute_Shutdown() {
@@ -299,17 +310,38 @@ namespace kiv_process {
 		kiv_hal::TRegisters regs;
 
 		//Zastavi vsechny systemove procesy
-		process_table[0]->thread_table[0]->thread.detach();
+		//process_table[0]->thread_table[0]->thread.detach();
 
-		for (auto pcb : process_table) {
 
-			for (auto tcb : pcb.second->thread_table) {
+		std::stack<size_t> ordered_p;
+		std::stack<size_t> todo;
 
-				//Systemove procesy nebudeme ukoncovat nasilne
-				if (pcb.second->pid == 0) {		
-					tcb->pcb = nullptr;
+		todo.push(0);
+		do {
+			
+			size_t pid = todo.top();
+			ordered_p.push(pid);
+			todo.pop();
+
+			std::vector<size_t> cpids = process_table[pid]->cpids;
+
+			for (size_t cpid : cpids) {
+				if (process_table[cpid]->cpids.empty() == true) {
+					ordered_p.push(cpid);
 				}
-				else if (tcb->terminate_handler == nullptr) {
+				else {
+					todo.push(cpid);
+				}
+			}
+
+		} while (todo.empty() == false);
+
+		while (ordered_p.size() > 1) {
+			
+			size_t pid = ordered_p.top();
+			for (auto tcb : process_table[pid]->thread_table) {
+
+				if (tcb->terminate_handler == nullptr) {
 					//NO TIME FOR MERCY, KILL IT!
 					/*kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);*/
 					tcb->thread.join();
@@ -326,14 +358,10 @@ namespace kiv_process {
 
 			}
 
-			pcb.second->thread_table.clear();
+			process_table[pid]->thread_table.clear();
+			ordered_p.pop();
 		}
 		
-		process_table.clear();
-		if (kiv_thread::CThread_Manager::Get_Instance().thread_map.size() > 0) {
-			kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
-		}
-
 		//stdin and stdout closing
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
