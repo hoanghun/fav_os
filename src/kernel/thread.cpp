@@ -103,32 +103,39 @@ namespace kiv_thread {
 		//Funkce je volana po skonceni vlakna/procesu
 		bool CThread_Manager::Thread_Exit(kiv_hal::TRegisters& context) {
 
+			if (Thread_Exit(Hash_Thread_Id(std::this_thread::get_id())) == true) {
+				return true;
+			}
+			else {
+				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+				context.flags.carry = 1;
+				return false;
+			}
+		}
+
+		bool CThread_Manager::Thread_Exit(size_t tid) {
+
 			std::shared_ptr<TThread_Control_Block> tcb;
 			std::unique_lock<std::mutex> plock(kiv_process::CProcess_Manager::ptable);
 			{
-
-				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb)) {
+				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb) == true) {
 					tcb->state = NThread_State::TERMINATED;
+					//Signalizace ukonceni procesu tem kdo na to cekaji
+					for (auto const & tid : tcb->waiting_threads) {
+
+						std::shared_ptr<TThread_Control_Block> tcb;
+						if (Get_Thread_Control_Block(tid, &tcb) == true) {
+							if (tcb->wait_semaphore != nullptr) {
+								tcb->wait_semaphore->Signal();
+							}
+						}
+					}
+					tcb->waiting_threads.clear();
 				}
 				else {
 					plock.unlock();
-					context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
-					context.flags.carry = 1;
 					return false;
 				}
-
-				//Signalizace ukonceni procesu tem kdo na to cekaji
-				for (auto const & tid : tcb->waiting_threads) {
-					
-					std::shared_ptr<TThread_Control_Block> tcb;
-					if (Get_Thread_Control_Block(tid, &tcb) == true) {
-						if (tcb->wait_semaphore != nullptr) {
-							tcb->wait_semaphore->Signal();
-						}
-					}
-				}
-				tcb->waiting_threads.clear();
-
 			}
 			plock.unlock();
 

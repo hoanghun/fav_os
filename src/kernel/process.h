@@ -77,6 +77,7 @@ namespace kiv_process {
 
 
 				void Shutdown();
+				void Execute_Shutdown();
 
 			private:
 				static std::mutex ptable;

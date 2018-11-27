@@ -25,7 +25,7 @@ namespace kiv_os_rtl {
 
 	bool Wait_For(const size_t *handles, const size_t handles_count, size_t &signaled);
 
-	bool Register_Terminate_Signal_Handler(const kiv_os::TThread_Proc *handler);
+	bool Register_Terminate_Signal_Handler(kiv_os::TThread_Proc handler);
 
 	bool Read_Exit_Code(const size_t handler, int &exit_code);
 
@@ -46,5 +46,7 @@ namespace kiv_os_rtl {
 	size_t Print_Line(const kiv_hal::TRegisters &regs, const char *buffer, size_t size);
 
 	size_t Read_Line(const kiv_hal::TRegisters &regs, char* const buffer, size_t size);
+
+	void Shutdown();
 
 }

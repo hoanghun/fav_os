@@ -39,14 +39,6 @@ namespace kiv_process {
 
 		case kiv_os::NOS_Process::Shutdown:
 			CProcess_Manager::Get_Instance().Shutdown();
-
-			// TODO move to kernel shutdown
-			// Free memory before shutdown
-		
-			CProcess_Manager::Destroy();
-			kiv_thread::CThread_Manager::Destroy();
-			kiv_vfs::CVirtual_File_System::Destroy();
-
 			break;
 
 		case kiv_os::NOS_Process::Wait_For:
@@ -295,14 +287,19 @@ namespace kiv_process {
 	}
 
 	void CProcess_Manager::Shutdown() {
-		
-		kiv_hal::TRegisters regs;
-		//TODO set registers to contain informations
-
-		//Zastavi vsechny systemove procesy
+	
 		system_shutdown = true;
 		reap_cv.notify_all();
-		process_table[0]->thread_table[0]->thread.join();
+		
+	
+	}
+
+	void CProcess_Manager::Execute_Shutdown() {
+		
+		kiv_hal::TRegisters regs;
+
+		//Zastavi vsechny systemove procesy
+		process_table[0]->thread_table[0]->thread.detach();
 
 		for (auto pcb : process_table) {
 
@@ -314,14 +311,16 @@ namespace kiv_process {
 				}
 				else if (tcb->terminate_handler == nullptr) {
 					//NO TIME FOR MERCY, KILL IT!
-					tcb->thread.detach();
-					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
+					/*kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);*/
+					tcb->thread.join();
+					kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(tcb->tid);
 					tcb->pcb = nullptr;
 				}
 				else {
 					tcb->terminate_handler(regs);
 					// TODO mohlo by se stat ze se nedockam
 					tcb->thread.join();
+					kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(tcb->tid);
 					tcb->pcb = nullptr;
 				}
 
@@ -331,11 +330,14 @@ namespace kiv_process {
 		}
 		
 		process_table.clear();
-		kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
+		if (kiv_thread::CThread_Manager::Get_Instance().thread_map.size() > 0) {
+			kiv_thread::CThread_Manager::Get_Instance().thread_map.clear();
+		}
 
 		//stdin and stdout closing
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
+
 	}
 
 	bool CProcess_Manager::Set_Working_Directory(const kiv_vfs::TPath &dir) {
@@ -554,6 +556,8 @@ namespace kiv_process {
 
 			/*std::this_thread::yield();*/
 		}
+
+		Execute_Shutdown();
 
 	}
 

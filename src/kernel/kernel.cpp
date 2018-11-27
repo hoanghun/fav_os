@@ -36,6 +36,11 @@ void Initialize_Kernel() {
 }
 
 void Shutdown_Kernel() {
+
+	kiv_process::CProcess_Manager::Destroy();
+	kiv_thread::CThread_Manager::Destroy();
+	kiv_vfs::CVirtual_File_System::Destroy();
+
 	FreeLibrary(User_Programs);
 }
 
@@ -139,7 +144,6 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 		sregs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Shutdown);
 
 		Sys_Call(sregs);
-		Shutdown_Kernel();
 	}
 }
 
