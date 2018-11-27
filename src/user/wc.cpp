@@ -1,6 +1,8 @@
 #include "..\api\api.h"
 #include "parser.h"
 
+#include <string>
+
 extern "C" size_t __stdcall wc(const kiv_hal::TRegisters &regs) { 
 	
 	const size_t buffer_size = 256;
@@ -25,8 +27,8 @@ extern "C" size_t __stdcall wc(const kiv_hal::TRegisters &regs) {
 
 	} while (counter > 0);
 
-	const char *output = std::to_string(lines_count).c_str();
-	kiv_os_rtl::Print_Line(regs, output, strlen(output));
+	std::string output = "\nWords count: " + std::to_string(lines_count);
+	kiv_os_rtl::Print_Line(regs, output.c_str(), output.length());
 
 	kiv_os_rtl::Exit(0);
 

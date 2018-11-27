@@ -20,8 +20,6 @@ struct TExecutable {
 	kiv_os::THandle out_handle;
 
 	bool Check() const;
-	void Close_Stdin() const;
-	void Close_Stdout() const;
 
 };
 

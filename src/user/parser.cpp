@@ -32,26 +32,6 @@ bool TExecutable::Check() const {
 	return true;
 }
 
-void TExecutable::Close_Stdin() const {
-
-	if (file_in.length() > 0 || pipe_in == true) {
-		if (in_handle > 0) {
-			kiv_os_rtl::Close_Handle(in_handle);
-		}
-	}
-
-}
-
-void TExecutable::Close_Stdout() const {
-
-	if (file_out.length() > 0 || pipe_out == true) {
-		if (out_handle > 0) {
-			kiv_os_rtl::Close_Handle(out_handle);
-		}
-	}
-
-}
-
 bool Update_Executable(std::stringstream  &strs, TExecutable &item, size_t property) {
 
 	//Pokud neni stringstream prazdny

@@ -21,9 +21,20 @@ namespace kiv_process {
 	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
 		case kiv_os::NClone::Create_Process:
-			kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs);
+		{
+			//Pokud selhalo zavreme vstup a výstup
+			if (kiv_process::CProcess_Manager::Get_Instance().Create_Process(regs) == false) {
+				kiv_os::THandle sin = regs.rbx.e >> 16;
+				kiv_os::THandle sout = regs.rbx.e & 0xFFFF;
+				if (sin != 0) {
+					kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(sin);
+				}
+				if (sout != 1) {
+					kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(sout);
+				}
+			}
 			break;
-
+		}
 		case kiv_os::NClone::Create_Thread:
 			kiv_thread::CThread_Manager::Get_Instance().Create_Thread(regs);
 			break;
@@ -33,7 +44,7 @@ namespace kiv_process {
 	void Handle_Process(kiv_hal::TRegisters &regs) {
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
 
-		case kiv_os::NOS_Process::Clone:
+		case kiv_os::NOS_Process::Clone: 
 			Handle_Clone_Call(regs);
 			break;
 		case kiv_os::NOS_Process::Exit:
@@ -138,6 +149,8 @@ namespace kiv_process {
 	}
 
 	bool CProcess_Manager::Create_Process(kiv_hal::TRegisters& context) {
+
+		context.flags.carry = 0;
 
 		const char* func_name = (char*)(context.rdx.r);
 		kiv_os::TThread_Proc func = (kiv_os::TThread_Proc) GetProcAddress(User_Programs, func_name);

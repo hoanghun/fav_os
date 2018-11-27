@@ -54,7 +54,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			}
 
 			std::vector<TExecutable> items = Parse(buffer, strlen(buffer));
-			if (Prepare_For_Execution(items, sin, sout) == false) {
+			if (Check(items) == false) {
 				const char *error = "\nCommand is not valid.";
 				kiv_os_rtl::Print_Line(regs, error, strlen(error));
 			}
@@ -73,52 +73,62 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	return 0;
 }
 
-//Pripravime soubory a pipy
-bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout) {
+bool Check(std::vector<TExecutable> &exes) {
 
 	//if command is cd check validity
 
 	//kontrola zda jsou exes validni
+	bool previous_pipe = false;
 	for (const TExecutable &exe : exes) {
 		if (exe.Check() == false) {
 			return false;
 		}
+
+		if (exe.pipe_in == true && previous_pipe == false) {
+			return false;
+		}
+
+		previous_pipe = exe.pipe_out;
 	}
 	
 	if (exes.back().pipe_out == true || exes.front().pipe_in == true) {
 		false;
 	}
 
-
-	kiv_os::THandle last_pipe = 0;
-	for (TExecutable &exe : exes) {
-	
-		if (exe.file_in.empty() == false) {
-			kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
-		}
-		else if (exe.pipe_in) {		
-			exe.in_handle = last_pipe;
-		}
-		else {
-			exe.in_handle = sin;
-		}
-
-		if (exe.file_out.empty() == false) {
-			kiv_os_rtl::Open_File(exe.file_out.c_str(), kiv_os::NOpen_File::fmOpen_Always, static_cast<kiv_os::NFile_Attributes>(0), exe.out_handle);
-		}
-		else if (exe.pipe_out) {
-			//This pipe will be stdin for next process
-			kiv_os_rtl::Create_Pipe(last_pipe, exe.out_handle);
-		}
-		else {
-			exe.out_handle = sout;
-		}
-	}
-
 	return true;
 }
 
+//Pripravime soubory a pipy
+void Prepare_For_Execution(TExecutable &exe, const kiv_os::THandle sin, const kiv_os::THandle sout, kiv_os::THandle &last_pipe) {
+
+
+	if (exe.file_in.empty() == false) {
+		kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
+	}
+	else if (exe.pipe_in) {
+		exe.in_handle = last_pipe;
+	}
+	else {
+		exe.in_handle = sin;
+	}
+
+	if (exe.file_out.empty() == false) {
+		kiv_os_rtl::Open_File(exe.file_out.c_str(), kiv_os::NOpen_File::fmOpen_Always, static_cast<kiv_os::NFile_Attributes>(0), exe.out_handle);
+	}
+	else if (exe.pipe_out) {
+		//This pipe will be stdin for next process
+		kiv_os_rtl::Create_Pipe(last_pipe, exe.out_handle);
+	}
+	else {
+		exe.out_handle = sout;
+	}
+
+}
+
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
+
+	const kiv_os::THandle sin = regs.rax.x;
+	const kiv_os::THandle sout = regs.rbx.x;
 
 	std::vector<size_t> handles;
 	size_t handle = 0;
@@ -130,9 +140,11 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 		return;
 	}
 
-	for (const TExecutable &exe : exes) {
+	kiv_os::THandle last_pipe = 0;
 
-		if (result == true) {
+	for (TExecutable &exe : exes) {
+
+		
 			//Pripravime argumenty programu
 			std::stringstream args;
 			args.str("");
@@ -144,6 +156,7 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 				args << ' ' << exe.args[i];
 			}
 
+			Prepare_For_Execution(exe, sin, sout, last_pipe);
 			result = kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
 
 			if (result == false) {
@@ -156,22 +169,19 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 				}
 				default:
 				{
-					const std::string error = "\n' Unknown error.";
+					const std::string error = "\n Unknown error.";
 					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
 					break;
 				}
 				}
+
+				break;
 			}
 			else {
 				handles.push_back(handle);
 			}
 
-		}
-		else {
-			//Pokud nastala pred spustenim programu chyba
-			exe.Close_Stdin();
-			exe.Close_Stdout();
-		}
+		
 	}
 
 	size_t signaled;

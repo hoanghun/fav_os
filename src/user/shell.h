@@ -6,7 +6,8 @@
 #include <vector>
 
 extern "C" size_t __stdcall shell(const kiv_hal::TRegisters &regs);
-bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle sin, const kiv_os::THandle sout);
+bool Check(std::vector<TExecutable> &exes);
+void Prepare_For_Execution(TExecutable &exes, const kiv_os::THandle sin, const kiv_os::THandle sout, kiv_os::THandle &last_pipe);
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs);
 void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs);
 

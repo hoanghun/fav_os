@@ -15,9 +15,10 @@ extern "C" size_t __stdcall sort(const kiv_hal::TRegisters &regs) {
 
 	std::vector<std::string> output;
 
+	std::ostringstream oss;
+
 	do {
 
-		std::ostringstream oss;
 
 		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
 		if (counter > 0) {
@@ -33,6 +34,8 @@ extern "C" size_t __stdcall sort(const kiv_hal::TRegisters &regs) {
 		}
 
 	} while (counter > 0);
+	output.push_back(oss.str());
+
 
 	std::sort(output.begin(), output.end());
 	for (const std::string &line : output) {
