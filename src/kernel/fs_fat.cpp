@@ -645,7 +645,16 @@ namespace kiv_fs_fat {
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
 		size_t first_cluster = position / cluster_size;
-		size_t last_cluster = (position + bytes_to_write) / cluster_size;
+		size_t last_byte = position + bytes_to_write;
+		size_t last_cluster;
+		if (last_byte == 0) {
+			last_cluster = 0;
+		}
+		else {
+			last_cluster = (last_byte % cluster_size == 0)
+				? (last_byte / cluster_size) - 1
+				: ((last_byte / cluster_size));
+		}
 		size_t clusters_needed = last_cluster + 1;
 
 		std::unique_lock<std::mutex> lock(mFile_lock);
@@ -685,10 +694,10 @@ namespace kiv_fs_fat {
 
 			// The position has to be taken into consideration in the first cluster
 			if (i == first_cluster) {
-				bytes_to_write_in_cluster = (bytes_to_write > (cluster_size - position))
-					? (cluster_size - position)
+				bytes_to_write_in_cluster = (bytes_to_write > (cluster_size * (i + 1) - position))
+					? (cluster_size * (i + 1) - position)
 					: bytes_to_write;
-				memcpy(cluster + position, buffer, bytes_to_write_in_cluster);
+				memcpy(cluster + (position - cluster_size * i), buffer, bytes_to_write_in_cluster);
 			}
 			else {
 				bytes_to_write_in_cluster = ((bytes_to_write - bytes_written) > cluster_size)
@@ -732,7 +741,16 @@ namespace kiv_fs_fat {
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
 		size_t first_cluster = position / cluster_size;
-		size_t last_cluster = (position + bytes_to_read) / cluster_size;
+		size_t last_byte = position + bytes_to_read;
+		size_t last_cluster;
+		if (last_byte == 0) {
+			last_cluster = 0;
+		}
+		else {
+			last_cluster = (last_byte % cluster_size == 0)
+				? (last_byte / cluster_size) - 1
+				: ((last_byte / cluster_size));
+		}
 
 		// Read from clusters
 		char *cluster = new char[cluster_size];
@@ -746,10 +764,10 @@ namespace kiv_fs_fat {
 
 			// The position has to be taken into consideration in the first cluster
 			if (i == first_cluster) {
-				bytes_to_read_in_cluster = (bytes_to_read > (cluster_size - position))
-					? (cluster_size - position)
-					: (bytes_to_read - bytes_read);
-				memcpy(buffer, cluster + position, bytes_to_read_in_cluster);
+				bytes_to_read_in_cluster = (bytes_to_read > (cluster_size * (i + 1) - position))
+					? (cluster_size * (i + 1) - position)
+					: bytes_to_read;
+				memcpy(buffer, cluster + (position - (cluster_size * i)), bytes_to_read_in_cluster);
 			} 
 			else {
 				bytes_to_read_in_cluster = ((bytes_to_read - bytes_read) > cluster_size)
