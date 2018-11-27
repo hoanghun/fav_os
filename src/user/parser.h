@@ -13,8 +13,6 @@ struct TExecutable {
 	std::string file_in = "";
 	std::string file_out = "";
 
-	bool file_out_rewrite = false;
-
 	bool pipe_in = false;
 	bool pipe_out = false;
 

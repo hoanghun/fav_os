@@ -104,12 +104,7 @@ bool Prepare_For_Execution(std::vector<TExecutable> &exes, const kiv_os::THandle
 		}
 
 		if (exe.file_out.empty() == false) {
-			if (exe.file_out_rewrite) {
-				kiv_os_rtl::Open_File(exe.file_in.c_str(), static_cast<kiv_os::NOpen_File>(0), static_cast<kiv_os::NFile_Attributes>(0), exe.in_handle);
-			}
-			else {
-				kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, static_cast<kiv_os::NFile_Attributes>(0), exe.in_handle);
-			}
+			kiv_os_rtl::Open_File(exe.file_out.c_str(), kiv_os::NOpen_File::fmOpen_Always, static_cast<kiv_os::NFile_Attributes>(0), exe.out_handle);
 		}
 		else if (exe.pipe_out) {
 			//This pipe will be stdin for next process
