@@ -8,7 +8,17 @@
 #include <algorithm>
 #include <iostream>
 
+bool run = true;
+
+size_t __stdcall shell_terminate_handler(const kiv_hal::TRegisters &regs) {
+	run = false;
+	return 0;
+}
+
 size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
+
+	kiv_os_rtl::Register_Terminate_Signal_Handler(shell_terminate_handler);
+
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
 	size_t counter;
@@ -56,7 +66,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			break;	//EOF
 
 		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
-	} while (strcmp(buffer, "exit") != 0);
+	} while (strcmp(buffer, "exit") != 0 && strcmp(buffer, "shutdown") != 0);
 
 	kiv_os_rtl::Exit(0);
 

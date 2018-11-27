@@ -60,6 +60,8 @@ namespace kiv_thread {
 				bool Create_Thread(kiv_hal::TRegisters& context);
 
 				bool Thread_Exit(kiv_hal::TRegisters& context);
+				bool Thread_Exit(size_t tid);
+
 				bool Add_Terminate_Handler(kiv_hal::TRegisters& context);
 			
 

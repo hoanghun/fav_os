@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\src\user\rgen.cpp" />
     <ClCompile Include="..\..\src\user\rtl.cpp" />
     <ClCompile Include="..\..\src\user\shell.cpp" />
+    <ClCompile Include="..\..\src\user\shutdown.cpp" />
     <ClCompile Include="..\..\src\user\sort.cpp" />
     <ClCompile Include="..\..\src\user\type.cpp" />
     <ClCompile Include="..\..\src\user\wc.cpp" />

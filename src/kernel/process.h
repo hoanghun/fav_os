@@ -6,12 +6,14 @@
 #include <memory>
 #include <mutex>
 #include <map>
+#include<condition_variable>
 
 #include "thread.h"
 #include "../api/hal.h"
 #include "vfs.h"
 
 namespace kiv_process {
+
 		void Handle_Process(kiv_hal::TRegisters &regs);
 
 		const int PID_NOT_AVAILABLE = -1;
@@ -57,6 +59,8 @@ namespace kiv_process {
 			public:
 				static CProcess_Manager &Get_Instance();
 				static void Destroy();
+				void Create_Sys_Process();
+				void Shutdown_Wait();
 
 				bool Create_Process(kiv_hal::TRegisters& context);
 				//bool Exit_Process(kiv_hal::TRegisters& context);
@@ -77,6 +81,7 @@ namespace kiv_process {
 
 
 				void Shutdown();
+				void Execute_Shutdown();
 
 			private:
 				static std::mutex ptable;
@@ -88,7 +93,6 @@ namespace kiv_process {
 				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> *ppcb);
 				//bool Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
 				void Check_Process_State(std::shared_ptr<TProcess_Control_Block> pid);
-				void Create_Sys_Process();
 				void Reap_Process();
 
 				kiv_os::THandle Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);

@@ -23,4 +23,4 @@ void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs);
 //extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) { return 0; }
 //extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) { return 0; }
 //extern "C" size_t __stdcall ps(const kiv_hal::TRegisters &regs) { return 0; }
-extern "C" size_t __stdcall shutdown(const kiv_hal::TRegisters &regs) { return 0; }
+//extern "C" size_t __stdcall shutdown(const kiv_hal::TRegisters &regs) { return 0; }
