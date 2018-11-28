@@ -1036,24 +1036,18 @@ namespace kiv_fs_fat {
 		size_t cluster_size = sectors_per_cluster * params.bytes_per_sector;
 		size_t disk_size = params.absolute_number_of_sectors * params.bytes_per_sector;
 		size_t available_space = disk_size - (2 * cluster_size); // Disk size - superblock cluster - root cluster
+		size_t num_of_fat_entries = available_space / (sizeof(TFAT_Dir_Entry) + cluster_size);
+		num_of_fat_entries -= ((num_of_fat_entries * sizeof(TFAT_Entry)) % (cluster_size)) / sizeof(TFAT_Entry);
+		size_t num_of_fat_entries_clusters = (num_of_fat_entries * sizeof(TFAT_Entry)) / cluster_size;
 
-		// TODO
 		// Set up superblock
-		//strcpy_s(mSuperblock.name, FAT_NAME);
-		//mSuperblock.disk_params = params;
-		//mSuperblock.fat_table_first_cluster = 1;
-		//mSuperblock.sectors_per_cluster = sectors_per_cluster;
-		//mSuperblock.fat_table_number_of_entries = available_space / (sizeof(TFAT_Dir_Entry) + cluster_size);
-		//mSuperblock.root_cluster = 1 + mSuperblock.fat_table_number_of_entries;
-		//mSuperblock.data_first_cluster = mSuperblock.root_cluster + 1; 
-
 		strcpy_s(mSuperblock.name, FAT_NAME);
 		mSuperblock.disk_params = params;
 		mSuperblock.fat_table_first_cluster = 1;
-		mSuperblock.sectors_per_cluster = 1;
-		mSuperblock.fat_table_number_of_entries = 10;
-		mSuperblock.root_cluster = 2;
-		mSuperblock.data_first_cluster = 3;
+		mSuperblock.sectors_per_cluster = sectors_per_cluster;
+		mSuperblock.fat_table_number_of_entries = num_of_fat_entries;
+		mSuperblock.root_cluster = 1 + num_of_fat_entries_clusters;
+		mSuperblock.data_first_cluster = mSuperblock.root_cluster + 1; 
 
 		mUtils->Set_Superblock(mSuperblock);
 
