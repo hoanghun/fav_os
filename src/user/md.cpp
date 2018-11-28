@@ -30,6 +30,7 @@ bool Create_Directory(const std::string dir_name, const kiv_hal::TRegisters &reg
 }
 
 extern "C" size_t __stdcall md(const kiv_hal::TRegisters &regs) {
+
 	std::vector<std::string> args;
 	kiv_common::Parse_Arguments(regs, "md", args);
 
@@ -50,6 +51,7 @@ extern "C" size_t __stdcall md(const kiv_hal::TRegisters &regs) {
 		}
 	}
 
-	kiv_os_rtl::Exit(exit_code);
+	
+	kiv_os_rtl::Exit(0);
 	return 0;
 }

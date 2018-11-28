@@ -1,5 +1,6 @@
 #include <memory>
 #include <algorithm>
+#include <string.h>
 
 #include "thread.h"
 #include "process.h"
@@ -30,27 +31,19 @@ namespace kiv_thread {
 
 		}
 
-		void __stdcall Crt0(const kiv_os::TThread_Proc &func, const kiv_os::THandle sin, const kiv_os::THandle sout, const char * data) {
+		void __stdcall Crt0(const kiv_os::TThread_Proc &func, const kiv_os::THandle sin, const kiv_os::THandle sout, char * data) {
 
 			kiv_hal::TRegisters &regs = kiv_hal::TRegisters();
 			regs.rax.x = 0;
 			regs.rbx.x = 1;
-			
-			if (data == nullptr) {
-				func(regs);
+
+			regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(data);
+
+			func(regs);
+
+			if (data != nullptr) {
+				delete data;
 			}
-			else {
-				char * copy = new char[strlen(data) + 1];
-				memcpy(copy, data, strlen(data) + 1);
-
-				regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(copy);
-
-				func(regs);
-
-				delete copy;
-				copy = nullptr;
-			}
-
 
 		}
 
@@ -68,7 +61,20 @@ namespace kiv_thread {
 
 				std::unique_lock<std::mutex> tm_lock(maps_lock);
 				{
-					tcb->thread = std::thread(Crt0, func, pcb->fd_table[0], pcb->fd_table[1], reinterpret_cast<char *>(context.rdi.r));
+
+					char * data = reinterpret_cast<char *>(context.rdi.r);
+					char * copy;
+					if (data == nullptr) {
+						copy = nullptr;
+					}
+					else {
+						size_t len = strlen(data) + 1;
+						copy = new char[strlen(data) + 1];
+						memcpy(copy, data, strlen(data));
+						copy[strlen(data)] = '\0';
+					}
+
+					tcb->thread = std::thread(Crt0, func, pcb->fd_table[0], pcb->fd_table[1], copy);
 
 					tcb->pcb = pcb;
 					tcb->state = NThread_State::RUNNING;
