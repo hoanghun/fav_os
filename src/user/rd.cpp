@@ -22,23 +22,23 @@ bool Remove_Directory(const std::string dir_name, const kiv_hal::TRegisters &reg
 
 		switch (kiv_os_rtl::Last_Error) {
 			case kiv_os::NOS_Error::File_Not_Found:
-				err_msg = "Direcotry '" + dir_name + "' does not exist.";
+				err_msg = "\nThe system cannot find the file specified.\n";
 				break;
 
 			case kiv_os::NOS_Error::Directory_Not_Empty:
-				err_msg = "Directory '" + dir_name + "' is not empty.";
+				err_msg = "\nThe directory '" + dir_name + "' is not empty.\n";
 				break;
 
 			case kiv_os::NOS_Error::Permission_Denied:
-				err_msg = "Directory '" + dir_name + "' cannot be deleted.";
+				err_msg = "\nAcccess denied.\nDirectory '" + dir_name + "' cannot be deleted.\n";
 				break;
 
 			default:
-				err_msg = "Deletion of '" + dir_name + "' failed. Try again.";
+				err_msg = "\nDeletion of '" + dir_name + "' failed. Try again.\n";
 				break;
 		}
 
-		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.size());
+		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.size());
 		return false;
 	}
 
@@ -53,8 +53,8 @@ extern "C" size_t __stdcall rd(const kiv_hal::TRegisters &regs) {
 
 	// TODO Wrong nuber of parameters
 	if (args.size() == 1) {
-		std::string err_msg = "Invalid arguments.";
-		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.length());
+		std::string err_msg = "\nThe syntax of the command is incorrect.\n";
+		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.length());
 		exit_code = EXIT_FAILURE;
 	}
 	else {

@@ -15,7 +15,7 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 
 	bool run = true;
 	while (counter) {
-		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 		for (int i = 0; i < counter; i++) { 
 			auto result = freq_table.find(buffer[i]);
 			if (result == freq_table.end()) {
@@ -29,7 +29,7 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 
 	const char* new_line = "\n";
 	for (const auto &item : freq_table) {
-		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 		std::stringstream s;
 		s.str("");
 

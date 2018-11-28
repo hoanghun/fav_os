@@ -29,7 +29,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	const char* intro = "FAV Virtual OS [Version 1.0]\n" \
 						"(c) 2018 FAVaci Corporation. All rights reserverd\n";
 	
-	kiv_os_rtl::Print_Line(regs, intro, strlen(intro));
+	kiv_os_rtl::Stdout_Print(regs, intro, strlen(intro));
 
 	const char* new_line = "\n";
 	const char prompt_char = '>';
@@ -41,9 +41,9 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	do {
 		kiv_os_rtl::Get_Working_Dir(prompt, prompt_size, prompt_read_count);
 		prompt[prompt_read_count] = prompt_char;
-		kiv_os_rtl::Print_Line(regs, prompt, prompt_read_count + 1);
+		kiv_os_rtl::Stdout_Print(regs, prompt, prompt_read_count + 1);
 
-		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 
 		if (counter > 0) {
 			if (counter == buffer_size) counter--;
@@ -56,16 +56,17 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 			std::vector<TExecutable> items = Parse(buffer, strlen(buffer));
 			if (Check(items) == false) {
 				const char *error = "\nCommand is not valid.";
-				kiv_os_rtl::Print_Line(regs, error, strlen(error));
+				kiv_os_rtl::Stdout_Print(regs, error, strlen(error));
 			}
 			else {
+				kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 				Execute(items, regs);
 			}
 		}
 		else
 			break;	//EOF
 
-		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 	} while (strcmp(buffer, "exit") != 0 && strcmp(buffer, "shutdown") != 0);
 
 	kiv_os_rtl::Exit(0);
@@ -100,8 +101,6 @@ bool Check(std::vector<TExecutable> &exes) {
 
 //Pripravime soubory a pipy
 void Prepare_For_Execution(TExecutable &exe, const kiv_os::THandle sin, const kiv_os::THandle sout, kiv_os::THandle &last_pipe) {
-
-
 	if (exe.file_in.empty() == false) {
 		kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
 	}
@@ -122,7 +121,6 @@ void Prepare_For_Execution(TExecutable &exe, const kiv_os::THandle sin, const ki
 	else {
 		exe.out_handle = sout;
 	}
-
 }
 
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
@@ -163,14 +161,14 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 				switch (kiv_os_rtl::Last_Error) {
 				case kiv_os::NOS_Error::Invalid_Argument:
 				{
-					const std::string error = "\n'" + exe.name + "' is not recognized as command.";
-					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
+					const std::string error = "\n'" + exe.name + "' is not recognized as an internal or external command, operable program or batch file.";
+					kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
 					break;
 				}
 				default:
 				{
 					const std::string error = "\n Unknown error.";
-					kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
+					kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
 					break;
 				}
 				}
@@ -222,7 +220,7 @@ void Cd(const TExecutable &exe, const kiv_hal::TRegisters &regs) {
 	}
 
 	if (!result) {
-		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.size());
+		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.size());
 	}
 }
 

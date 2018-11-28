@@ -43,10 +43,9 @@ namespace kiv_os_rtl {
 
 	bool Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out);
 
-	size_t Print_Line(const kiv_hal::TRegisters &regs, const char *buffer, size_t size);
+	size_t Stdout_Print(const kiv_hal::TRegisters &regs, const char *buffer, size_t size);
 
-	size_t Read_Line(const kiv_hal::TRegisters &regs, char* const buffer, size_t size);
+	size_t Stdin_Read(const kiv_hal::TRegisters &regs, char* const buffer, size_t size);
 
 	void Shutdown();
-
 }

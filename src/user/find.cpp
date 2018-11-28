@@ -3,7 +3,7 @@
 
 #include <string>
 
-extern "C" size_t __stdcall wc(const kiv_hal::TRegisters &regs) { 
+extern "C" size_t __stdcall find(const kiv_hal::TRegisters &regs) { 
 	
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
@@ -14,7 +14,7 @@ extern "C" size_t __stdcall wc(const kiv_hal::TRegisters &regs) {
 	size_t lines_count = 0;
 	do {
 
-		counter = kiv_os_rtl::Read_Line(regs, buffer, buffer_size);
+		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 		if (counter > 0) {
 			
 			for (int i = 0; i < counter; i++) {
@@ -27,8 +27,8 @@ extern "C" size_t __stdcall wc(const kiv_hal::TRegisters &regs) {
 
 	} while (counter > 0);
 
-	std::string output = "\nWords count: " + std::to_string(lines_count);
-	kiv_os_rtl::Print_Line(regs, output.c_str(), output.length());
+	std::string output = "\nLines count: " + std::to_string(lines_count);
+	kiv_os_rtl::Stdout_Print(regs, output.c_str(), output.length());
 
 	kiv_os_rtl::Exit(0);
 

@@ -163,7 +163,7 @@ bool kiv_os_rtl::Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out) {
 	return result;
 }
 
-size_t kiv_os_rtl::Print_Line(const kiv_hal::TRegisters &regs, const char *buffer, size_t size) {
+size_t kiv_os_rtl::Stdout_Print(const kiv_hal::TRegisters &regs, const char *buffer, size_t size) {
 	const kiv_os::THandle std_out = static_cast<kiv_os::THandle>(regs.rbx.x);
 	size_t printed;
 
@@ -171,7 +171,7 @@ size_t kiv_os_rtl::Print_Line(const kiv_hal::TRegisters &regs, const char *buffe
 	return printed;
 }
 
-size_t kiv_os_rtl::Read_Line(const kiv_hal::TRegisters &regs, char* const buffer, size_t size) {
+size_t kiv_os_rtl::Stdin_Read(const kiv_hal::TRegisters &regs, char* const buffer, size_t size) {
 	const kiv_os::THandle std_in = static_cast<kiv_os::THandle>(regs.rax.x);
 	size_t read;
 

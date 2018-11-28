@@ -71,16 +71,16 @@
     <ClCompile Include="..\..\src\user\type.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\user\wc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\user\sort.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\user\ps.cpp">
+    <ClCompile Include="..\..\src\user\shutdown.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\user\shutdown.cpp">
+    <ClCompile Include="..\..\src\user\tasklist.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\user\find.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

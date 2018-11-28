@@ -7,11 +7,11 @@ EXPORTS
 	rd
 	dir
 	echo
-	wc
+	find
 	sort
 	rgen
 	freq
-	ps
+	tasklist
 	shutdown
 	
 	

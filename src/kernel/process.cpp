@@ -266,7 +266,6 @@ namespace kiv_process {
 
 			//Pokud jiz nebezi zadne vlakno v procesu tzn. proces je ukoncen
 			if (terminated) {
-				
 				//Uzavirani vsech otevrenych souboru
 				for (auto &item : pcb->fd_table) {
 					//TODO zavreni stdin a stdout?

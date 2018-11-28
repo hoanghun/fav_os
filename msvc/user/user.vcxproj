@@ -34,7 +34,7 @@
     <ClCompile Include="..\..\src\user\freq.cpp" />
     <ClCompile Include="..\..\src\user\md.cpp" />
     <ClCompile Include="..\..\src\user\parser.cpp" />
-    <ClCompile Include="..\..\src\user\ps.cpp" />
+    <ClCompile Include="..\..\src\user\tasklist.cpp" />
     <ClCompile Include="..\..\src\user\rd.cpp" />
     <ClCompile Include="..\..\src\user\rgen.cpp" />
     <ClCompile Include="..\..\src\user\rtl.cpp" />
@@ -42,7 +42,7 @@
     <ClCompile Include="..\..\src\user\shutdown.cpp" />
     <ClCompile Include="..\..\src\user\sort.cpp" />
     <ClCompile Include="..\..\src\user\type.cpp" />
-    <ClCompile Include="..\..\src\user\wc.cpp" />
+    <ClCompile Include="..\..\src\user\find.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A5F63FF3-DE9A-4B0B-BBF9-AD27200CE81F}</ProjectGuid>

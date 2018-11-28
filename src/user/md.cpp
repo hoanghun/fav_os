@@ -11,8 +11,8 @@ bool Create_Directory(const std::string dir_name, const kiv_hal::TRegisters &reg
 	bool exists = kiv_os_rtl::Open_File(dir_name.c_str(), kiv_os::NOpen_File::fmOpen_Always, (kiv_os::NFile_Attributes)0, handle);
 	if (exists) {
 		kiv_os_rtl::Close_Handle(handle);
-		std::string error = "File or directory " + dir_name + " already exists.";
-		kiv_os_rtl::Print_Line(regs, error.c_str(), error.length());
+		std::string error = "A subdirectory or file " + dir_name + " exists.\n";
+		kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
 		return false;
 	}
 
@@ -23,8 +23,8 @@ bool Create_Directory(const std::string dir_name, const kiv_hal::TRegisters &reg
 		return true;
 	}
 	else {
-		std::string err_msg = "Directory " + dir_name + " couldn't be created";
-		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.length());
+		std::string err_msg = "Access Denied.\nDirectory " + dir_name + " couldn't be created\n";
+		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.length());
 		return false;
 	}
 }
@@ -37,8 +37,8 @@ extern "C" size_t __stdcall md(const kiv_hal::TRegisters &regs) {
 
 	// TODO Wrong nuber of parameters
 	if (args.size() == 1) {
-		std::string err_msg = "Invalid arguments.";
-		kiv_os_rtl::Print_Line(regs, err_msg.c_str(), err_msg.length());
+		std::string err_msg = "The syntax of the command is incorrect.\n";
+		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.length());
 		exit_code = EXIT_FAILURE;
 	}
 	else {

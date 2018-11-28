@@ -9,8 +9,8 @@ extern "C" size_t __stdcall echo(const kiv_hal::TRegisters &regs) {
 	strcpy_s(text, len, (char*)(regs.rdi.r));
 
 	const char* new_line = "\n";
-	kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
-	kiv_os_rtl::Print_Line(regs, text, strlen(text));
+	kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+	kiv_os_rtl::Stdout_Print(regs, text, strlen(text));
 
 	delete text;
 

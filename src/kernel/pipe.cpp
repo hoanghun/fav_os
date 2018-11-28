@@ -70,10 +70,6 @@ void CPipe::Close(const kiv_vfs::TFD_Attributes attrs) {
  		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
 		break;
 	default:
-		mWriter_Closed = true;
-		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
-		mReader_Closed = true;
-		mEmptyCount.Signal();
 		break;
 	}
 }

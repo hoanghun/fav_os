@@ -19,12 +19,17 @@ namespace kiv_fs_proc {
 
 #pragma endregion
 
-
 #pragma region File
 	CFile::CFile(const kiv_vfs::TPath path, size_t pid, std::string name) {
 		mPath = path;
 		mAttributes = kiv_os::NFile_Attributes::Read_Only;
-		mName = name + "\t" + std::to_string(pid);
+		mName = name;
+		if (name.length() < 7) { // hmm
+			mName +=  "\t\t" + std::to_string(pid);
+		}
+		else {
+			mName += "\t" + std::to_string(pid);
+		}
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
@@ -40,12 +45,12 @@ namespace kiv_fs_proc {
 	bool CFile::Is_Available_For_Write() {
 		return false;
 	}
-
 #pragma endregion
 
 #pragma region Directory
 	CDirectory::CDirectory(const kiv_vfs::TPath path, const std::map<size_t, std::string> &processes) : mProcesses(processes) {
 		mPath = path;
+		mAttributes = kiv_os::NFile_Attributes::Directory;
 	}
 
 	CDirectory::CDirectory(const kiv_vfs::TPath path)  {
@@ -83,11 +88,9 @@ namespace kiv_fs_proc {
 	void CDirectory::Refresh_Processes(const std::map<size_t, std::string> &processes) {
 		mProcesses = processes;
 	}
-
 #pragma endregion
 
 #pragma region Mount
-
 	CMount::CMount(std::string label) { 
 		mLabel = label;
 		kiv_vfs::TPath path;
@@ -119,6 +122,5 @@ namespace kiv_fs_proc {
 
 		return file;
 	}
-
 #pragma endregion
 }

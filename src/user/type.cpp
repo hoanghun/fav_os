@@ -13,11 +13,11 @@ static const char *file_intro = "file:\t";
 static const char *con = "stdio:/stdin";
 
 void print_file_name(kiv_hal::TRegisters regs, const char *file_name) {
-	kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
-	//kiv_os_rtl::Print_Line(regs, file_intro, strlen(file_intro));
-	kiv_os_rtl::Print_Line(regs, file_name, strlen(file_name));
-	kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
-	//kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+	kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+	//kiv_os_rtl::Stdout_Print(regs, file_intro, strlen(file_intro));
+	kiv_os_rtl::Stdout_Print(regs, file_name, strlen(file_name));
+	kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+	//kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 }
 
 void print_content(const kiv_hal::TRegisters &regs, const kiv_os::THandle handle) {
@@ -26,16 +26,16 @@ void print_content(const kiv_hal::TRegisters &regs, const kiv_os::THandle handle
 	char buffer[buffer_size];
 
 	do {
-		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 		kiv_os_rtl::Read_File(handle, buffer, buffer_size, counter);
 		if (counter > 0) {
-			kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+			kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 			if (counter == buffer_size) {
 				counter--;
 			}
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
-			kiv_os_rtl::Print_Line(regs, buffer, strlen(buffer));
-			//kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+			kiv_os_rtl::Stdout_Print(regs, buffer, strlen(buffer));
+			//kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 		}
 
 	} while (counter > 0);
@@ -56,8 +56,8 @@ extern "C" size_t __stdcall type(const kiv_hal::TRegisters &regs) {
 	kiv_common::Parse_Arguments(regs, "type", args);
 
 	if (args.size() == 1) {
-		kiv_os_rtl::Print_Line(regs, err_no_args_msg, strlen(err_no_args_msg));
-		kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+		kiv_os_rtl::Stdout_Print(regs, err_no_args_msg, strlen(err_no_args_msg));
+		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 		kiv_os_rtl::Exit(-1);
 	}
 
@@ -78,10 +78,10 @@ extern "C" size_t __stdcall type(const kiv_hal::TRegisters &regs) {
 			print_content(regs, handle);
 		}
 		else {
-			kiv_os_rtl::Print_Line(regs, err_invalid_file, strlen(err_invalid_file));
+			kiv_os_rtl::Stdout_Print(regs, err_invalid_file, strlen(err_invalid_file));
 		}
 
-		//kiv_os_rtl::Print_Line(regs, new_line, strlen(new_line));
+		//kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
 	}
 
 	kiv_os_rtl::Exit(0);
