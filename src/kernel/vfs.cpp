@@ -212,12 +212,15 @@ namespace kiv_vfs {
 			auto mount = Resolve_Mount(normalized_path); // throws TFile_Not_Found_Exception
 			file = mount->Open_File(normalized_path, attributes);
 			if (!file) {
+				Free_File_Descriptor(free_fd);
 				throw TFile_Not_Found_Exception();
 			}
 			else if ((file->Get_Attributes() == kiv_os::NFile_Attributes::Read_Only) && attributes != kiv_os::NFile_Attributes::Read_Only) {
+				Free_File_Descriptor(free_fd);
 				throw TPermission_Denied_Exception();
 			}
 			else if ((attributes == kiv_os::NFile_Attributes::Directory) && (file->Get_Attributes() != kiv_os::NFile_Attributes::Directory)) {
+				Free_File_Descriptor(free_fd);
 				throw TFile_Not_Found_Exception();
 			}
 			Cache_File(file);
@@ -240,6 +243,7 @@ namespace kiv_vfs {
 
 			// File is opened -> cannot override this file
 			if (file->Is_Opened()) {
+				Free_File_Descriptor(fd_index);
 				throw TPermission_Denied_Exception();
 			}
 
@@ -251,6 +255,7 @@ namespace kiv_vfs {
 
 		auto file = mount->Create_File(normalized_path, attributes);
 		if (!file) {
+			Free_File_Descriptor(fd_index);
 			throw TNot_Enough_Space_Exception();
 		}
 
@@ -260,8 +265,8 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
-		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
-		Remove_File_Descriptor(fd_index);
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+		Free_File_Descriptor(fd_index);
 
 		if (file_desc.file) {
 			file_desc.file->Close(file_desc.attributes);
@@ -340,7 +345,7 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		auto file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
 
 		size_t tmp_pos = Calculate_Position(file_desc, position, type);
 
@@ -353,7 +358,7 @@ namespace kiv_vfs {
 	}
 
 	bool CVirtual_File_System::Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		auto file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
 
 		size_t actual_position = Calculate_Position(file_desc, position, type);
 
@@ -367,7 +372,7 @@ namespace kiv_vfs {
 	}
 
 	size_t CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
-		auto file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
 
 		return file_desc.position;
 	}
@@ -426,13 +431,15 @@ namespace kiv_vfs {
 		Increase_File_References(file_desc);
 	}
 
-	void CVirtual_File_System::Remove_File_Descriptor(kiv_os::THandle fd_index) {
+	void CVirtual_File_System::Free_File_Descriptor(kiv_os::THandle fd_index) {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		TFile_Descriptor &file_desc = mFile_descriptors[fd_index];
 
 		mFd_count--;
-		Decrease_File_References(file_desc);
+		if (file_desc.file != nullptr) {
+			Decrease_File_References(file_desc);
+		}
 
 		file_desc.attributes = FD_ATTR_FREE;
 	}
@@ -446,7 +453,7 @@ namespace kiv_vfs {
 
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
 			if (mFile_descriptors[i].file == nullptr && mFile_descriptors[i].attributes == FD_ATTR_FREE) { 
-				// TODO Reserve fat entries?
+				mFile_descriptors[i].attributes = FD_ATTR_RESERVED;
 				return i;
 			}
 		}

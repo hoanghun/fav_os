@@ -34,8 +34,9 @@ namespace kiv_vfs {
 
 	// All possible file descriptor attributes and their combinations
 	const TFD_Attributes FD_ATTR_FREE = 0x00;
-	const TFD_Attributes FD_ATTR_READ = 0x01;
-	const TFD_Attributes FD_ATTR_WRITE = 0x02;
+	const TFD_Attributes FD_ATTR_RESERVED = 0x01;
+	const TFD_Attributes FD_ATTR_READ = 0x02;
+	const TFD_Attributes FD_ATTR_WRITE = 0x04;
 	const TFD_Attributes FD_ATTR_RW = FD_ATTR_READ | FD_ATTR_WRITE;
 
 	static const size_t MAX_FILE_DESCRIPTORS = 2048;
@@ -176,7 +177,7 @@ namespace kiv_vfs {
 			
 			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index); // Throws TInvalid_Fd_Exception whed FD is not found
 			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
-			void Remove_File_Descriptor(kiv_os::THandle fd_index);
+			void Free_File_Descriptor(kiv_os::THandle fd_index);
 			kiv_os::THandle Get_Free_Fd_Index(); // Throws TFd_Table_Full_Exception when mFile_descriptors is full
 			IMounted_File_System *Resolve_Mount(const TPath &normalized_path);
 			TPath Create_Normalized_Path(std::string path);
