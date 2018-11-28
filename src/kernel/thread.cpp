@@ -35,9 +35,22 @@ namespace kiv_thread {
 			kiv_hal::TRegisters &regs = kiv_hal::TRegisters();
 			regs.rax.x = 0;
 			regs.rbx.x = 1;
-			regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(data);
+			
+			if (data == nullptr) {
+				func(regs);
+			}
+			else {
+				char * copy = new char[strlen(data) + 1];
+				memcpy(copy, data, strlen(data) + 1);
 
-			func(regs);
+				regs.rdi.r = reinterpret_cast<decltype(regs.rdi.r)>(copy);
+
+				func(regs);
+
+				delete copy;
+				copy = nullptr;
+			}
+
 
 		}
 
@@ -103,21 +116,26 @@ namespace kiv_thread {
 		//Funkce je volana po skonceni vlakna/procesu
 		bool CThread_Manager::Thread_Exit(kiv_hal::TRegisters& context) {
 
-			if (Thread_Exit(Hash_Thread_Id(std::this_thread::get_id())) == true) {
-				return true;
+			std::unique_lock<std::mutex> plock(kiv_process::CProcess_Manager::ptable);
+			{
+				if (Thread_Exit(Hash_Thread_Id(std::this_thread::get_id())) == true) {
+					plock.unlock();
+					return true;
+				}
+				else {
+					context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
+					context.flags.carry = 1;
+					plock.unlock();
+					return false;
+				}
 			}
-			else {
-				context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Unknown_Error);
-				context.flags.carry = 1;
-				return false;
-			}
+			plock.unlock();
 		}
 
 		bool CThread_Manager::Thread_Exit(size_t tid) {
 
 			std::shared_ptr<TThread_Control_Block> tcb;
-			std::unique_lock<std::mutex> plock(kiv_process::CProcess_Manager::ptable);
-			{
+			
 				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb) == true) {
 					tcb->state = NThread_State::TERMINATED;
 					//Signalizace ukonceni procesu tem kdo na to cekaji
@@ -133,12 +151,10 @@ namespace kiv_thread {
 					tcb->waiting_threads.clear();
 				}
 				else {
-					plock.unlock();
+					/*plock.unlock();*/
 					return false;
 				}
-			}
-			plock.unlock();
-
+			
 			return true;
 		}
 
@@ -209,7 +225,6 @@ namespace kiv_thread {
 					t = true;
 					break;
 				}
-				i++;
 			}
 			if (t == false) {
 				tcb->wait_semaphore->Wait();
@@ -258,23 +273,30 @@ namespace kiv_thread {
 
 		bool CThread_Manager::Check_Event(const size_t tid, const size_t my_tid) {
 
-			std::shared_ptr<TThread_Control_Block> tcb;
-			// Thread removed -> thread terminated
-			if (Get_Thread_Control_Block(tid, &tcb) == false) {
-				return true;
-			}
-
-			std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+			std::unique_lock<std::mutex> lock(kiv_process::CProcess_Manager::Get_Instance().ptable);
 			{
-				tcb->waiting_threads.erase(std::remove(tcb->waiting_threads.begin(), tcb->waiting_threads.end(), my_tid), tcb->waiting_threads.end());
-			}
-			e_lock.unlock();
+				std::shared_ptr<TThread_Control_Block> tcb;
+				// Thread removed -> thread terminated
+				if (Get_Thread_Control_Block(tid, &tcb) == false) {
+					lock.unlock();
+					return true;
+				}
 
-			if (tcb->state == NThread_State::TERMINATED) {
-				return true;
-			}
+				std::unique_lock<std::mutex> e_lock(tcb->waiting_lock);
+				{
+					tcb->waiting_threads.erase(std::remove(tcb->waiting_threads.begin(), tcb->waiting_threads.end(), my_tid), tcb->waiting_threads.end());
+				}
+				e_lock.unlock();
 
-			return false;
+				if (tcb->state == NThread_State::TERMINATED) {
+					lock.unlock();
+					return true;
+				}
+
+				lock.unlock();
+				return false;
+			}
+			lock.unlock();
 
 		}
 
@@ -291,27 +313,35 @@ namespace kiv_thread {
 
 		bool CThread_Manager::Read_Exit_Code(const size_t handle, uint16_t &exit_code) {
 
-			std::shared_ptr<TThread_Control_Block> tcb;
 			NThread_State terminated = NThread_State::RUNNING;
+			std::shared_ptr<TThread_Control_Block> tcb;
 
-			if (Get_Thread_Control_Block(handle, &tcb)) {
-				std::unique_lock<std::mutex> lock(maps_lock);
-				{
-					terminated = tcb->state;
-					if (terminated == NThread_State::TERMINATED) {
-						exit_code = tcb->exit_code;
-						thread_map.erase(tcb->tid);
+			std::unique_lock<std::mutex> plock(kiv_process::CProcess_Manager::Get_Instance().ptable);
+			{
+
+
+				if (Get_Thread_Control_Block(handle, &tcb)) {
+					std::unique_lock<std::mutex> lock(maps_lock);
+					{
+						terminated = tcb->state;
+						if (terminated == NThread_State::TERMINATED) {
+							exit_code = tcb->exit_code;
+							thread_map.erase(tcb->tid);
+						}
+						else {
+							lock.unlock();
+							plock.unlock();
+							return false;
+						}
 					}
-					else {
-						lock.unlock();
-						return false;
-					}
+					lock.unlock();
 				}
-				lock.unlock();
+				else {
+					plock.unlock();
+					return false;
+				}
 			}
-			else {
-				return false;
-			}
+			plock.unlock();
 
 			if (terminated == NThread_State::TERMINATED) {
 				kiv_process::CProcess_Manager::Get_Instance().Check_Process_State(tcb->pcb);

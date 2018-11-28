@@ -89,6 +89,8 @@ namespace kiv_process {
 				CPid_Manager *pid_manager;
 				std::map<size_t, std::shared_ptr<TProcess_Control_Block>> process_table;
 
+				bool CProcess_Manager::Create_Process_Execution(kiv_hal::TRegisters& context);
+
 				CProcess_Manager();
 				bool Get_Pcb(size_t tid, std::shared_ptr<TProcess_Control_Block> *ppcb);
 				//bool Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb);
@@ -98,6 +100,7 @@ namespace kiv_process {
 				kiv_os::THandle Save_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 				void Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 
+				void Check_Stdin_Stdout(kiv_hal::TRegisters &regs);
 		};
 }
 
