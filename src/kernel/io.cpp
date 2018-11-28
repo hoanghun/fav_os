@@ -279,8 +279,8 @@ void Create_Pipe(kiv_hal::TRegisters &regs) {
 		result = kiv_os::NOS_Error::Unknown_Error;
 	}
 
-	handle_pair[0] = out;
-	handle_pair[1] = in;
+	handle_pair[0] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(out);
+	handle_pair[1] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(in);
 	
 	Set_Result(regs, result);
 }
