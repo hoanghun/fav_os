@@ -70,6 +70,13 @@ void CPipe::Close(const kiv_vfs::TFD_Attributes attrs) {
  		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
 		break;
 	default:
+#ifdef DEBUG_
+		printf("debug: closing pipe defaultly\n");
+#endif
+		mReader_Closed = true;
+		mEmptyCount.Signal();
+		mWriter_Closed = true;
+		mFillCount.Signal(); // waking reader up, lets him pass through the semaphore to check condition
 		break;
 	}
 }
