@@ -6,13 +6,12 @@
 #include <iostream>
 #include <stack>
 #include <queue>
+#include <chrono>
 
 namespace kiv_process {
 
 #pragma region "SYSTEM VARIABLES"
 
-	bool system_shutdown = false;
-	
 	std::mutex reap_mutex;
 	std::condition_variable reap_cv;
 
@@ -34,6 +33,12 @@ namespace kiv_process {
 	}
 
 	void Handle_Process(kiv_hal::TRegisters &regs) {
+
+		if (kiv_process::CProcess_Manager::Get_Instance().Is_Shutdown()) {
+			regs.flags.carry = false;
+			return;
+		}
+
 		switch (static_cast<kiv_os::NOS_Process>(regs.rax.l)) {
 
 		case kiv_os::NOS_Process::Clone: 
@@ -123,6 +128,7 @@ namespace kiv_process {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
 		//Create_Sys_Process();
 		pid_manager = new CPid_Manager();
+		system_shutdown = false;
 	}
 
 	void CProcess_Manager::Destroy() {
@@ -352,63 +358,49 @@ namespace kiv_process {
 
 	}
 
-	void CProcess_Manager::Execute_Shutdown() {
-		
-		kiv_hal::TRegisters regs;
-
-		//Zastavi vsechny systemove procesy
-		//process_table[0]->thread_table[0]->thread.detach();
-
+	std::stack<size_t> CProcess_Manager::Get_Processes_To_Terminate() {
 
 		std::stack<size_t> ordered_p;
 		std::stack<size_t> todo;
 
+		todo.push(0);
+		do {
+
+			size_t pid = todo.top();
+			ordered_p.push(pid);
+			todo.pop();
+
+			std::vector<size_t> cpids = process_table[pid]->cpids;
+
+			for (size_t cpid : cpids) {
+				if (process_table[cpid]->cpids.empty() == true) {
+					ordered_p.push(cpid);
+				}
+				else {
+					todo.push(cpid);
+				}
+			}
+
+		} while (todo.empty() == false);
+
+		return ordered_p;
+	}
+
+	void CProcess_Manager::Execute_Shutdown() {
+		
+		kiv_hal::TRegisters regs;
+
 		std::unique_lock<std::mutex> lock(ptable);
 		{
-			todo.push(0);
-			do {
-
-				size_t pid = todo.top();
-				ordered_p.push(pid);
-				todo.pop();
-
-				std::vector<size_t> cpids = process_table[pid]->cpids;
-
-				for (size_t cpid : cpids) {
-					if (process_table[cpid]->cpids.empty() == true) {
-						ordered_p.push(cpid);
-					}
-					else {
-						todo.push(cpid);
-					}
-				}
-
-			} while (todo.empty() == false);
+			std::stack<size_t> ordered_p = Get_Processes_To_Terminate();
 			
 			while (ordered_p.size() > 1) {
-			
 				size_t pid = ordered_p.top();
-
 				for (auto tcb : process_table[pid]->thread_table) {
-
-					if (tcb->terminate_handler == nullptr) {
-						//NO TIME FOR MERCY, KILL IT!
-						/*kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);*/
-						//tcb->thread.join();
-						//kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(tcb->tid);
-						//tcb->pcb = nullptr;
-					}
-					else {
+					if (tcb->terminate_handler != nullptr) {
 						tcb->terminate_handler(regs);
-						// TODO mohlo by se stat ze se nedockam
-						//tcb->thread.join();
-						//kiv_thread::CThread_Manager::Get_Instance().Thread_Exit(tcb->tid);
-						//tcb->pcb = nullptr;
 					}
-
 				}
-
-				//process_table[pid]->thread_table.clear();
 				ordered_p.pop();
 			}
 		}
@@ -418,12 +410,43 @@ namespace kiv_process {
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
 
-		while (process_table.size() > 1) {
-			std::unique_lock<std::mutex> lock(reap_mutex);
-			reap_cv.wait(lock);
-			lock.unlock();
-		};
+		std::this_thread::sleep_for(std::chrono::seconds(2));
 		
+		if (process_table.size() > 1) {
+			Killing_Routine();
+		}
+		
+	}
+
+	void CProcess_Manager::Killing_Routine() {
+
+		system_kill = true;
+
+		std::unique_lock<std::mutex> plock(ptable);
+		{
+
+			std::stack<size_t> ordered_p = Get_Processes_To_Terminate();
+
+			while (ordered_p.size() > 1) {
+				size_t pid = ordered_p.top();
+				for (auto tcb : process_table[pid]->thread_table) {
+
+					for (auto const & tid : tcb->waiting_threads) {
+
+						std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
+						if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb) == true) {
+							if (tcb->wait_semaphore != nullptr) {
+								tcb->wait_semaphore->Signal();
+							}
+						}
+					}
+					tcb->pcb = nullptr;
+					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
+				}
+				ordered_p.pop();
+			}
+		}
+		plock.unlock();
 	}
 
 	bool CProcess_Manager::Set_Working_Directory(const kiv_vfs::TPath &dir) {

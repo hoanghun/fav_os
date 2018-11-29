@@ -234,6 +234,9 @@ namespace kiv_thread {
 			}
 			if (t == false) {
 				tcb->wait_semaphore->Wait();
+				if (kiv_process::CProcess_Manager::Get_Instance().system_shutdown == true) {
+					return 0;
+				}
 			}
 
 			size_t terminated = 0;

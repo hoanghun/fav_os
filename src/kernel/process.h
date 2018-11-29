@@ -6,13 +6,15 @@
 #include <memory>
 #include <mutex>
 #include <map>
-#include<condition_variable>
+#include <condition_variable>
+#include <stack>
 
 #include "thread.h"
 #include "../api/hal.h"
 #include "vfs.h"
 
 namespace kiv_process {
+
 
 		void Handle_Process(kiv_hal::TRegisters &regs);
 
@@ -83,7 +85,13 @@ namespace kiv_process {
 				void Shutdown();
 				void Execute_Shutdown();
 
+				bool Is_Shutdown() {
+					return system_kill;
+				}
+
 			private:
+				bool system_shutdown;
+				bool system_kill;
 				static std::mutex ptable;
 				static CProcess_Manager *instance;
 				CPid_Manager *pid_manager;
@@ -101,6 +109,8 @@ namespace kiv_process {
 				void Remove_Fd(const std::shared_ptr<TProcess_Control_Block> &pcb, const kiv_os::THandle &fd_index);
 
 				void Check_Stdin_Stdout(kiv_hal::TRegisters &regs);
+				std::stack<size_t> Get_Processes_To_Terminate();
+				void CProcess_Manager::Killing_Routine();
 		};
 }
 
