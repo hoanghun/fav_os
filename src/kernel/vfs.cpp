@@ -266,8 +266,7 @@ namespace kiv_vfs {
 
 	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
 		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
-		Free_File_Descriptor(fd_index);
-
+		
 		if (file_desc.file) {
 			file_desc.file->Close(file_desc.attributes);
 
@@ -276,7 +275,7 @@ namespace kiv_vfs {
 			}
 		}
 
-		file_desc.file = nullptr;
+		Free_File_Descriptor(fd_index);
 		
 		return false;
 	}
@@ -442,6 +441,7 @@ namespace kiv_vfs {
 		}
 
 		file_desc.attributes = FD_ATTR_FREE;
+		file_desc.file = nullptr;
 	}
 
 	kiv_os::THandle CVirtual_File_System::Get_Free_Fd_Index() {
