@@ -405,7 +405,7 @@ namespace kiv_vfs {
 	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
-		if (fd_index > MAX_FILE_DESCRIPTORS || !mFile_descriptors[fd_index].file) {
+		if (fd_index > MAX_FILE_DESCRIPTORS) {
 			throw TInvalid_Fd_Exception();
 		}
 
