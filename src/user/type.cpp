@@ -21,24 +21,21 @@ void print_file_name(kiv_hal::TRegisters regs, const char *file_name) {
 }
 
 void print_content(const kiv_hal::TRegisters &regs, const kiv_os::THandle handle) {
-	size_t counter;
-	const size_t buffer_size = 0xFF;
+	size_t bytes_read;
+	const size_t buffer_size = 512;
 	char buffer[buffer_size];
 
-	do {
-		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
-		kiv_os_rtl::Read_File(handle, buffer, buffer_size, counter);
-		if (counter > 0) {
-			kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
-			if (counter == buffer_size) {
-				counter--;
-			}
-			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
-			kiv_os_rtl::Stdout_Print(regs, buffer, strlen(buffer));
-			//kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+	kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+	while (true) {
+		kiv_os_rtl::Read_File(handle, buffer, buffer_size, bytes_read);
+
+		if (bytes_read > 0) {
+			kiv_os_rtl::Stdout_Print(regs, buffer, bytes_read);
+			continue;
 		}
 
-	} while (counter > 0);
+		break;
+	}
 }
 const char *map(const char *file_name) {
 	const char *console = "con";
