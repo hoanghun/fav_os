@@ -139,6 +139,7 @@ namespace kiv_fs_fat {
 	bool CFAT_Utils::Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries) {
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		char *cluster_buffer = new char[cluster_size];
+		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
 
 		size_t cluster_loaded = static_cast<size_t>(-1);
 		size_t cluster_needed;
@@ -149,7 +150,7 @@ namespace kiv_fs_fat {
 			order = it->first;
 			value = it->second;
 
-			cluster_needed = (order / mSb.fat_table_number_of_entries) + mSb.fat_table_first_cluster;
+			cluster_needed = (order / entries_per_cluster) + mSb.fat_table_first_cluster;
 
 			// This FAT entry is not located in currently loaded cluster
 			if (cluster_needed != cluster_loaded) {
@@ -171,7 +172,7 @@ namespace kiv_fs_fat {
 				cluster_loaded = cluster_needed;
 			}
 
-			order_in_cluster = order % mSb.fat_table_number_of_entries;
+			order_in_cluster = order % entries_per_cluster;
 
 			// Store new FAT entry into a buffer
 			memcpy(cluster_buffer + order_in_cluster * sizeof(TFAT_Entry), &value, sizeof(TFAT_Entry));
@@ -636,12 +637,6 @@ namespace kiv_fs_fat {
 
 		// Get number of bytes to write (whole buffer or bytes before '\0')
 		size_t bytes_to_write = buffer_size;
-		for (int i = 0; i < buffer_size; i++) {
-			if (buffer[i] == '\0') {
-				bytes_to_write = i + 1;
-				break;
-			}
-		}
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
 		size_t first_cluster = position / cluster_size;
