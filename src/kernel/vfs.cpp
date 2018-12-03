@@ -664,7 +664,7 @@ namespace kiv_vfs {
 
 		// Wrong format (multiple mount separators)
 		else {
-			throw false;
+			return false;
 		}
 
 		// Handle dots and empty parts
