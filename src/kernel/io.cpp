@@ -80,9 +80,11 @@ void Open_File(kiv_hal::TRegisters &regs) {
 	else {
 		result = vfs.Create_File(path, attributes, handle);
 	}
-	handle = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(handle);
-
-	regs.rax.x = static_cast<decltype(regs.rax.x)>(handle);
+	
+	if (result == kiv_os::NOS_Error::Success) {
+		handle = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(handle);
+		regs.rax.x = static_cast<decltype(regs.rax.x)>(handle);
+	}
 
 	Set_Result(regs, result);
 }
@@ -99,8 +101,10 @@ void Close_File(kiv_hal::TRegisters &regs) {
 	kiv_os::NOS_Error result;
 
 	result = vfs.Close_File(vfs_handle);
-	kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
-		
+	if (result == kiv_os::NOS_Error::Success) {
+		kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
+	}
+
 	Set_Result(regs, result);
 }
 
@@ -191,10 +195,12 @@ void Create_Pipe(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle out;
 
 	result = vfs.Create_Pipe(out, in);
-
-	handle_pair[0] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(out);
-	handle_pair[1] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(in);
 	
+	if (result == kiv_os::NOS_Error::Success) {
+		handle_pair[0] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(out);
+		handle_pair[1] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(in);
+	}
+
 	Set_Result(regs, result);
 }
 
