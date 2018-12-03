@@ -240,7 +240,7 @@ namespace kiv_fs_fat {
 
 		// Dir is root
 		if (strcmp(dir_entry.name, root_dir_entry.name) == 0) {
-			directory = make_shared<CRoot>(this);
+			directory = mRoot;
 		}
 		else {
 			kiv_vfs::TPath path;
@@ -254,6 +254,10 @@ namespace kiv_fs_fat {
 
 	void CFAT_Utils::Set_Superblock(TSuperblock sb) {
 		mSb = sb;
+	}
+
+	void CFAT_Utils::Set_Root(std::shared_ptr<CRoot> &root) {
+		mRoot = root;
 	}
 
 	TSuperblock &CFAT_Utils::Get_Superblock() {
@@ -283,6 +287,8 @@ namespace kiv_fs_fat {
 	}
 
 	size_t IDirectory::Read(char *buffer, size_t buffer_size, size_t position) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return 0;
 		}
@@ -320,6 +326,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Is_Empty() {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -328,6 +336,8 @@ namespace kiv_fs_fat {
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> IDirectory::Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -377,6 +387,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Remove_File(const kiv_vfs::TPath &path) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -413,6 +425,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Find(std::string filename, TFAT_Dir_Entry &entry) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -427,6 +441,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Change_Entry_Size(std::string filename, uint32_t filesize) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -445,6 +461,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Get_Entry_Size(std::string filename, uint32_t &filesize) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (!Load()) {
 			return false;
 		}
@@ -557,14 +575,14 @@ namespace kiv_fs_fat {
 	}
 
 	bool CRoot::Load() {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		mEntries.clear();
 		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
 		if (!mUtils->Read_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1)) {
 			delete[] buffer;
 			return false;
 		}
-
-		std::unique_lock<std::mutex> lock(mFile_lock);
 
 		// Parse size of root
 		memcpy(&mSize, buffer, sizeof(mSize));
@@ -585,8 +603,10 @@ namespace kiv_fs_fat {
 	bool CRoot::Save() {
 		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
 
+		bool result;
+
 		{
-			std::unique_lock<std::mutex> lock(mFile_lock);
+			std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 			// Save size of root
 			memcpy(buffer, &mSize, sizeof(mSize));
@@ -597,13 +617,13 @@ namespace kiv_fs_fat {
 				memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
 				address += sizeof(TFAT_Dir_Entry);
 			}
-		}
 
-		bool res = mUtils->Write_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1);
+			result = mUtils->Write_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1);
+		}
 
 		delete[] buffer;
 
-		return res;
+		return result;
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CRoot::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
@@ -631,6 +651,8 @@ namespace kiv_fs_fat {
 	}
 
 	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (buffer_size == 0) {
 			return 0;
 		}
@@ -651,8 +673,6 @@ namespace kiv_fs_fat {
 				: ((last_byte / cluster_size));
 		}
 		size_t clusters_needed = last_cluster + 1;
-
-		std::unique_lock<std::mutex> lock(mFile_lock);
 
 		// Need new clusters
 		std::vector<TFAT_Entry> new_entries;
@@ -723,11 +743,11 @@ namespace kiv_fs_fat {
 	}
 
 	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+
 		if (buffer_size == 0) {
 			return 0;
 		}
-
-		std::unique_lock<std::mutex> lock(mFile_lock);
 
 		// Get number of bytes to read (whole buffer or rest of the file)
 		size_t bytes_to_read = (position + buffer_size < mSize) 
@@ -779,6 +799,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFile::Resize(size_t size) {
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 		// Nothing to do
 		if (size == mSize) {
@@ -852,13 +873,13 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFile::Is_Available_For_Write() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 		return (mWrite_count == 0);
 	}
 
 	size_t CFile::Get_Size() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 		return mSize;
 	}
@@ -893,8 +914,10 @@ namespace kiv_fs_fat {
 			}
 		}
 
-		mUtils->Set_Superblock(mSuperblock);
 		root = std::make_shared<CRoot>(mUtils); // TODO Handle error
+
+		mUtils->Set_Superblock(mSuperblock);
+		mUtils->Set_Root(root);
 	}
 
 	CMount::~CMount() {

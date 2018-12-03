@@ -31,22 +31,22 @@ namespace kiv_vfs {
 	}
 
 	void IFile::Increase_Write_Count() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 		mWrite_count++;
 	}
 
 	void IFile::Decrease_Write_Count() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 		mWrite_count--;
 	}
 
 	void IFile::Increase_Read_Count() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 		mRead_count++;
 	}
 
 	void IFile::Decrease_Read_Count() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 		mRead_count--;
 	}
 
@@ -63,7 +63,7 @@ namespace kiv_vfs {
 	}
 
 	bool IFile::Is_Opened() {
-		std::unique_lock<std::mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 		return (Get_Write_Count() + Get_Read_Count() != 0);
 	}
 

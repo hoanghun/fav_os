@@ -7,8 +7,6 @@
 bool Remove_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs) {
 	kiv_os::THandle handle;
 
-	// TODO Otestovat jestli se mažou jen složky
-
 	// Check if file exists and if it is a directory
 	bool result = kiv_os_rtl::Open_File(dir_name.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Directory, handle);
 

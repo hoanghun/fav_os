@@ -77,7 +77,7 @@ namespace kiv_vfs {
 			kiv_os::NFile_Attributes mAttributes;
 			unsigned int mRead_count = 0;
 			unsigned int mWrite_count = 0;
-			std::mutex mFile_lock;
+			std::recursive_mutex mFile_lock;
 	};
 
 	// Abstract class from which concrete file systems inherit
@@ -160,7 +160,7 @@ namespace kiv_vfs {
 			static std::recursive_mutex mFd_lock;
 			static std::mutex mRegistered_fs_lock;
 			static std::mutex mMounted_fs_lock;
-			static std::recursive_mutex mFiles_lock;;
+			static std::recursive_mutex mFiles_lock;
 
 			unsigned int mFd_count = 0;
 			unsigned int mRegistered_fs_count = 0;

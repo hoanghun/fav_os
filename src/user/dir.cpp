@@ -15,7 +15,7 @@ bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs
 
 	std::string line;
 	if (exists) {
-		line = "Content of directory '" + dir_name + "':\n";
+		line = " Directory of '" + dir_name + "':\n\n";
 		kiv_os_rtl::Stdout_Print(regs, line.c_str(), line.size());
 
 		kiv_os::TDir_Entry entry;
@@ -35,7 +35,7 @@ bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs
 		kiv_os_rtl::Close_Handle(handle);
 	}
 	else {
-		line = "\nDirectory '" + dir_name + "' doesn't exist.\n";
+		line = "File Not Found.\n";
 		kiv_os_rtl::Stdout_Print(regs, line.c_str(), line.size());
 	}
 

@@ -16,7 +16,6 @@ namespace kiv_fs_fat {
 	class CFile_System; 
 	class CMount;
 
-
 	struct TSuperblock {
 		char name[4]; // 'fat\0'
 		kiv_hal::TDrive_Parameters disk_params;
@@ -56,11 +55,13 @@ namespace kiv_fs_fat {
 			std::map<TFAT_Entry, TFAT_Entry> Create_Fat_Entries_Chain(std::vector<TFAT_Entry> &entries);
 
 			void Set_Superblock(TSuperblock sb);
+			void Set_Root(std::shared_ptr<CRoot> &root);
 			TSuperblock &Get_Superblock();
 		private:
 			TSuperblock mSb;
 			kiv_vfs::TDisk_Number mDisk_number;
 			std::mutex mDisk_access_lock;
+			std::shared_ptr<CRoot> mRoot;
 	};
 
 	// Abstract directory (root and subdirectories)
@@ -80,7 +81,6 @@ namespace kiv_fs_fat {
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) = 0;
 
 		protected:
-			// TODO Optimalization : entries can be map
 			std::vector<TFAT_Dir_Entry> mEntries;
 			uint32_t mSize;
 			CFAT_Utils *mUtils;
@@ -132,7 +132,6 @@ namespace kiv_fs_fat {
 			CFile_System();
 			virtual kiv_vfs::IMounted_File_System *Create_Mount(const std::string label, const kiv_vfs::TDisk_Number disk_number) final override;
 	};
-
 
 	class CMount : public kiv_vfs::IMounted_File_System {
 		public:
