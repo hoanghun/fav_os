@@ -210,6 +210,11 @@ namespace kiv_vfs {
 		// File is not cached -> resolve file and cache file
 		else {
 			auto mount = Resolve_Mount(normalized_path);
+			
+			if (!mount) {
+				return kiv_os::NOS_Error::File_Not_Found;
+			}
+
 			file = mount->Open_File(normalized_path, attributes);
 			if (!file) {
 				Free_File_Descriptor(free_fd);
@@ -236,6 +241,10 @@ namespace kiv_vfs {
 		fd_index = Get_Free_Fd_Index();
 		auto normalized_path = Create_Normalized_Path(path);
 		auto mount = Resolve_Mount(normalized_path);
+
+		if (!mount) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		// File is cached
 		if (Is_File_Cached(normalized_path)) {
@@ -299,6 +308,10 @@ namespace kiv_vfs {
 		}
 
 		auto mount = Resolve_Mount(normalized_path);
+
+		if (!mount) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		auto file = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0);
 		if (!file) {
@@ -397,6 +410,10 @@ namespace kiv_vfs {
 		TPath normalized_path = Create_Normalized_Path(path);
 		auto mount = Resolve_Mount(normalized_path);
 
+		if (!mount) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
 		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory)) { // TODO correct attrs?
 			// TODO prevent from deleting working directory?
 			return kiv_os::NOS_Error::File_Not_Found;
@@ -476,7 +493,7 @@ namespace kiv_vfs {
 		std::unique_lock<std::mutex> lock(mMounted_fs_lock);
 
 		if (mMounted_file_systems.find(normalized_path.mount) == mMounted_file_systems.end()) {
-			throw TFile_Not_Found_Exception();
+			return nullptr;
 		}
 		return mMounted_file_systems.at(normalized_path.mount);
 	}
