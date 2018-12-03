@@ -117,38 +117,38 @@ namespace kiv_vfs {
 			 */
 
 			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception
-			bool Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			kiv_os::NOS_Error Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
 
 			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception, 
 			//			TNot_Enough_Space_Exception
-			bool Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			kiv_os::NOS_Error Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
 
 			// Throws	TInvalid_Fd_Exception
-			bool Close_File(kiv_os::THandle fd_index);
+			kiv_os::NOS_Error Close_File(kiv_os::THandle fd_index);
 
 			// Throws	TFile_Not_Found_Exception, TPermission_Denied_Exception
-			bool Delete_File(std::string path);
+			kiv_os::NOS_Error Delete_File(std::string path);
 
 			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
-			size_t Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			kiv_os::NOS_Error Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &written);
 
 			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
-			size_t Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			kiv_os::NOS_Error Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &read);
 
 			// Throws	TInvalid_Fd_Exception, TPosition_Out_Of_Range_Exception
-			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+			kiv_os::NOS_Error Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
 			// Throws	TInvalid_Fd_Exception, TNot_Enough_Space_Exception
-			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+			kiv_os::NOS_Error Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
 			// Throws	TInvalid_Fd_Exception
-			size_t Get_Position(kiv_os::THandle fd_index);
+			kiv_os::NOS_Error Get_Position(kiv_os::THandle fd_index, size_t &position);
 
 			// Throws	TFd_Table_Full_Exception
-			void Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
+			kiv_os::NOS_Error Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
 			// Throws	File_Not_Found_Exception
-			void Set_Working_Directory(char *path);
+			kiv_os::NOS_Error Set_Working_Directory(char *path);
 			 
 			/*
 			 * mounting systems

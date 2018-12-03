@@ -14,40 +14,27 @@ void Set_Result(kiv_hal::TRegisters &regs, kiv_os::NOS_Error result) {
 }
 
 kiv_os::NOS_Error Get_Position(kiv_os::THandle vfs_handle, kiv_hal::TRegisters &regs) {
-	try {
-		size_t position = vfs.Get_Position(vfs_handle);
-		regs.rax.r = static_cast<decltype(regs.rax.r)>(position);
-		return kiv_os::NOS_Error::Success;
-	}
-	catch (...) { // Including TInvalid_Fd_Exception
-		return kiv_os::NOS_Error::Unknown_Error;
-	}
+	kiv_os::NOS_Error result;
+	size_t position;
+
+	result = vfs.Get_Position(vfs_handle, position);
+	regs.rax.r = static_cast<decltype(regs.rax.r)>(position);
+
+	return result;
 }
 
 kiv_os::NOS_Error Set_Position(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
-	try {
-		vfs.Set_Position(vfs_handle, position, seek_offset_type);
-		return kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TPosition_Out_Of_Range_Exception e) {
-		return kiv_os::NOS_Error::Invalid_Argument; // TODO Correct error?
-	}
-	catch (...) { // Including TInvalid_Fd_Exception
-		return kiv_os::NOS_Error::Unknown_Error;
-	}
+	kiv_os::NOS_Error result;
+	
+	result = vfs.Set_Position(vfs_handle, position, seek_offset_type);
+	return kiv_os::NOS_Error::Success;
 }
 
 kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
-	try {
-		vfs.Set_Size(vfs_handle, position, seek_offset_type);
-		return kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TNot_Enough_Space_Exception e) {
-		return kiv_os::NOS_Error::Not_Enough_Disk_Space;
-	}
-	catch (...) {
-		return kiv_os::NOS_Error::Unknown_Error;
-	}
+	kiv_os::NOS_Error result;
+	result = vfs.Set_Size(vfs_handle, position, seek_offset_type);
+
+	return result;
 }
 
 void Seek(kiv_hal::TRegisters &regs) {
@@ -86,34 +73,16 @@ void Open_File(kiv_hal::TRegisters &regs) {
 	kiv_os::NOpen_File open_flag = static_cast<kiv_os::NOpen_File>(regs.rcx.r);
 
 	kiv_os::NOS_Error result;
-	try {
-		kiv_os::THandle handle;
-		if (open_flag == kiv_os::NOpen_File::fmOpen_Always) {
-			vfs.Open_File(path, attributes, handle);
-		}
-		else {
-			vfs.Create_File(path, attributes, handle);
-		}
-		handle = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(handle);
+	kiv_os::THandle handle;
+	if (open_flag == kiv_os::NOpen_File::fmOpen_Always) {
+		result = vfs.Open_File(path, attributes, handle);
+	}
+	else {
+		result = vfs.Create_File(path, attributes, handle);
+	}
+	handle = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(handle);
 
-		regs.rax.x = static_cast<decltype(regs.rax.x)>(handle);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TFd_Table_Full_Exception e) {
-		result = kiv_os::NOS_Error::Out_Of_Memory;
-	}
-	catch (kiv_vfs::TPermission_Denied_Exception e) {
-		result = kiv_os::NOS_Error::Permission_Denied;
-	}
-	catch (kiv_vfs::TFile_Not_Found_Exception e) {
-		result = kiv_os::NOS_Error::File_Not_Found;
-	}
-	catch (kiv_vfs::TNot_Enough_Space_Exception e) { // In case of creating new file
-		result = kiv_os::NOS_Error::Not_Enough_Disk_Space;
-	}
-	catch (...) {
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
+	regs.rax.x = static_cast<decltype(regs.rax.x)>(handle);
 
 	Set_Result(regs, result);
 }
@@ -128,15 +97,10 @@ void Close_File(kiv_hal::TRegisters &regs) {
 	}
 
 	kiv_os::NOS_Error result;
-	try {
-		vfs.Close_File(vfs_handle);
-		kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (...) { // including TInvalid_Fd_Exception
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
 
+	result = vfs.Close_File(vfs_handle);
+	kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
+		
 	Set_Result(regs, result);
 }
 
@@ -144,22 +108,7 @@ void Delete_File(kiv_hal::TRegisters &regs) {
 	std::string path = reinterpret_cast<char *>(regs.rdx.r);
 
 	kiv_os::NOS_Error result;
-	try {
-		vfs.Delete_File(path);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TFile_Not_Found_Exception e) {
-		result = kiv_os::NOS_Error::File_Not_Found;
-	}
-	catch (kiv_vfs::TDirectory_Not_Empty_Exception e) {
-		result = kiv_os::NOS_Error::Directory_Not_Empty;
-	}
-	catch (kiv_vfs::TPermission_Denied_Exception e) {
-		result = kiv_os::NOS_Error::Permission_Denied;
-	}
-	catch (...) {
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
+	result = vfs.Delete_File(path);
 
 	Set_Result(regs, result);
 }
@@ -178,16 +127,7 @@ void Write_File(kiv_hal::TRegisters &regs) {
 	}
 
 	kiv_os::NOS_Error result;
-	try {
-		bytes_written = vfs.Write_File(vfs_handle, buffer, buf_size);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TPermission_Denied_Exception e) {
-		result = kiv_os::NOS_Error::Permission_Denied;
-	}
-	catch (...) { // including TInvalid_Fd_Exception
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
+	result = vfs.Write_File(vfs_handle, buffer, buf_size, bytes_written);
 
 	regs.rax.r = bytes_written;
 	Set_Result(regs, result);
@@ -207,16 +147,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 	}
 
 	kiv_os::NOS_Error result;
-	try {
-		bytes_read = vfs.Read_File(vfs_handle, buffer, buf_size);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TPermission_Denied_Exception e) {
-		result = kiv_os::NOS_Error::Permission_Denied;
-	}
-	catch (...)	{ 
-		result = kiv_os::NOS_Error::Unknown_Error; 
-	}
+	result = vfs.Read_File(vfs_handle, buffer, buf_size, bytes_read);
 
 	regs.rax.r = bytes_read;
 	Set_Result(regs, result);
@@ -226,16 +157,7 @@ void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *path = reinterpret_cast<char *>(regs.rdx.r); // null terminated
 
 	kiv_os::NOS_Error result;
-	try {
-		vfs.Set_Working_Directory(path);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TFile_Not_Found_Exception e) {
-		result = kiv_os::NOS_Error::File_Not_Found;
-	}
-	catch (...) {
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
+	result = vfs.Set_Working_Directory(path);
 
 	Set_Result(regs, result);
 }
@@ -268,16 +190,7 @@ void Create_Pipe(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle in;
 	kiv_os::THandle out;
 
-	try {
-		vfs.Create_Pipe(out, in);
-		result = kiv_os::NOS_Error::Success;
-	}
-	catch (kiv_vfs::TFd_Table_Full_Exception e) {
-		result = kiv_os::NOS_Error::Out_Of_Memory;
-	}
-	catch (...) {
-		result = kiv_os::NOS_Error::Unknown_Error;
-	}
+	result = vfs.Create_Pipe(out, in);
 
 	handle_pair[0] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(out);
 	handle_pair[1] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(in);
