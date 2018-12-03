@@ -32,14 +32,16 @@ namespace kiv_fs_proc {
 		}
 	}
 
-	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error CFile::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
 		if (position > mName.length()) {
-			return 0;
+			read = 0;
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 
 		std::string str_to_write = mName.substr(position, position + buffer_size - 1);
 		strcpy_s(buffer, buffer_size, str_to_write.c_str());
-		return str_to_write.length();
+		read = str_to_write.length();
+		return kiv_os::NOS_Error::Success;
 	}
 
 	bool CFile::Is_Available_For_Write() {
@@ -57,7 +59,7 @@ namespace kiv_fs_proc {
 		mPath = path;
 	}
 
-	size_t CDirectory::Read(char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error CDirectory::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
 		size_t i = 0;
 		kiv_os::TDir_Entry entry;
 		for (auto it = mProcesses.begin(); it != mProcesses.end(); ++it) {
@@ -70,15 +72,18 @@ namespace kiv_fs_proc {
 		}
 
 		if (i == mProcesses.size()) {
-			return 0;
+			read = 0;
+			return kiv_os::NOS_Error::Success;
 		}
 
 		if (sizeof(entry) > buffer_size) {
-			return 0;
+			read = 0;
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 
 		memcpy(buffer, &entry, sizeof(entry));
-		return 1;
+		read = 1;
+		return kiv_os::NOS_Error::Success;
 	}
 
 	bool CDirectory::Is_Available_For_Write() {
@@ -100,12 +105,13 @@ namespace kiv_fs_proc {
 		mRoot = std::make_shared<CDirectory>(path);
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+	kiv_os::NOS_Error CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 		std::string name;
 
 		if (path.mount == mRoot->Get_Path().mount && path.file.length() == 0) {
 			mRoot = std::make_shared<CDirectory>(path, kiv_process::CProcess_Manager::Get_Instance().Get_Processes());
-			return mRoot;
+			file = mRoot;
+			return kiv_os::NOS_Error::Success;
 		}
 
 		std::istringstream iss(path.file);
@@ -113,14 +119,15 @@ namespace kiv_fs_proc {
 		iss >> pid;
 
 		if (iss.fail()) {
-			return nullptr;
+			return kiv_os::NOS_Error::Unknown_Error; // TODO Spravnej error?
 		}
-		std::shared_ptr<kiv_vfs::IFile> file;
 		if (kiv_process::CProcess_Manager::Get_Instance().Get_Name(pid, name)) {
 			file = std::make_shared<CFile>(path, pid, name);
+			return kiv_os::NOS_Error::Success;
 		}
-
-		return file;
+		else {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 	}
 #pragma endregion
 }

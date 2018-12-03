@@ -50,12 +50,12 @@ namespace kiv_vfs {
 	// Instances of inherited classes represent one file
 	class IFile {
 		public:
-			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position);
-			virtual size_t Read(char *buffer, size_t buffer_size, size_t position);
-			virtual bool Resize(size_t size);
+			virtual kiv_os::NOS_Error Write(const char *buffer, size_t buffer_size, size_t position, size_t &written);
+			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read);
+			virtual kiv_os::NOS_Error Resize(size_t size);
+			virtual size_t Get_Size();
 			virtual void Close(const TFD_Attributes attrs);
 			virtual bool Is_Available_For_Write();
-			virtual size_t Get_Size();
 			virtual bool Is_Empty();
 
 			void Increase_Write_Count();
@@ -95,9 +95,9 @@ namespace kiv_vfs {
 	// Class representing one mounted file system (file system's 'Create_Mount' returns instance of class that inherits from this class)
 	class IMounted_File_System {
 		public:
-			virtual std::shared_ptr<IFile> Open_File(const TPath &path, kiv_os::NFile_Attributes attributes);
-			virtual std::shared_ptr<IFile> Create_File(const TPath &path, kiv_os::NFile_Attributes attributes);
-			virtual bool Delete_File(const TPath &path);
+			virtual kiv_os::NOS_Error Open_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file);
+			virtual kiv_os::NOS_Error Create_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file);
+			virtual kiv_os::NOS_Error Delete_File(const TPath &path);
 			std::string Get_Label();
 
 			virtual ~IMounted_File_System();
@@ -105,7 +105,6 @@ namespace kiv_vfs {
 			std::string mLabel;
 	};
 
-	// TODO predavat funkcim working directory procesù?
 	class CVirtual_File_System {
 		public:
 			static CVirtual_File_System &Get_Instance();

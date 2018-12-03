@@ -68,7 +68,7 @@ namespace kiv_fs_fat {
 	class IDirectory : public kiv_vfs::IFile {
 		public:
 			IDirectory(CFAT_Utils *utils);
-			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
 			virtual bool Is_Empty() final override;
 			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes);
 			virtual bool Remove_File(const kiv_vfs::TPath &path);
@@ -113,9 +113,9 @@ namespace kiv_fs_fat {
 	class CFile : public kiv_vfs::IFile {
 		public:
 			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
-			virtual size_t Write(const char *buffer, size_t buffer_size, size_t position) final override;
-			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
-			virtual bool Resize(size_t size) final override;
+			virtual kiv_os::NOS_Error Write(const char *buffer, size_t buffer_size, size_t position, size_t &written) final override;
+			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
+			virtual kiv_os::NOS_Error Resize(size_t size) final override;
 			virtual bool Is_Available_For_Write() final override;
 			virtual size_t Get_Size() final override;
 
@@ -137,9 +137,9 @@ namespace kiv_fs_fat {
 		public:
 			CMount(std::string label, kiv_vfs::TDisk_Number disk_number);
 			~CMount();
-			virtual std::shared_ptr<kiv_vfs::IFile> Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
-			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
-			virtual bool Delete_File(const kiv_vfs::TPath &path) final override;
+			virtual kiv_os::NOS_Error Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) final override;
+			virtual kiv_os::NOS_Error Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) final override;
+			virtual kiv_os::NOS_Error Delete_File(const kiv_vfs::TPath &path) final override;
 
 		private:
 			kiv_vfs::TDisk_Number mDisk_Number;

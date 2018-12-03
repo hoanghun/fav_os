@@ -11,7 +11,7 @@ namespace kiv_fs_proc {
 	class CFile : public kiv_vfs::IFile {
 		public:
 			CFile(const kiv_vfs::TPath path, size_t pid, std::string name);
-			virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
 			virtual bool Is_Available_For_Write() final override;
 
 		private:
@@ -24,7 +24,7 @@ namespace kiv_fs_proc {
 		CDirectory(const kiv_vfs::TPath path, const std::map<size_t, std::string> &processes);
 		CDirectory(const kiv_vfs::TPath path);
 
-		virtual size_t Read(char *buffer, size_t buffer_size, size_t position) final override;
+		virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
 		virtual bool Is_Available_For_Write() final override;
 		void Refresh_Processes(const std::map<size_t, std::string> &processes);
 
@@ -43,7 +43,7 @@ namespace kiv_fs_proc {
 	class CMount : public kiv_vfs::IMounted_File_System {
 		public:
 			CMount(std::string label);
-			virtual std::shared_ptr<kiv_vfs::IFile> Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) final override;
+			virtual kiv_os::NOS_Error Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) final override;
 
 		private:
 			std::shared_ptr<kiv_vfs::IFile> mRoot;

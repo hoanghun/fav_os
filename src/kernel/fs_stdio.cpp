@@ -67,11 +67,12 @@ namespace kiv_fs_stdio {
 		mAttributes = attributes;
 	}
 
-	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
-		return Read_Line_From_Console(buffer, buffer_size);
+	kiv_os::NOS_Error CFile::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
+		read = Read_Line_From_Console(buffer, buffer_size);
+		return kiv_os::NOS_Error::Success;
 	}
 
-	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error CFile::Write(const char *buffer, size_t buffer_size, size_t position, size_t &written) {
 		kiv_hal::TRegisters registers;
 		registers.rax.h = static_cast<decltype(registers.rax.h)>(kiv_hal::NVGA_BIOS::Write_String);
 		registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(buffer);
@@ -80,10 +81,12 @@ namespace kiv_fs_stdio {
 		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
 
 		if (registers.flags.carry == 1) {
-			return 0;
+			written = 0;
+			return kiv_os::NOS_Error::Unknown_Error; // TODO Spravnej error?
 		}
 
-		return buffer_size;
+		written = buffer_size;
+		return kiv_os::NOS_Error::Success;
 	}
 
 	bool CFile::Is_Available_For_Write() {
@@ -117,12 +120,13 @@ namespace kiv_fs_stdio {
 		mStdioFiles.insert(std::pair<std::string, std::shared_ptr<kiv_vfs::IFile>>("stdout", stdout_file));
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+	 kiv_os::NOS_Error CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 		if (mStdioFiles.count(path.file)) {
-			return mStdioFiles.at(path.file);
+			file = mStdioFiles.at(path.file);
+			return kiv_os::NOS_Error::Success;
 		}
 
-		return nullptr;
+		return kiv_os::NOS_Error::File_Not_Found;
 	}	
 }
 

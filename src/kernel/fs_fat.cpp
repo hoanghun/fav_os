@@ -286,21 +286,22 @@ namespace kiv_fs_fat {
 	{
 	}
 
-	size_t IDirectory::Read(char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error IDirectory::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
 		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
+		read = 0;
+
 		if (!Load()) {
-			return 0;
+			return kiv_os::NOS_Error::IO_Error;
 		}
 		// Buffer is not big enough even for one entry
 		if (buffer_size < sizeof(kiv_os::TDir_Entry)) {
-			return 0;
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 
 		kiv_os::TDir_Entry os_dir_entry;
 		TFAT_Dir_Entry fat_dir_entry;
 
-		size_t read_count = 0;
 		size_t fat_entry_index;
 		for (size_t i = 0; i < buffer_size; i += sizeof(kiv_os::TDir_Entry)) {
 			fat_entry_index = (i + position) / sizeof(kiv_os::TDir_Entry);
@@ -319,10 +320,10 @@ namespace kiv_fs_fat {
 			// Store direntry into a buffer
 			memcpy(buffer + i, &os_dir_entry, sizeof(kiv_os::TDir_Entry));
 
-			read_count += sizeof(kiv_os::TDir_Entry);
+			read += sizeof(kiv_os::TDir_Entry);
 		}
 
-		return read_count;
+		return kiv_os::NOS_Error::Success;
 	}
 
 	bool IDirectory::Is_Empty() {
@@ -650,11 +651,13 @@ namespace kiv_fs_fat {
 		}
 	}
 
-	size_t CFile::Write(const char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error CFile::Write(const char *buffer, size_t buffer_size, size_t position,size_t &written) {
 		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
+		written = 0;
+
 		if (buffer_size == 0) {
-			return 0;
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 
 		// Get number of bytes to write (whole buffer or bytes before '\0')
@@ -680,7 +683,7 @@ namespace kiv_fs_fat {
 			// Get free entries
 			size_t num_of_new_entries = clusters_needed - mFat_entries.size();
 			if (!mUtils->Get_Free_Fat_Entries(new_entries, num_of_new_entries)) {
-				return 0;
+				return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 			}
 
 			// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
@@ -691,7 +694,7 @@ namespace kiv_fs_fat {
 			auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
 			if (!mUtils->Write_Fat_Entries(entry_map)) {
 				mUtils->Set_Fat_Entries_Value(new_entries, FAT_FREE);
-				return 0;
+				return kiv_os::NOS_Error::IO_Error;
 			}
 
 			mFat_entries = tmp_entries;
@@ -700,11 +703,10 @@ namespace kiv_fs_fat {
 		// Write to clusters
 		char *cluster = new char[cluster_size];
 		size_t bytes_to_write_in_cluster;
-		size_t bytes_written = 0;
 		for (size_t i = first_cluster; i <= last_cluster; i++) {
 			if (!mUtils->Read_Data_Cluster(cluster, mFat_entries.at(i))) {
 				delete[] cluster;
-				return 0;
+				return kiv_os::NOS_Error::IO_Error;
 			}
 
 			// The position has to be taken into consideration in the first cluster
@@ -715,17 +717,18 @@ namespace kiv_fs_fat {
 				memcpy(cluster + (position - cluster_size * i), buffer, bytes_to_write_in_cluster);
 			}
 			else {
-				bytes_to_write_in_cluster = ((bytes_to_write - bytes_written) > cluster_size)
+				bytes_to_write_in_cluster = ((bytes_to_write - written) > cluster_size)
 					? cluster_size
-					: (bytes_to_write - bytes_written);
-				memcpy(cluster, buffer + bytes_written, bytes_to_write_in_cluster);
+					: (bytes_to_write - written);
+				memcpy(cluster, buffer + written, bytes_to_write_in_cluster);
 			}
 
 			if (!mUtils->Write_Data_Cluster(cluster, mFat_entries.at(i))) {
 				delete[] cluster;
-				return 0;
+				written = 0;
+				return kiv_os::NOS_Error::IO_Error;
 			}
-			bytes_written += bytes_to_write_in_cluster;
+			written += bytes_to_write_in_cluster;
 		}
 
 		// Change filesize if needed
@@ -733,20 +736,23 @@ namespace kiv_fs_fat {
 			mSize = static_cast<uint32_t>(position + bytes_to_write);
 			std::shared_ptr<IDirectory> parent;
 			if (!mUtils->Load_Directory(mDirs_to_parent, parent)) {
-				return 0;
+				written = 0;
+				return kiv_os::NOS_Error::IO_Error;
 			}
 			parent->Change_Entry_Size(mPath.file, mSize);
 		}
 
 		delete[] cluster;
-		return bytes_written;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	size_t CFile::Read(char *buffer, size_t buffer_size, size_t position) {
+	kiv_os::NOS_Error CFile::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
 		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
+		read = 0;
+
 		if (buffer_size == 0) {
-			return 0;
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 
 		// Get number of bytes to read (whole buffer or rest of the file)
@@ -770,11 +776,11 @@ namespace kiv_fs_fat {
 		// Read from clusters
 		char *cluster = new char[cluster_size];
 		size_t bytes_to_read_in_cluster;
-		size_t bytes_read = 0;
 		for (size_t i = first_cluster; i <= last_cluster; i++) {
 			if (!mUtils->Read_Data_Cluster(cluster, mFat_entries.at(i))) {
 				delete[] cluster;
-				return 0;
+				read = 0;
+				return kiv_os::NOS_Error::IO_Error;
 			}
 
 			// The position has to be taken into consideration in the first cluster
@@ -785,25 +791,25 @@ namespace kiv_fs_fat {
 				memcpy(buffer, cluster + (position - (cluster_size * i)), bytes_to_read_in_cluster);
 			} 
 			else {
-				bytes_to_read_in_cluster = ((bytes_to_read - bytes_read) > cluster_size)
+				bytes_to_read_in_cluster = ((bytes_to_read - read) > cluster_size)
 					? cluster_size
-					: (bytes_to_read - bytes_read);
+					: (bytes_to_read - read);
 
-				memcpy(buffer + bytes_read, cluster, bytes_to_read_in_cluster);
+				memcpy(buffer + read, cluster, bytes_to_read_in_cluster);
 			}
-			bytes_read += bytes_to_read_in_cluster;
+			read += bytes_to_read_in_cluster;
 		}
 
 		delete[] cluster;
-		return bytes_read;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CFile::Resize(size_t size) {
+	kiv_os::NOS_Error CFile::Resize(size_t size) {
 		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 		// Nothing to do
 		if (size == mSize) {
-			return true;
+			return kiv_os::NOS_Error::Success;
 		}
 
 		TSuperblock sb = mUtils->Get_Superblock();
@@ -843,7 +849,7 @@ namespace kiv_fs_fat {
 
 				std::vector<TFAT_Entry> allocated_entries;
 				if (!mUtils->Get_Free_Fat_Entries(allocated_entries, clusters_to_allocate)) {
-					return false;
+					return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 				}
 
 				// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
@@ -853,7 +859,7 @@ namespace kiv_fs_fat {
 				auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
 				if (!mUtils->Write_Fat_Entries(entry_map)) {
 					mUtils->Set_Fat_Entries_Value(allocated_entries, FAT_FREE);
-					return false;
+					return kiv_os::NOS_Error::IO_Error;
 				}
 
 				mFat_entries = tmp_entries;
@@ -865,11 +871,11 @@ namespace kiv_fs_fat {
 		mSize = static_cast<uint32_t>(size);
 		std::shared_ptr<IDirectory> parent;
 		if (!mUtils->Load_Directory(mDirs_to_parent, parent)) {
-			return false;
+			return kiv_os::NOS_Error::IO_Error;
 		}
 		parent->Change_Entry_Size(mPath.file, mSize);
 
-		return true;
+		return kiv_os::NOS_Error::Success;
 	}
 
 	bool CFile::Is_Available_For_Write() {
@@ -924,22 +930,24 @@ namespace kiv_fs_fat {
 		delete mUtils;
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+	kiv_os::NOS_Error CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 		std::vector<TFAT_Dir_Entry> entries_from_root{ root_dir_entry };
 		TFAT_Dir_Entry entry;
 		std::shared_ptr<IDirectory> directory;
 
 		// Open root
 		if (path.file.length() == 0) {
-			return root;
+			file = root;
+			return kiv_os::NOS_Error::Success;
 		}
 
 		// File is directly in the root
 		if (path.path.empty()) {
 			if (!root->Find(path.file, entry)) {
-				return nullptr;
+				return kiv_os::NOS_Error::File_Not_Found;
 			}
-			return root->Make_File(path, entry);
+			file = root->Make_File(path, entry);
+			return kiv_os::NOS_Error::Success;
 		}
 
 		// Find parent
@@ -947,7 +955,7 @@ namespace kiv_fs_fat {
 			mUtils->Load_Directory(entries_from_root, directory);
 			// Directory does not exist
 			if (!directory->Find(path.path[i], entry)) {
-				return nullptr;
+				return kiv_os::NOS_Error::File_Not_Found;
 			}
 			entries_from_root.push_back(entry);
 		}
@@ -956,17 +964,18 @@ namespace kiv_fs_fat {
 
 		// File does not exists
 		if (!directory->Find(path.file, entry)) {
-			return nullptr;
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		return directory->Make_File(path, entry);
+		file = directory->Make_File(path, entry);
+		return kiv_os::NOS_Error::Success;
 	}
 	
-	std::shared_ptr<kiv_vfs::IFile> CMount::Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes) {
+	kiv_os::NOS_Error CMount::Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 
 		// TODO check filename?
 		if (path.file.length() == 0) {
-			return nullptr;
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
 		// Create file directly in the root
@@ -974,7 +983,8 @@ namespace kiv_fs_fat {
 			if (root->Find(path.file, TFAT_Dir_Entry{})) {
 				Delete_File(path);
 			}
-			return root->Create_File(path, attributes);
+			file = root->Create_File(path, attributes);
+			return kiv_os::NOS_Error::Success;
 		}
 
 		std::vector<TFAT_Dir_Entry> entries_from_root { root_dir_entry };
@@ -989,7 +999,7 @@ namespace kiv_fs_fat {
 			if (!directory->Find(path.path[i], entry)) {
 				tmp_path.file = path.path[i];
 				if (!directory->Create_File(tmp_path, kiv_os::NFile_Attributes::Directory)) {
-					return nullptr;
+					return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 				}
 				directory->Find(path.path[i], entry);
 			}
@@ -1003,10 +1013,11 @@ namespace kiv_fs_fat {
 		if (directory->Find(path.file, entry)) {
 			Delete_File(path);
 		}
-		return directory->Create_File(path, attributes);
+		file = directory->Create_File(path, attributes);
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CMount::Delete_File(const kiv_vfs::TPath &path) {
+	kiv_os::NOS_Error CMount::Delete_File(const kiv_vfs::TPath &path) {
 		kiv_vfs::TPath parent_path;
 
 		// Get path of file's parent
@@ -1020,14 +1031,17 @@ namespace kiv_fs_fat {
 		}
 
 		// Open file's parent
-		auto parent_file = Open_File(parent_path, (kiv_os::NFile_Attributes)(0));
-		if (!parent_file || !parent_file->Is_Directory()) {
-			return false;
+		std::shared_ptr<kiv_vfs::IFile> parent_file;
+		kiv_os::NOS_Error open_result = Open_File(parent_path, (kiv_os::NFile_Attributes)(0), parent_file);
+		if (!(open_result != kiv_os::NOS_Error::Success) || !parent_file->Is_Directory()) {
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
 		// Remove file from the parent
 		std::shared_ptr<IDirectory> parent_dir = std::dynamic_pointer_cast<IDirectory>(parent_file);
-		return parent_dir->Remove_File(path);
+		return parent_dir->Remove_File(path) 
+			? kiv_os::NOS_Error::Success 
+			: kiv_os::NOS_Error::File_Not_Found;
 	}
 
 	bool CMount::Load_Superblock(kiv_hal::TDrive_Parameters &params) {
