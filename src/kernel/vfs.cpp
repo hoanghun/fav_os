@@ -281,6 +281,10 @@ namespace kiv_vfs {
 	kiv_os::NOS_Error CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
 		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 		
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
 		if (file_desc->file) {
 			file_desc->file->Close(file_desc->attributes);
 
