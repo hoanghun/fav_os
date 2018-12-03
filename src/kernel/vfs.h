@@ -175,7 +175,7 @@ namespace kiv_vfs {
 			static CVirtual_File_System *instance;
 			CVirtual_File_System(); 
 			
-			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index); // Throws TInvalid_Fd_Exception whed FD is not found
+			TFile_Descriptor *Get_File_Descriptor(kiv_os::THandle fd_index); // Throws TInvalid_Fd_Exception whed FD is not found
 			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
 			void Free_File_Descriptor(kiv_os::THandle fd_index);
 			kiv_os::THandle Get_Free_Fd_Index(); // Throws TFd_Table_Full_Exception when mFile_descriptors is full

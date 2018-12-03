@@ -198,6 +198,11 @@ namespace kiv_vfs {
 
 	kiv_os::NOS_Error CVirtual_File_System::Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
 		kiv_os::THandle free_fd = Get_Free_Fd_Index();
+
+		if (free_fd == kiv_os::Invalid_Handle) {
+			return kiv_os::NOS_Error::Out_Of_Memory;
+		}
+
 		auto normalized_path = Create_Normalized_Path(path);
 
 		std::shared_ptr<IFile> file;
@@ -274,14 +279,17 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 		
-		if (file_desc.file) {
-			file_desc.file->Close(file_desc.attributes);
+		if (file_desc->file) {
+			file_desc->file->Close(file_desc->attributes);
 
-			if (file_desc.file->Get_Read_Count() == 0 && file_desc.file->Get_Write_Count() == 0) {
-				Decache_File(file_desc.file);
+			if (file_desc->file->Get_Read_Count() == 0 && file_desc->file->Get_Write_Count() == 0) {
+				Decache_File(file_desc->file);
 			}
+		}
+		else {
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
 		Free_File_Descriptor(fd_index);
@@ -331,14 +339,18 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &written) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		if (!(file_desc.attributes & FD_ATTR_WRITE)) {
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+		
+		if (!(file_desc->attributes & FD_ATTR_WRITE)) {
 			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		size_t bytes_written = file_desc.file->Write(buffer, buffer_size, file_desc.position);
-		file_desc.position += bytes_written;
+		size_t bytes_written = file_desc->file->Write(buffer, buffer_size, file_desc->position);
+		file_desc->position += bytes_written;
 
 		written = bytes_written;
 
@@ -346,14 +358,18 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &read) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
+		
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
-		if (!(file_desc.attributes & FD_ATTR_READ)) {
+		if (!(file_desc->attributes & FD_ATTR_READ)) {
 			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		size_t bytes_read = file_desc.file->Read(buffer, buffer_size, file_desc.position);
-		file_desc.position += bytes_read;
+		size_t bytes_read = file_desc->file->Read(buffer, buffer_size, file_desc->position);
+		file_desc->position += bytes_read;
 
 		read = bytes_read;
 
@@ -361,36 +377,48 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		size_t tmp_pos = Calculate_Position(file_desc, position, type);
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
-		if (tmp_pos > file_desc.file->Get_Size() || tmp_pos < 0) {
+		size_t tmp_pos = Calculate_Position(*file_desc, position, type);
+
+		if (tmp_pos > file_desc->file->Get_Size() || tmp_pos < 0) {
 			return kiv_os::NOS_Error::IO_Error;
 		}
 
-		file_desc.position = tmp_pos;
+		file_desc->position = tmp_pos;
 		return kiv_os::NOS_Error::Success;
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		size_t actual_position = Calculate_Position(file_desc, position, type);
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
-		if (!file_desc.file->Resize(actual_position)) {
+		size_t actual_position = Calculate_Position(*file_desc, position, type);
+
+		if (!file_desc->file->Resize(actual_position)) {
 			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 		}
 
-		file_desc.position = actual_position;
+		file_desc->position = actual_position;
 
 		return kiv_os::NOS_Error::Success;
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Get_Position(kiv_os::THandle fd_index, size_t &position) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index);
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
+		
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
-		position =  file_desc.position;
+		position =  file_desc->position;
 
 		return kiv_os::NOS_Error::Success;
 	}
@@ -428,14 +456,14 @@ namespace kiv_vfs {
 	// ===== PRIVATE ======
 	// ====================
 
-	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
+	TFile_Descriptor *CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (fd_index > MAX_FILE_DESCRIPTORS) {
-			throw TInvalid_Fd_Exception();
+			return nullptr;
 		}
 
-		return mFile_descriptors[fd_index];
+		return &mFile_descriptors[fd_index];
 	}
 
 	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
@@ -475,7 +503,7 @@ namespace kiv_vfs {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (mFd_count == MAX_FILE_DESCRIPTORS) {
-			throw TFd_Table_Full_Exception();
+			return kiv_os::Invalid_Handle;
 		}
 
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
@@ -485,8 +513,7 @@ namespace kiv_vfs {
 			}
 		}
 
-		// Should be impossible to reach here
-		throw TInternal_Error_Exception();
+		return kiv_os::Invalid_Handle;
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
@@ -516,7 +543,6 @@ namespace kiv_vfs {
 		auto path = file->Get_Path();
 		if (!Is_File_Cached(file->Get_Path())) {
 			return;
-			//throw TInternal_Error_Exception();
 		}
 
 		mCached_files.erase(mCached_files.find(file->Get_Path().absolute_path));
@@ -542,9 +568,6 @@ namespace kiv_vfs {
 			case kiv_os::NFile_Seek::End:
 				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
 				break;
-
-			default:
-				throw TInvalid_Operation_Exception();
 		}
 
 		return (tmp_pos + position);
