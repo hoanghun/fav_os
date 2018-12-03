@@ -115,40 +115,27 @@ namespace kiv_vfs {
 			/*
 			 * Sys calls
 			 */
+			kiv_os::NOS_Error Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+	
+			kiv_os::NOS_Error Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+		
+			kiv_os::NOS_Error Close_File(kiv_os::THandle fd_index);
 
-			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception
-			bool Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			kiv_os::NOS_Error Delete_File(std::string path);
 
-			// Throws	TFd_Table_Full_Exception, TFile_Not_Found_Exception, TPermissions_Denied_Exception, 
-			//			TNot_Enough_Space_Exception
-			bool Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
+			kiv_os::NOS_Error Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &written);
 
-			// Throws	TInvalid_Fd_Exception
-			bool Close_File(kiv_os::THandle fd_index);
+			kiv_os::NOS_Error Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &read);
 
-			// Throws	TFile_Not_Found_Exception, TPermission_Denied_Exception
-			bool Delete_File(std::string path);
+			kiv_os::NOS_Error Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
-			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
-			size_t Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			kiv_os::NOS_Error Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
 
-			// Throws	TInvalid_Fd_Exception, TPermission_Denied_Exception
-			size_t Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size);
+			kiv_os::NOS_Error Get_Position(kiv_os::THandle fd_index, size_t &position);
 
-			// Throws	TInvalid_Fd_Exception, TPosition_Out_Of_Range_Exception
-			bool Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
+			kiv_os::NOS_Error Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
-			// Throws	TInvalid_Fd_Exception, TNot_Enough_Space_Exception
-			bool Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type);
-
-			// Throws	TInvalid_Fd_Exception
-			size_t Get_Position(kiv_os::THandle fd_index);
-
-			// Throws	TFd_Table_Full_Exception
-			void Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
-
-			// Throws	File_Not_Found_Exception
-			void Set_Working_Directory(char *path);
+			kiv_os::NOS_Error Set_Working_Directory(char *path);
 			 
 			/*
 			 * mounting systems
@@ -169,18 +156,18 @@ namespace kiv_vfs {
 
 			std::array<TFile_Descriptor, MAX_FILE_DESCRIPTORS> mFile_descriptors;
 			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
-			std::vector<IFile_System*> mRegistered_file_systems; // Pøedìlat na mapu fs_name -> fs ?
+			std::vector<IFile_System*> mRegistered_file_systems;
 			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
 
 			static CVirtual_File_System *instance;
 			CVirtual_File_System(); 
 			
-			TFile_Descriptor &Get_File_Descriptor(kiv_os::THandle fd_index); // Throws TInvalid_Fd_Exception whed FD is not found
+			TFile_Descriptor *Get_File_Descriptor(kiv_os::THandle fd_index);
 			void Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes);
 			void Free_File_Descriptor(kiv_os::THandle fd_index);
-			kiv_os::THandle Get_Free_Fd_Index(); // Throws TFd_Table_Full_Exception when mFile_descriptors is full
+			kiv_os::THandle Get_Free_Fd_Index(); 
 			IMounted_File_System *Resolve_Mount(const TPath &normalized_path);
-			TPath Create_Normalized_Path(std::string path);
+			bool Create_Normalized_Path(std::string path, TPath &normalized_path);
 			void Increase_File_References(TFile_Descriptor &file_desc);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);
 			bool Is_File_Cached(const TPath &path);
@@ -192,19 +179,4 @@ namespace kiv_vfs {
 			void Unmount_All();
 			void Unregister_All();
 	};
-
-	/*
-	 * Exceptions
-	 */
-	struct TInvalid_Fd_Exception : public std::exception {};
-	struct TFd_Table_Full_Exception : public std::exception {};
-	struct TPermission_Denied_Exception : public std::exception {};
-	struct TFile_Not_Found_Exception : public std::exception {};
-	struct TDirectory_Not_Empty_Exception : public std::exception {};
-	struct TPosition_Out_Of_Range_Exception : public std::exception {};
-	struct TNot_Enough_Space_Exception : public std::exception {};
-	struct TInvalid_Operation_Exception : public std::exception {};
-	struct TInvalid_Path_Exception : public std::exception {};
-	struct TInvalid_Mount_Exception : public std::exception {};
-	struct TInternal_Error_Exception : public std::exception {};
 }

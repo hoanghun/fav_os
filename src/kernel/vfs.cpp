@@ -196,9 +196,18 @@ namespace kiv_vfs {
 		}
 	}
 
-	bool CVirtual_File_System::Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
-		kiv_os::THandle free_fd = Get_Free_Fd_Index(); // throws TFd_Table_Full_Exception
-		auto normalized_path = Create_Normalized_Path(path); // throws TFile_Not_Found_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
+		kiv_os::THandle free_fd = Get_Free_Fd_Index();
+
+		if (free_fd == kiv_os::Invalid_Handle) {
+			return kiv_os::NOS_Error::Out_Of_Memory;
+		}
+
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			Free_File_Descriptor(free_fd);
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		std::shared_ptr<IFile> file;
 
@@ -209,19 +218,24 @@ namespace kiv_vfs {
 
 		// File is not cached -> resolve file and cache file
 		else {
-			auto mount = Resolve_Mount(normalized_path); // throws TFile_Not_Found_Exception
+			auto mount = Resolve_Mount(normalized_path);
+			if (!mount) {
+				Free_File_Descriptor(free_fd);
+				return kiv_os::NOS_Error::File_Not_Found;
+			}
+
 			file = mount->Open_File(normalized_path, attributes);
 			if (!file) {
 				Free_File_Descriptor(free_fd);
-				throw TFile_Not_Found_Exception();
+				return kiv_os::NOS_Error::File_Not_Found;
 			}
 			else if ((file->Get_Attributes() == kiv_os::NFile_Attributes::Read_Only) && attributes != kiv_os::NFile_Attributes::Read_Only) {
 				Free_File_Descriptor(free_fd);
-				throw TPermission_Denied_Exception();
+				return kiv_os::NOS_Error::Permission_Denied;
 			}
 			else if ((attributes == kiv_os::NFile_Attributes::Directory) && (file->Get_Attributes() != kiv_os::NFile_Attributes::Directory)) {
 				Free_File_Descriptor(free_fd);
-				throw TFile_Not_Found_Exception();
+				return kiv_os::NOS_Error::File_Not_Found;
 			}
 			Cache_File(file);
 		}
@@ -229,13 +243,23 @@ namespace kiv_vfs {
 		fd_index = free_fd;
 		Put_File_Descriptor(free_fd, file, attributes);
 
-		return true;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CVirtual_File_System::Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
-		fd_index = Get_Free_Fd_Index(); // throws TFd_Table_Full_Exception
-		auto normalized_path = Create_Normalized_Path(path); // throws TFile_Not_Found_Exception
-		auto mount = Resolve_Mount(normalized_path); // throws TFile_Not_Found_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
+		fd_index = Get_Free_Fd_Index();
+
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			Free_File_Descriptor(fd_index);
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+		
+		auto mount = Resolve_Mount(normalized_path);
+		if (!mount) {
+			Free_File_Descriptor(fd_index);
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		// File is cached
 		if (Is_File_Cached(normalized_path)) {
@@ -244,7 +268,7 @@ namespace kiv_vfs {
 			// File is opened -> cannot override this file
 			if (file->Is_Opened()) {
 				Free_File_Descriptor(fd_index);
-				throw TPermission_Denied_Exception();
+				return kiv_os::NOS_Error::Permission_Denied;
 			}
 
 			// File is not opened -> can override this file
@@ -256,32 +280,42 @@ namespace kiv_vfs {
 		auto file = mount->Create_File(normalized_path, attributes);
 		if (!file) {
 			Free_File_Descriptor(fd_index);
-			throw TNot_Enough_Space_Exception();
+			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 		}
 
 		Put_File_Descriptor(fd_index, file, attributes);
 
-		return true;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Close_File(kiv_os::THandle fd_index) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 		
-		if (file_desc.file) {
-			file_desc.file->Close(file_desc.attributes);
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
-			if (file_desc.file->Get_Read_Count() == 0 && file_desc.file->Get_Write_Count() == 0) {
-				Decache_File(file_desc.file);
+		if (file_desc->file) {
+			file_desc->file->Close(file_desc->attributes);
+
+			if (file_desc->file->Get_Read_Count() == 0 && file_desc->file->Get_Write_Count() == 0) {
+				Decache_File(file_desc->file);
 			}
+		}
+		else {
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
 		Free_File_Descriptor(fd_index);
 		
-		return false;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CVirtual_File_System::Delete_File(std::string path) {
-		auto normalized_path = Create_Normalized_Path(path); // Throws TFile_Not_Found_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Delete_File(std::string path) {
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		// File is cached
 		if (Is_File_Cached(normalized_path)) {
@@ -289,7 +323,7 @@ namespace kiv_vfs {
 
 			// File is opened
 			if (file->Is_Opened()) {
-				throw TPermission_Denied_Exception();
+				return kiv_os::NOS_Error::Permission_Denied;
 			}
 
 			// File is not opened
@@ -298,117 +332,162 @@ namespace kiv_vfs {
 			}
 		}
 
-		auto mount = Resolve_Mount(normalized_path); // Throws TFile_Not_Found_Exception
+		auto mount = Resolve_Mount(normalized_path);
+		if (!mount) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		auto file = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0);
 		if (!file) {
-			throw TFile_Not_Found_Exception();
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
 		// Cannot delete a non-empty directory
 		if (file->Is_Directory() && !file->Is_Empty()) {
-			throw TDirectory_Not_Empty_Exception();
+			return kiv_os::NOS_Error::Directory_Not_Empty;
 		}
 
 		if (!mount->Delete_File(normalized_path)) {
-			throw TFile_Not_Found_Exception();
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		return true;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	size_t CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &written) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		if (!(file_desc.attributes & FD_ATTR_WRITE)) {
-			throw TPermission_Denied_Exception();
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+		
+		if (!(file_desc->attributes & FD_ATTR_WRITE)) {
+			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		size_t bytes_written = file_desc.file->Write(buffer, buffer_size, file_desc.position);
-		file_desc.position += bytes_written;
+		size_t bytes_written = file_desc->file->Write(buffer, buffer_size, file_desc->position);
+		file_desc->position += bytes_written;
 
-		return bytes_written;
+		written = bytes_written;
+
+		return kiv_os::NOS_Error::Success;
 	}
 
-	size_t CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
-
-		if (!(file_desc.attributes & FD_ATTR_READ)) {
-			throw TPermission_Denied_Exception();
+	kiv_os::NOS_Error CVirtual_File_System::Read_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &read) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
+		
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		size_t bytes_read = file_desc.file->Read(buffer, buffer_size, file_desc.position);
-		file_desc.position += bytes_read;
-
-		return bytes_read;
-	}
-
-	bool CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
-
-		size_t tmp_pos = Calculate_Position(file_desc, position, type);
-
-		if (tmp_pos > file_desc.file->Get_Size() || tmp_pos < 0) {
-			throw TPosition_Out_Of_Range_Exception();
+		if (!(file_desc->attributes & FD_ATTR_READ)) {
+			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		file_desc.position = tmp_pos;
-		return true;
+		size_t bytes_read = file_desc->file->Read(buffer, buffer_size, file_desc->position);
+		file_desc->position += bytes_read;
+
+		read = bytes_read;
+
+		return kiv_os::NOS_Error::Success;
 	}
 
-	bool CVirtual_File_System::Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // throws TInvalid_Fd_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Set_Position(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		size_t actual_position = Calculate_Position(file_desc, position, type);
-
-		if (!file_desc.file->Resize(actual_position)) {
-			throw TNot_Enough_Space_Exception();
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		file_desc.position = actual_position;
+		size_t tmp_pos = Calculate_Position(*file_desc, position, type);
 
-		return true;
+		if (tmp_pos > file_desc->file->Get_Size() || tmp_pos < 0) {
+			return kiv_os::NOS_Error::IO_Error;
+		}
+
+		file_desc->position = tmp_pos;
+		return kiv_os::NOS_Error::Success;
 	}
 
-	size_t CVirtual_File_System::Get_Position(kiv_os::THandle fd_index) {
-		TFile_Descriptor &file_desc = Get_File_Descriptor(fd_index); // Throws TInvalid_Fd_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Set_Size(kiv_os::THandle fd_index, int position, kiv_os::NFile_Seek type) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
 
-		return file_desc.position;
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
+		size_t actual_position = Calculate_Position(*file_desc, position, type);
+
+		if (!file_desc->file->Resize(actual_position)) {
+			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+		}
+
+		file_desc->position = actual_position;
+
+		return kiv_os::NOS_Error::Success;
 	}
 
-	void CVirtual_File_System::Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end) {
+	kiv_os::NOS_Error CVirtual_File_System::Get_Position(kiv_os::THandle fd_index, size_t &position) {
+		TFile_Descriptor *file_desc = Get_File_Descriptor(fd_index);
+		
+		if (!file_desc) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
+		position =  file_desc->position;
+
+		return kiv_os::NOS_Error::Success;
+	}
+
+	kiv_os::NOS_Error CVirtual_File_System::Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end) {
 		std::shared_ptr<kiv_vfs::IFile> pipe = std::make_shared<CPipe>();
 		
-		write_end = Get_Free_Fd_Index();
-		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
+		write_end = Get_Free_Fd_Index(); 
 		read_end = Get_Free_Fd_Index();
+
+		if (write_end == kiv_os::Invalid_Handle || read_end == kiv_os::Invalid_Handle) {
+			return kiv_os::NOS_Error::Out_Of_Memory;
+		}
+
+		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
 		Put_File_Descriptor(read_end, pipe, kiv_os::NFile_Attributes::Read_Only);
+
+		return kiv_os::NOS_Error::Success;
 	}
 
-	void CVirtual_File_System::Set_Working_Directory(char *path) {
-		TPath normalized_path = Create_Normalized_Path(path); // Throws File_Not_Found_Exception
-		auto mount = Resolve_Mount(normalized_path); // Throws File_Not_Found_Exception
+	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(char *path) {
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
+		auto mount = Resolve_Mount(normalized_path);
+		if (!mount) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory)) { // TODO correct attrs?
 			// TODO prevent from deleting working directory?
-			throw TFile_Not_Found_Exception();
+			return kiv_os::NOS_Error::File_Not_Found;
 		}
 	
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
+
+		return kiv_os::NOS_Error::Success;
 	}
 
 	// ====================
 	// ===== PRIVATE ======
 	// ====================
 
-	TFile_Descriptor &CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
+	TFile_Descriptor *CVirtual_File_System::Get_File_Descriptor(kiv_os::THandle fd_index) {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (fd_index > MAX_FILE_DESCRIPTORS) {
-			throw TInvalid_Fd_Exception();
+			return nullptr;
 		}
 
-		return mFile_descriptors[fd_index];
+		return &mFile_descriptors[fd_index];
 	}
 
 	void CVirtual_File_System::Put_File_Descriptor(kiv_os::THandle fd_index, std::shared_ptr<IFile> file, kiv_os::NFile_Attributes attributes) {
@@ -448,7 +527,7 @@ namespace kiv_vfs {
 		std::unique_lock<std::recursive_mutex> lock(mFd_lock);
 
 		if (mFd_count == MAX_FILE_DESCRIPTORS) {
-			throw TFd_Table_Full_Exception();
+			return kiv_os::Invalid_Handle;
 		}
 
 		for (kiv_os::THandle i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
@@ -458,15 +537,14 @@ namespace kiv_vfs {
 			}
 		}
 
-		// Should be impossible to reach here
-		throw TInternal_Error_Exception();
+		return kiv_os::Invalid_Handle;
 	}
 
 	IMounted_File_System *CVirtual_File_System::Resolve_Mount(const TPath &normalized_path) {
 		std::unique_lock<std::mutex> lock(mMounted_fs_lock);
 
 		if (mMounted_file_systems.find(normalized_path.mount) == mMounted_file_systems.end()) {
-			throw TFile_Not_Found_Exception();
+			return nullptr;
 		}
 		return mMounted_file_systems.at(normalized_path.mount);
 	}
@@ -489,7 +567,6 @@ namespace kiv_vfs {
 		auto path = file->Get_Path();
 		if (!Is_File_Cached(file->Get_Path())) {
 			return;
-			//throw TInternal_Error_Exception();
 		}
 
 		mCached_files.erase(mCached_files.find(file->Get_Path().absolute_path));
@@ -515,9 +592,6 @@ namespace kiv_vfs {
 			case kiv_os::NFile_Seek::End:
 				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
 				break;
-
-			default:
-				throw TInvalid_Operation_Exception();
 		}
 
 		return (tmp_pos + position);
@@ -557,12 +631,9 @@ namespace kiv_vfs {
 		return splitted;
 	};
 
-	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
+	bool CVirtual_File_System::Create_Normalized_Path(std::string path, TPath &normalized_path) {
 		const std::string path_delimiter = "\\";
 		const std::string mount_delimiter = ":" + path_delimiter;
-		const size_t mount_max_size = 6;
-
-		TPath result;
 
 		// Normalize slashes
 		std::replace(path.begin(), path.end(), '/', '\\');
@@ -571,8 +642,8 @@ namespace kiv_vfs {
 
 		// Absolute path
 		if (splitted_by_mount.size() == 2) {
-			result.mount = splitted_by_mount.at(0);
-			result.path = Split(splitted_by_mount.at(1), path_delimiter);
+			normalized_path.mount = splitted_by_mount.at(0);
+			normalized_path.path = Split(splitted_by_mount.at(1), path_delimiter);
 		}
 
 		// Relative path
@@ -583,47 +654,47 @@ namespace kiv_vfs {
 
 			auto path_splitted = Split(splitted_by_mount.at(0), path_delimiter);
 
-			result.mount = working_dir.mount;
+			normalized_path.mount = working_dir.mount;
 
 			// Concatenate working directory and path
-			result.path.reserve(working_dir.path.size() + path_splitted.size());
-			result.path.insert(result.path.end(), working_dir.path.begin(), working_dir.path.end());
-			result.path.insert(result.path.end(), path_splitted.begin(), path_splitted.end());
+			normalized_path.path.reserve(working_dir.path.size() + path_splitted.size());
+			normalized_path.path.insert(normalized_path.path.end(), working_dir.path.begin(), working_dir.path.end());
+			normalized_path.path.insert(normalized_path.path.end(), path_splitted.begin(), path_splitted.end());
 		}
 
 		// Wrong format (multiple mount separators)
 		else {
-			throw TFile_Not_Found_Exception();
+			return false;
 		}
 
 		// Handle dots and empty parts
-		auto itr = result.path.begin();
-		while (itr != result.path.end()) {
+		auto itr = normalized_path.path.begin();
+		while (itr != normalized_path.path.end()) {
 			if (*itr == "") {
-				itr = result.path.erase(itr);
+				itr = normalized_path.path.erase(itr);
 				continue;
 			}
 			else if (*itr == "..") {
 				// ".." on the root -> do nothing
-				if (itr == result.path.begin()) {
-					itr = result.path.erase(itr);
+				if (itr == normalized_path.path.begin()) {
+					itr = normalized_path.path.erase(itr);
 				}
 
 				// ".." is at the end
-				else if ((itr + 1) == result.path.end()) {
-					itr = result.path.erase(itr);
-					if (!result.path.empty()) {
-						itr = result.path.erase(result.path.end() - 1);
+				else if ((itr + 1) == normalized_path.path.end()) {
+					itr = normalized_path.path.erase(itr);
+					if (!normalized_path.path.empty()) {
+						itr = normalized_path.path.erase(normalized_path.path.end() - 1);
 					}
 				}
 
 				else {
-					itr = result.path.erase(itr - 1, itr + 1);
+					itr = normalized_path.path.erase(itr - 1, itr + 1);
 				}
 				continue;
 			}
 			else if (*itr == ".") {
-				itr = result.path.erase(itr);
+				itr = normalized_path.path.erase(itr);
 				continue;
 			}
 
@@ -631,19 +702,19 @@ namespace kiv_vfs {
 		}
 
 		// Remove filename from 'result->path' and insert it into a 'result->file'
-		if (!result.path.empty()) {
-			result.file = result.path.back();
-			result.path.pop_back();
+		if (!normalized_path.path.empty()) {
+			normalized_path.file = normalized_path.path.back();
+			normalized_path.path.pop_back();
 		}
 
 		// Create absolute path
-		result.absolute_path += result.mount + mount_delimiter; // 'C:\'
-		for (std::vector<std::string>::iterator it = result.path.begin(); it != result.path.end(); ++it) {
-			result.absolute_path += *it + path_delimiter;
+		normalized_path.absolute_path += normalized_path.mount + mount_delimiter; 
+		for (std::vector<std::string>::iterator it = normalized_path.path.begin(); it != normalized_path.path.end(); ++it) {
+			normalized_path.absolute_path += *it + path_delimiter;
 		}
-		result.absolute_path += result.file;
+		normalized_path.absolute_path += normalized_path.file;
 
-		return result;
+		return true;
 	}
 
 #pragma endregion
