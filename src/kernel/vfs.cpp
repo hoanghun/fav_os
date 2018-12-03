@@ -430,9 +430,14 @@ namespace kiv_vfs {
 	kiv_os::NOS_Error CVirtual_File_System::Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end) {
 		std::shared_ptr<kiv_vfs::IFile> pipe = std::make_shared<CPipe>();
 		
-		write_end = Get_Free_Fd_Index();
-		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
+		write_end = Get_Free_Fd_Index(); 
 		read_end = Get_Free_Fd_Index();
+
+		if (write_end == kiv_os::Invalid_Handle || read_end == kiv_os::Invalid_Handle) {
+			return kiv_os::NOS_Error::Out_Of_Memory;
+		}
+
+		Put_File_Descriptor(write_end, pipe, kiv_os::NFile_Attributes::System_File);
 		Put_File_Descriptor(read_end, pipe, kiv_os::NFile_Attributes::Read_Only);
 
 		return kiv_os::NOS_Error::Success;
