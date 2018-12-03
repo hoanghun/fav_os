@@ -203,7 +203,11 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::Out_Of_Memory;
 		}
 
-		auto normalized_path = Create_Normalized_Path(path);
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			Free_File_Descriptor(free_fd);
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		std::shared_ptr<IFile> file;
 
@@ -215,8 +219,8 @@ namespace kiv_vfs {
 		// File is not cached -> resolve file and cache file
 		else {
 			auto mount = Resolve_Mount(normalized_path);
-			
 			if (!mount) {
+				Free_File_Descriptor(free_fd);
 				return kiv_os::NOS_Error::File_Not_Found;
 			}
 
@@ -244,10 +248,16 @@ namespace kiv_vfs {
 
 	kiv_os::NOS_Error CVirtual_File_System::Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index) {
 		fd_index = Get_Free_Fd_Index();
-		auto normalized_path = Create_Normalized_Path(path);
-		auto mount = Resolve_Mount(normalized_path);
 
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			Free_File_Descriptor(fd_index);
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+		
+		auto mount = Resolve_Mount(normalized_path);
 		if (!mount) {
+			Free_File_Descriptor(fd_index);
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
@@ -302,7 +312,10 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Delete_File(std::string path) {
-		auto normalized_path = Create_Normalized_Path(path); 
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
 		// File is cached
 		if (Is_File_Cached(normalized_path)) {
@@ -320,7 +333,6 @@ namespace kiv_vfs {
 		}
 
 		auto mount = Resolve_Mount(normalized_path);
-
 		if (!mount) {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
@@ -444,9 +456,12 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(char *path) {
-		TPath normalized_path = Create_Normalized_Path(path);
-		auto mount = Resolve_Mount(normalized_path);
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
 
+		auto mount = Resolve_Mount(normalized_path);
 		if (!mount) {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
@@ -616,12 +631,9 @@ namespace kiv_vfs {
 		return splitted;
 	};
 
-	TPath CVirtual_File_System::Create_Normalized_Path(std::string path) {
+	bool CVirtual_File_System::Create_Normalized_Path(std::string path, TPath &normalized_path) {
 		const std::string path_delimiter = "\\";
 		const std::string mount_delimiter = ":" + path_delimiter;
-		const size_t mount_max_size = 6;
-
-		TPath result;
 
 		// Normalize slashes
 		std::replace(path.begin(), path.end(), '/', '\\');
@@ -630,8 +642,8 @@ namespace kiv_vfs {
 
 		// Absolute path
 		if (splitted_by_mount.size() == 2) {
-			result.mount = splitted_by_mount.at(0);
-			result.path = Split(splitted_by_mount.at(1), path_delimiter);
+			normalized_path.mount = splitted_by_mount.at(0);
+			normalized_path.path = Split(splitted_by_mount.at(1), path_delimiter);
 		}
 
 		// Relative path
@@ -642,47 +654,47 @@ namespace kiv_vfs {
 
 			auto path_splitted = Split(splitted_by_mount.at(0), path_delimiter);
 
-			result.mount = working_dir.mount;
+			normalized_path.mount = working_dir.mount;
 
 			// Concatenate working directory and path
-			result.path.reserve(working_dir.path.size() + path_splitted.size());
-			result.path.insert(result.path.end(), working_dir.path.begin(), working_dir.path.end());
-			result.path.insert(result.path.end(), path_splitted.begin(), path_splitted.end());
+			normalized_path.path.reserve(working_dir.path.size() + path_splitted.size());
+			normalized_path.path.insert(normalized_path.path.end(), working_dir.path.begin(), working_dir.path.end());
+			normalized_path.path.insert(normalized_path.path.end(), path_splitted.begin(), path_splitted.end());
 		}
 
 		// Wrong format (multiple mount separators)
 		else {
-			throw TFile_Not_Found_Exception();
+			throw false;
 		}
 
 		// Handle dots and empty parts
-		auto itr = result.path.begin();
-		while (itr != result.path.end()) {
+		auto itr = normalized_path.path.begin();
+		while (itr != normalized_path.path.end()) {
 			if (*itr == "") {
-				itr = result.path.erase(itr);
+				itr = normalized_path.path.erase(itr);
 				continue;
 			}
 			else if (*itr == "..") {
 				// ".." on the root -> do nothing
-				if (itr == result.path.begin()) {
-					itr = result.path.erase(itr);
+				if (itr == normalized_path.path.begin()) {
+					itr = normalized_path.path.erase(itr);
 				}
 
 				// ".." is at the end
-				else if ((itr + 1) == result.path.end()) {
-					itr = result.path.erase(itr);
-					if (!result.path.empty()) {
-						itr = result.path.erase(result.path.end() - 1);
+				else if ((itr + 1) == normalized_path.path.end()) {
+					itr = normalized_path.path.erase(itr);
+					if (!normalized_path.path.empty()) {
+						itr = normalized_path.path.erase(normalized_path.path.end() - 1);
 					}
 				}
 
 				else {
-					itr = result.path.erase(itr - 1, itr + 1);
+					itr = normalized_path.path.erase(itr - 1, itr + 1);
 				}
 				continue;
 			}
 			else if (*itr == ".") {
-				itr = result.path.erase(itr);
+				itr = normalized_path.path.erase(itr);
 				continue;
 			}
 
@@ -690,19 +702,19 @@ namespace kiv_vfs {
 		}
 
 		// Remove filename from 'result->path' and insert it into a 'result->file'
-		if (!result.path.empty()) {
-			result.file = result.path.back();
-			result.path.pop_back();
+		if (!normalized_path.path.empty()) {
+			normalized_path.file = normalized_path.path.back();
+			normalized_path.path.pop_back();
 		}
 
 		// Create absolute path
-		result.absolute_path += result.mount + mount_delimiter; // 'C:\'
-		for (std::vector<std::string>::iterator it = result.path.begin(); it != result.path.end(); ++it) {
-			result.absolute_path += *it + path_delimiter;
+		normalized_path.absolute_path += normalized_path.mount + mount_delimiter; 
+		for (std::vector<std::string>::iterator it = normalized_path.path.begin(); it != normalized_path.path.end(); ++it) {
+			normalized_path.absolute_path += *it + path_delimiter;
 		}
-		result.absolute_path += result.file;
+		normalized_path.absolute_path += normalized_path.file;
 
-		return result;
+		return true;
 	}
 
 #pragma endregion

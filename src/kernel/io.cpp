@@ -14,27 +14,20 @@ void Set_Result(kiv_hal::TRegisters &regs, kiv_os::NOS_Error result) {
 }
 
 kiv_os::NOS_Error Get_Position(kiv_os::THandle vfs_handle, kiv_hal::TRegisters &regs) {
-	kiv_os::NOS_Error result;
 	size_t position;
 
-	result = vfs.Get_Position(vfs_handle, position);
+	kiv_os::NOS_Error result = vfs.Get_Position(vfs_handle, position);
 	regs.rax.r = static_cast<decltype(regs.rax.r)>(position);
 
 	return result;
 }
 
 kiv_os::NOS_Error Set_Position(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
-	kiv_os::NOS_Error result;
-	
-	result = vfs.Set_Position(vfs_handle, position, seek_offset_type);
-	return kiv_os::NOS_Error::Success;
+	return vfs.Set_Position(vfs_handle, position, seek_offset_type);
 }
 
 kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFile_Seek seek_offset_type) {
-	kiv_os::NOS_Error result;
-	result = vfs.Set_Size(vfs_handle, position, seek_offset_type);
-
-	return result;
+	return vfs.Set_Size(vfs_handle, position, seek_offset_type);
 }
 
 void Seek(kiv_hal::TRegisters &regs) {
@@ -98,9 +91,7 @@ void Close_File(kiv_hal::TRegisters &regs) {
 		return;
 	}
 
-	kiv_os::NOS_Error result;
-
-	result = vfs.Close_File(vfs_handle);
+	kiv_os::NOS_Error result = vfs.Close_File(vfs_handle);
 	if (result == kiv_os::NOS_Error::Success) {
 		kiv_process::CProcess_Manager::Get_Instance().Remove_Fd(proc_handle);
 	}
@@ -150,8 +141,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 		return;
 	}
 
-	kiv_os::NOS_Error result;
-	result = vfs.Read_File(vfs_handle, buffer, buf_size, bytes_read);
+	kiv_os::NOS_Error result = vfs.Read_File(vfs_handle, buffer, buf_size, bytes_read);
 
 	regs.rax.r = bytes_read;
 	Set_Result(regs, result);
@@ -160,8 +150,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *path = reinterpret_cast<char *>(regs.rdx.r); // null terminated
 
-	kiv_os::NOS_Error result;
-	result = vfs.Set_Working_Directory(path);
+	kiv_os::NOS_Error result = vfs.Set_Working_Directory(path);
 
 	Set_Result(regs, result);
 }
@@ -189,12 +178,11 @@ void Get_Working_Dir(kiv_hal::TRegisters &regs) {
 }
 
 void Create_Pipe(kiv_hal::TRegisters &regs) {
-	kiv_os::NOS_Error result;
 	kiv_os::THandle *handle_pair = reinterpret_cast<kiv_os::THandle *>(regs.rdx.r);
 	kiv_os::THandle in;
 	kiv_os::THandle out;
 
-	result = vfs.Create_Pipe(out, in);
+	kiv_os::NOS_Error result = vfs.Create_Pipe(out, in);
 	
 	if (result == kiv_os::NOS_Error::Success) {
 		handle_pair[0] = kiv_process::CProcess_Manager::Get_Instance().Save_Fd(out);

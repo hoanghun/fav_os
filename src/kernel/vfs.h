@@ -115,8 +115,6 @@ namespace kiv_vfs {
 			/*
 			 * Sys calls
 			 */
-
-		
 			kiv_os::NOS_Error Open_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
 	
 			kiv_os::NOS_Error Create_File(std::string path, kiv_os::NFile_Attributes attributes, kiv_os::THandle &fd_index);
@@ -169,7 +167,7 @@ namespace kiv_vfs {
 			void Free_File_Descriptor(kiv_os::THandle fd_index);
 			kiv_os::THandle Get_Free_Fd_Index(); 
 			IMounted_File_System *Resolve_Mount(const TPath &normalized_path);
-			TPath Create_Normalized_Path(std::string path);
+			bool Create_Normalized_Path(std::string path, TPath &normalized_path);
 			void Increase_File_References(TFile_Descriptor &file_desc);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);
 			bool Is_File_Cached(const TPath &path);
@@ -181,19 +179,4 @@ namespace kiv_vfs {
 			void Unmount_All();
 			void Unregister_All();
 	};
-
-	/*
-	 * Exceptions
-	 */
-	struct TInvalid_Fd_Exception : public std::exception {};
-	struct TFd_Table_Full_Exception : public std::exception {};
-	struct TPermission_Denied_Exception : public std::exception {};
-	struct TFile_Not_Found_Exception : public std::exception {};
-	struct TDirectory_Not_Empty_Exception : public std::exception {};
-	struct TPosition_Out_Of_Range_Exception : public std::exception {};
-	struct TNot_Enough_Space_Exception : public std::exception {};
-	struct TInvalid_Operation_Exception : public std::exception {};
-	struct TInvalid_Path_Exception : public std::exception {};
-	struct TInvalid_Mount_Exception : public std::exception {};
-	struct TInternal_Error_Exception : public std::exception {};
 }
