@@ -74,7 +74,7 @@ namespace kiv_fs_proc {
 		}
 
 		if (sizeof(entry) > buffer_size) {
-			throw new kiv_vfs::TInvalid_Operation_Exception();
+			return 0;
 		}
 
 		memcpy(buffer, &entry, sizeof(entry));
