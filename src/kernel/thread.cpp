@@ -42,7 +42,7 @@ namespace kiv_thread {
 			func(regs);
 
 			if (data != nullptr) {
-				delete data;
+				delete[] data;
 			}
 
 		}
@@ -68,7 +68,6 @@ namespace kiv_thread {
 						copy = nullptr;
 					}
 					else {
-						size_t len = strlen(data) + 1;
 						copy = new char[strlen(data) + 1];
 						memcpy(copy, data, strlen(data));
 						copy[strlen(data)] = '\0';
@@ -235,6 +234,8 @@ namespace kiv_thread {
 			if (t == false) {
 				tcb->wait_semaphore->Wait();
 				if (kiv_process::CProcess_Manager::Get_Instance().system_shutdown == true) {
+					delete tcb->wait_semaphore;
+					tcb->wait_semaphore = nullptr;
 					return 0;
 				}
 			}

@@ -127,6 +127,7 @@ namespace kiv_process {
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
 		//Create_Sys_Process();
+		system_kill = false;
 		pid_manager = new CPid_Manager();
 		system_shutdown = false;
 	}
@@ -346,10 +347,6 @@ namespace kiv_process {
 
 	void CProcess_Manager::Shutdown_Wait() {
 
-		bool result = process_table[0]->thread_table[0]->thread.joinable();
-
-		size_t my_tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
-		size_t tid = kiv_thread::Hash_Thread_Id(process_table[0]->thread_table[0]->thread.get_id());
 		process_table[0]->thread_table[0]->thread.join();
 		process_table[0]->thread_table[0]->pcb = nullptr;
 
