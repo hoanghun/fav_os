@@ -224,7 +224,6 @@ namespace kiv_vfs {
 				return kiv_os::NOS_Error::File_Not_Found;
 			}
 
-			std::shared_ptr<IFile> file;
 			kiv_os::NOS_Error open_result = mount->Open_File(normalized_path, attributes, file);
 			if (open_result != kiv_os::NOS_Error::Success) {
 				Free_File_Descriptor(free_fd);
