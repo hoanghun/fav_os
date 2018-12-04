@@ -192,6 +192,8 @@ namespace kiv_fs_fat {
 
 	bool CFAT_Utils::Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries) {
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
+		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
+
 		char *cluster_buffer = new char[cluster_size];
 
 		size_t cluster_loaded = static_cast<size_t>(-1);
@@ -203,7 +205,7 @@ namespace kiv_fs_fat {
 		while (value != FAT_EOF) {
 			entries.push_back(value);
 
-			cluster_needed = (value / mSb.fat_table_number_of_entries) + mSb.fat_table_first_cluster;
+			cluster_needed = (value / entries_per_cluster) + mSb.fat_table_first_cluster;
 
 			// FAT entry is not located in currently loaded cluster -> Load needed cluster
 			if (cluster_needed != cluster_loaded) {
@@ -214,7 +216,7 @@ namespace kiv_fs_fat {
 				cluster_loaded = cluster_needed;
 			}
 
-			order_in_cluster = value % mSb.fat_table_number_of_entries;
+			order_in_cluster = value % entries_per_cluster;
 
 			// Load value
 			memcpy(&value, cluster_buffer + order_in_cluster * sizeof(TFAT_Entry), sizeof(TFAT_Entry));
