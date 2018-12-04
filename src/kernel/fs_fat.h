@@ -143,7 +143,7 @@ namespace kiv_fs_fat {
 
 		private:
 			kiv_vfs::TDisk_Number mDisk_Number;
-			TSuperblock mSuperblock;
+			TSuperblock mSuperblock{};
 			std::shared_ptr<CRoot> root;
 			CFAT_Utils *mUtils;
 

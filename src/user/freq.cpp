@@ -13,7 +13,6 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 	char buffer[buffer_size];
 	size_t counter = 1;
 
-	bool run = true;
 	while (counter) {
 		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 		for (int i = 0; i < counter; i++) { 
@@ -34,8 +33,6 @@ extern "C" size_t __stdcall freq(const kiv_hal::TRegisters &regs) {
 		s.str("");
 
 		s << printf("0x%hhx : %d", item.first, item.second);
-
-		const char * line = s.str().c_str();
 	}
 
 	kiv_os_rtl::Exit(0);

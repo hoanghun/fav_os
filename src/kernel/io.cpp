@@ -42,7 +42,7 @@ void Seek(kiv_hal::TRegisters &regs) {
 		return;
 	}
 
-	kiv_os::NOS_Error result;
+	kiv_os::NOS_Error result = kiv_os::NOS_Error::Invalid_Argument;
 	switch (seek_type) {
 		case kiv_os::NFile_Seek::Get_Position:
 			result = Get_Position(vfs_handle, regs);

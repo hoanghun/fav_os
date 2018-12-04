@@ -15,6 +15,8 @@
 
 #include <iostream>
 
+//#include "vld.h"
+
 HMODULE User_Programs;
 
 static const int NO_DISK = -1;
@@ -140,6 +142,7 @@ void __stdcall Bootstrap_Loader(kiv_hal::TRegisters &context) {
 	}
 
 	kiv_process::CProcess_Manager::Get_Instance().Shutdown_Wait();
+	Shutdown_Kernel();
 
 }
 

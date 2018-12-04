@@ -17,21 +17,6 @@ namespace kiv_vfs {
 	using TDisk_Number = std::uint8_t;
 	using TFD_Attributes = std::uint8_t;
 
-	// Opened file
-	struct TFile_Descriptor {
-		size_t position;
-		std::shared_ptr<IFile> file;
-		TFD_Attributes attributes;
-	};
-
-	// Format: mount:/path[0]/path[1]/path[2]/file
-	struct TPath {
-		std::string mount;
-		std::vector<std::string> path;
-		std::string file;
-		std::string absolute_path;
-	};
-
 	// All possible file descriptor attributes and their combinations
 	const TFD_Attributes FD_ATTR_FREE = 0x00;
 	const TFD_Attributes FD_ATTR_RESERVED = 0x01;
@@ -43,6 +28,21 @@ namespace kiv_vfs {
 	static const size_t MAX_FILES_CACHED = 1024;
 	static const size_t MAX_FS_REGISTERED = 4;
 	static const size_t MAX_FS_MOUNTED = 10;
+
+	// Opened file
+	struct TFile_Descriptor {
+		size_t position = 0;
+		std::shared_ptr<IFile> file;
+		TFD_Attributes attributes = FD_ATTR_FREE;
+	};
+
+	// Format: mount:/path[0]/path[1]/path[2]/file
+	struct TPath {
+		std::string mount;
+		std::vector<std::string> path;
+		std::string file;
+		std::string absolute_path;
+	};
 
 	const TPath DEFAULT_WORKING_DIRECTORY = { "C" , {}, "", "C:\\" };
 
@@ -74,7 +74,7 @@ namespace kiv_vfs {
 
 		protected:
 			TPath mPath;
-			kiv_os::NFile_Attributes mAttributes;
+			kiv_os::NFile_Attributes mAttributes = static_cast<kiv_os::NFile_Attributes>(0);
 			unsigned int mRead_count = 0;
 			unsigned int mWrite_count = 0;
 			std::recursive_mutex mFile_lock;

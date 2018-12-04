@@ -34,9 +34,9 @@ bool kiv_os_rtl::Write_File(const kiv_os::THandle file_handle, const char *buffe
 
 void kiv_os_rtl::Exit(const int exit_code) {
 	kiv_hal::TRegisters regs = Prepare_SysCall_Context(kiv_os::NOS_Service_Major::Process, static_cast<uint8_t>(kiv_os::NOS_Process::Exit));
-	regs.rcx.r = 0;
+	regs.rcx.r = exit_code;
 
-	bool result = kiv_os::Sys_Call(regs);
+	kiv_os::Sys_Call(regs);
 }
 
 bool kiv_os_rtl::Clone(const char *prog_name, const char *args, kiv_os::THandle in, kiv_os::THandle out, size_t &handle) {
@@ -152,7 +152,7 @@ bool kiv_os_rtl::Get_Working_Dir(char* const buffer, const size_t buffer_size, s
 }
 
 bool kiv_os_rtl::Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out) {
-	kiv_os::THandle pipes[2];
+	kiv_os::THandle pipes[2] = { 0 };
 	kiv_hal::TRegisters regs = Prepare_SysCall_Context(kiv_os::NOS_Service_Major::File_System, static_cast<uint8_t>(kiv_os::NOS_File_System::Create_Pipe));
 	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(pipes);
 
@@ -187,5 +187,4 @@ void kiv_os_rtl::Shutdown() {
 	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Shutdown);
 
 	kiv_os::Sys_Call(regs);
-
 }

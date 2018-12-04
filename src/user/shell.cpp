@@ -100,33 +100,59 @@ bool Check(std::vector<TExecutable> &exes) {
 }
 
 //Pripravime soubory a pipy
-void Prepare_For_Execution(TExecutable &exe, const kiv_os::THandle sin, const kiv_os::THandle sout, kiv_os::THandle &last_pipe) {
+bool Prepare_For_Execution(TExecutable &exe, const kiv_hal::TRegisters &regs, kiv_os::THandle &last_pipe) {
+
 	if (exe.file_in.empty() == false) {
-		kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
+		bool result = kiv_os_rtl::Open_File(exe.file_in.c_str(), kiv_os::NOpen_File::fmOpen_Always, kiv_os::NFile_Attributes::Read_Only, exe.in_handle);
+		if (result == false) {
+			const std::string error = "\nFile in '" + exe.file_out + "' error.";
+			kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
+			return false;
+		}	
 	}
 	else if (exe.pipe_in) {
 		exe.in_handle = last_pipe;
 	}
 	else {
-		exe.in_handle = sin;
+		exe.in_handle = regs.rax.x;;
 	}
 
 	if (exe.file_out.empty() == false) {
-		kiv_os_rtl::Open_File(exe.file_out.c_str(), kiv_os::NOpen_File(0), static_cast<kiv_os::NFile_Attributes>(0), exe.out_handle);
+		bool result = kiv_os_rtl::Open_File(exe.file_out.c_str(), kiv_os::NOpen_File(0), static_cast<kiv_os::NFile_Attributes>(0), exe.out_handle);
+		if (result == false) {
+			const std::string error = "\nFile out'" + exe.file_out + "' error.";
+			kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
+			//In case input file was open it needs to be closed
+			if (exe.pipe_in || exe.file_in.empty() == false) {
+				kiv_os_rtl::Close_Handle(exe.in_handle);
+			}
+;			return false;
+		}
 	}
 	else if (exe.pipe_out) {
 		//This pipe will be stdin for next process
-		kiv_os_rtl::Create_Pipe(last_pipe, exe.out_handle);
+		bool result = kiv_os_rtl::Create_Pipe(last_pipe, exe.out_handle);
+		if (result == false) {
+			const std::string error = "\nCreate pipe error.";
+			kiv_os_rtl::Stdout_Print(regs, error.c_str(), error.length());
+			//In case input file was open it needs to be closed
+			if (exe.pipe_in || exe.file_in.empty() == false) {
+				kiv_os_rtl::Close_Handle(exe.in_handle);
+			}
+			return false;
+		}
 	}
 	else {
-		exe.out_handle = sout;
+		exe.out_handle = regs.rbx.x;
 	}
+
+	return true;
 }
 
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
-	const kiv_os::THandle sin = regs.rax.x;
-	const kiv_os::THandle sout = regs.rbx.x;
+	//const kiv_os::THandle sin = regs.rax.x;
+	//const kiv_os::THandle sout = regs.rbx.x;
 
 	std::vector<size_t> handles;
 	size_t handle = 0;
@@ -154,7 +180,11 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 				args << ' ' << exe.args[i];
 			}
 
-			Prepare_For_Execution(exe, sin, sout, last_pipe);
+			bool prepared = Prepare_For_Execution(exe, regs, last_pipe);
+			if (prepared == false) {
+				break;
+			}
+
 			result = kiv_os_rtl::Clone(exe.name.c_str(), args.str().c_str(), exe.in_handle, exe.out_handle, handle);
 
 			if (result == false) {

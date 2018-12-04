@@ -101,6 +101,10 @@ namespace kiv_fs_fat {
 	bool CFAT_Utils::Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries) {
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
+
+		if (cluster_size < sizeof(TFAT_Entry)) {
+			return false;
+		}
 		
 		char *cluster_buffer = new char[cluster_size];
 
@@ -284,7 +288,7 @@ namespace kiv_fs_fat {
 #pragma region Abstract directory
 
 	IDirectory::IDirectory(CFAT_Utils *utils) 
-		: mUtils(utils)
+		: mUtils(utils), mSize(0)
 	{
 	}
 
@@ -491,10 +495,10 @@ namespace kiv_fs_fat {
 	}
 
 	CDirectory::CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils)
-		: IDirectory(utils)
+		: IDirectory(utils), mDir_entry(dir_entry), mDirs_to_parent(std::vector<TFAT_Dir_Entry>{})
 	{
-		kiv_vfs::TPath path;
-		CDirectory(path, dir_entry, std::vector<TFAT_Dir_Entry>{}, utils);
+		mAttributes = dir_entry.attributes;
+		mSize = dir_entry.filesize;
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CDirectory::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
@@ -519,8 +523,13 @@ namespace kiv_fs_fat {
 		}
 		parent->Get_Entry_Size(mPath.file, mSize);
 
+		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
+		if (cluster_size < sizeof(TFAT_Dir_Entry)) {
+			return false;
+		}
+
 		// Read data from disk
-		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
+		char *buffer = new char[cluster_size];
 		if (!mUtils->Read_Data_Cluster(buffer, mDir_entry.start)) {
 			delete[] buffer;
 			return false;
@@ -541,18 +550,18 @@ namespace kiv_fs_fat {
 	}
 
 	bool CDirectory::Save() {
-		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
+		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
+		if (cluster_size < sizeof(TFAT_Dir_Entry)) {
+			return false;
+		}
+
+		char *buffer = new char[cluster_size];
 
 		// Save entries
 		size_t address = 0;
 		for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
 			memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
 			address += sizeof(TFAT_Dir_Entry);
-		}
-
-		TFAT_Dir_Entry entry;
-		for (int i = 0; i < mEntries.size(); i++) {
-			memcpy(&entry, buffer + i * sizeof(TFAT_Dir_Entry), sizeof(TFAT_Dir_Entry));
 		}
 
 		bool res = mUtils->Write_Data_Cluster(buffer, mDir_entry.start);
@@ -581,7 +590,13 @@ namespace kiv_fs_fat {
 		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
 
 		mEntries.clear();
-		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
+
+		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
+		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TFAT_Dir_Entry)) {
+			return false;
+		}
+
+		char *buffer = new char[cluster_size];
 		if (!mUtils->Read_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1)) {
 			delete[] buffer;
 			return false;
@@ -604,7 +619,12 @@ namespace kiv_fs_fat {
 	}
 
 	bool CRoot::Save() {
-		char *buffer = new char[mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector];
+		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
+		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TFAT_Dir_Entry)) {
+			return false;
+		}
+
+		char *buffer = new char[cluster_size];
 
 		bool result;
 
@@ -1125,7 +1145,12 @@ namespace kiv_fs_fat {
 			? (mSuperblock.fat_table_number_of_entries / entries_per_cluster)
 			: ((mSuperblock.fat_table_number_of_entries / entries_per_cluster) + 1);
 
-		char *buffer = new char[clusters_needed * cluster_size];
+		size_t buf_size = clusters_needed * cluster_size;
+		if (buf_size < entry_size) {
+			return false;
+		}
+
+		char *buffer = new char[buf_size];
 
 		// Init FAT entries (ensure that one entry isn't spreaded over two clusters)
 		TFAT_Entry entry = FAT_FREE;
@@ -1155,9 +1180,14 @@ namespace kiv_fs_fat {
 	}
 
 	bool CMount::Init_Root() {
-		char *buffer = new char[mSuperblock.sectors_per_cluster * mSuperblock.disk_params.bytes_per_sector];
-
+		size_t cluster_size = mSuperblock.sectors_per_cluster * mSuperblock.disk_params.bytes_per_sector;
 		uint32_t size = 0;
+		if (cluster_size < sizeof(size)) {
+			return false;
+		}
+
+		char *buffer = new char[cluster_size];
+
 		memcpy(buffer, &size, sizeof(size));
 
 		bool result = mUtils->Write_Clusters(buffer, mSuperblock.root_cluster, 1);

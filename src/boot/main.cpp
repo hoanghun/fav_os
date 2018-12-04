@@ -3,7 +3,7 @@
 
 #include "../api/hal.h"
 #include "idt.h"
-#include "keyboard.h"
+#include "keyboard.h"	
 
 bool Setup_HW() {
 	if (!Init_Keyboard()) {
