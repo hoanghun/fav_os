@@ -59,7 +59,7 @@ namespace kiv_fs_proc {
 
 	size_t CDirectory::Read(char *buffer, size_t buffer_size, size_t position) {
 		size_t i = 0;
-		kiv_os::TDir_Entry entry;
+		kiv_os::TDir_Entry entry = {};
 		for (auto it = mProcesses.begin(); it != mProcesses.end(); ++it) {
 			if (i == position) {
 				strcpy_s(entry.file_name, file_name_size, std::to_string(it->first).c_str());
