@@ -579,7 +579,7 @@ namespace kiv_vfs {
 	}
 
 	size_t CVirtual_File_System::Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type) {
-		size_t tmp_pos;
+		size_t tmp_pos = 0;
 		switch (type) {
 			case kiv_os::NFile_Seek::Beginning:
 				tmp_pos = 0;
