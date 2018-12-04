@@ -157,7 +157,7 @@ namespace kiv_fs_fat {
 
 				// Store current cluster
 				if (cluster_loaded != static_cast<size_t>(-1)) {
-					if (!Write_Clusters(cluster_buffer, cluster_needed, 1)) {
+					if (!Write_Clusters(cluster_buffer, cluster_loaded, 1)) {
 						delete[] cluster_buffer;
 						return false;
 					}
@@ -180,7 +180,7 @@ namespace kiv_fs_fat {
 
 		// Store current cluster
 		if (cluster_loaded != static_cast<size_t>(-1)) {
-			if (!Write_Clusters(cluster_buffer, cluster_needed, 1)) {
+			if (!Write_Clusters(cluster_buffer, cluster_loaded, 1)) {
 				delete[] cluster_buffer;
 				return false;
 			}
@@ -657,7 +657,6 @@ namespace kiv_fs_fat {
 			return 0;
 		}
 
-		// Get number of bytes to write (whole buffer or bytes before '\0')
 		size_t bytes_to_write = buffer_size;
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
@@ -669,7 +668,7 @@ namespace kiv_fs_fat {
 		}
 		else {
 			last_cluster = (last_byte % cluster_size == 0)
-				? (last_byte / cluster_size) - 1
+				? ((last_byte / cluster_size) - 1)
 				: ((last_byte / cluster_size));
 		}
 		size_t clusters_needed = last_cluster + 1;
