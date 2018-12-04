@@ -38,8 +38,8 @@ namespace kiv_fs_fat {
 
 	class CFAT_Utils {
 		public:
-			CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number);
-			CFAT_Utils(kiv_vfs::TDisk_Number disk_number);
+			CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock);
+			CFAT_Utils(kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock);
 			bool Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors);
 			bool Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors);
 			bool Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters);
@@ -60,15 +60,16 @@ namespace kiv_fs_fat {
 		private:
 			TSuperblock mSb;
 			kiv_vfs::TDisk_Number mDisk_number;
-			std::mutex mDisk_access_lock;
+			std::recursive_mutex *mFs_lock;
 			std::shared_ptr<CRoot> mRoot;
 	};
 
 	// Abstract directory (root and subdirectories)
 	class IDirectory : public kiv_vfs::IFile {
 		public:
-			IDirectory(CFAT_Utils *utils);
+			IDirectory(CFAT_Utils *utils, std::recursive_mutex *fs_lock);
 			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
+
 			virtual bool Is_Empty() final override;
 			virtual std::shared_ptr<kiv_vfs::IFile> Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes);
 			virtual bool Remove_File(const kiv_vfs::TPath &path);
@@ -84,13 +85,14 @@ namespace kiv_fs_fat {
 			std::vector<TFAT_Dir_Entry> mEntries;
 			uint32_t mSize;
 			CFAT_Utils *mUtils;
+			std::recursive_mutex *mFs_lock;
 	};
 
 	// Subdirectory
 	class CDirectory : public IDirectory {
 		public:
-			CDirectory(kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
-			CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils);
+			CDirectory(kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock);
+			CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils, std::recursive_mutex *fs_lock);
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -103,7 +105,7 @@ namespace kiv_fs_fat {
 	// Root directory
 	class CRoot : public IDirectory {
 		public:
-			CRoot(CFAT_Utils *utils); 
+			CRoot(CFAT_Utils *utils, std::recursive_mutex *fs_lock);
 			virtual bool Load() override final;
 			virtual bool Save() override final;
 			virtual std::shared_ptr<kiv_vfs::IFile> Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) override final;
@@ -112,7 +114,8 @@ namespace kiv_fs_fat {
 	// File
 	class CFile : public kiv_vfs::IFile {
 		public:
-			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils);
+			CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock);
+
 			virtual kiv_os::NOS_Error Write(const char *buffer, size_t buffer_size, size_t position, size_t &written) final override;
 			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
 			virtual kiv_os::NOS_Error Resize(size_t size) final override;
@@ -125,6 +128,7 @@ namespace kiv_fs_fat {
 			std::vector<TFAT_Entry> mFat_entries;
 			std::vector<TFAT_Dir_Entry> mDirs_to_parent;
 			CFAT_Utils *mUtils;
+			std::recursive_mutex *mFs_lock;
 	};
 
 	class CFile_System : public kiv_vfs::IFile_System {
@@ -146,6 +150,7 @@ namespace kiv_fs_fat {
 			TSuperblock mSuperblock{};
 			std::shared_ptr<CRoot> root;
 			CFAT_Utils *mUtils;
+			std::recursive_mutex *mFs_lock;
 
 			bool Load_Superblock(kiv_hal::TDrive_Parameters &params);
 			bool Chech_Superblock();

@@ -19,18 +19,18 @@ namespace kiv_fs_fat {
 
 
 #pragma region IO Utils
-	CFAT_Utils::CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number)
-		: mSb(sb), mDisk_number(disk_number)
+	CFAT_Utils::CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
+		: mSb(sb), mDisk_number(disk_number), mFs_lock(fs_lock)
 	{
 	}
 
-	CFAT_Utils::CFAT_Utils(kiv_vfs::TDisk_Number disk_number)
-		: mSb(TSuperblock{}), mDisk_number(disk_number)
+	CFAT_Utils::CFAT_Utils(kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
+		: mSb(TSuperblock{}), mDisk_number(disk_number), mFs_lock(fs_lock)
 	{
 	}
 
 	bool CFAT_Utils::Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors) {
-		std::unique_lock<std::mutex> lock(mDisk_access_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		kiv_hal::TRegisters regs;
 		kiv_hal::TDisk_Address_Packet dap;
@@ -49,7 +49,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors) {
-		std::unique_lock<std::mutex> lock(mDisk_access_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		kiv_hal::TRegisters regs;
 		kiv_hal::TDisk_Address_Packet dap;
@@ -99,6 +99,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
 
@@ -141,6 +143,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		char *cluster_buffer = new char[cluster_size];
 		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
@@ -195,6 +199,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
 
@@ -232,6 +238,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Free_File_Fat_Entries(TFAT_Dir_Entry &entry) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		std::vector<TFAT_Entry> entries;
 
 		if (!Get_File_Fat_Entries(entry.start, entries)) {
@@ -242,6 +250,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFAT_Utils::Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		TFAT_Dir_Entry dir_entry = dirs_from_root.back();
 
 		// Dir is root
@@ -252,7 +262,7 @@ namespace kiv_fs_fat {
 			kiv_vfs::TPath path;
 			path.file = dir_entry.name;
 			dirs_from_root.pop_back();
-			directory = make_shared<CDirectory>(path, dir_entry, dirs_from_root, this);
+			directory = make_shared<CDirectory>(path, dir_entry, dirs_from_root, this, mFs_lock);
 		}
 
 		return true;
@@ -287,13 +297,14 @@ namespace kiv_fs_fat {
 
 #pragma region Abstract directory
 
-	IDirectory::IDirectory(CFAT_Utils *utils) 
+	IDirectory::IDirectory(CFAT_Utils *utils, std::recursive_mutex *fs_lock) 
 		: mUtils(utils), mSize(0)
 	{
+		mFs_lock = fs_lock;
 	}
 
 	kiv_os::NOS_Error IDirectory::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		read = 0;
 
@@ -333,7 +344,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Is_Empty() {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -343,7 +354,7 @@ namespace kiv_fs_fat {
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> IDirectory::Create_File(const kiv_vfs::TPath path, kiv_os::NFile_Attributes attributes) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -394,7 +405,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Remove_File(const kiv_vfs::TPath &path) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -432,7 +443,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Find(std::string filename, TFAT_Dir_Entry &entry) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -448,7 +459,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Change_Entry_Size(std::string filename, uint32_t filesize) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -468,7 +479,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool IDirectory::Get_Entry_Size(std::string filename, uint32_t &filesize) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
 			return false;
@@ -486,34 +497,38 @@ namespace kiv_fs_fat {
 #pragma endregion
 
 #pragma region Subdirectory
-	CDirectory::CDirectory(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils)
-		: IDirectory(utils), mDir_entry(dir_entry), mDirs_to_parent(dirs_to_parent)
+	CDirectory::CDirectory(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+		: IDirectory(utils, fs_lock), mDir_entry(dir_entry), mDirs_to_parent(dirs_to_parent)
 	{
 		mPath = path;
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
 	}
 
-	CDirectory::CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils)
-		: IDirectory(utils), mDir_entry(dir_entry), mDirs_to_parent(std::vector<TFAT_Dir_Entry>{})
+	CDirectory::CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+		: IDirectory(utils, fs_lock), mDir_entry(dir_entry), mDirs_to_parent(std::vector<TFAT_Dir_Entry>{})
 	{
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CDirectory::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		std::vector<TFAT_Dir_Entry> dirs_to_this = { mDirs_to_parent };
 		dirs_to_this.push_back(mDir_entry);
 
 		if (entry.attributes == kiv_os::NFile_Attributes::Directory) {
-			return std::make_shared<CDirectory>(path, entry, dirs_to_this, mUtils);
+			return std::make_shared<CDirectory>(path, entry, dirs_to_this, mUtils, mFs_lock);
 		}
 		else {
-			return std::make_shared<CFile>(path, entry, dirs_to_this, mUtils);
+			return std::make_shared<CFile>(path, entry, dirs_to_this, mUtils, mFs_lock);
 		}
 	}
 
 	bool CDirectory::Load() {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		mEntries.clear();
 
 		// Load size
@@ -550,6 +565,8 @@ namespace kiv_fs_fat {
 	}
 
 	bool CDirectory::Save() {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
 		if (cluster_size < sizeof(TFAT_Dir_Entry)) {
 			return false;
@@ -580,14 +597,14 @@ namespace kiv_fs_fat {
 #pragma endregion
 
 #pragma region Root
-	CRoot::CRoot(CFAT_Utils *utils)
-		: IDirectory(utils)
+	CRoot::CRoot(CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+		: IDirectory(utils, fs_lock)
 	{
 		mAttributes = kiv_os::NFile_Attributes::Directory;
 	}
 
 	bool CRoot::Load() {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		mEntries.clear();
 
@@ -629,7 +646,7 @@ namespace kiv_fs_fat {
 		bool result;
 
 		{
-			std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+			std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 			// Save size of root
 			memcpy(buffer, &mSize, sizeof(mSize));
@@ -650,31 +667,35 @@ namespace kiv_fs_fat {
 	}
 
 	std::shared_ptr<kiv_vfs::IFile> CRoot::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		std::vector<TFAT_Dir_Entry> dirs_to_this = { root_dir_entry };
 
 		if (entry.attributes == kiv_os::NFile_Attributes::Directory) {
-			return std::make_shared<CDirectory>(path, entry, dirs_to_this, mUtils);
+			return std::make_shared<CDirectory>(path, entry, dirs_to_this, mUtils, mFs_lock);
 		}
 		else {
-			return std::make_shared<CFile>(path, entry, dirs_to_this, mUtils);
+			return std::make_shared<CFile>(path, entry, dirs_to_this, mUtils, mFs_lock);
 		}
 	}
 #pragma endregion
 
 #pragma region File
-	CFile::CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils)
+	CFile::CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
 		: mUtils(utils), mDirs_to_parent(dirs_to_parent)
 	{
 		mPath = path;
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
+		mFs_lock = fs_lock;
 		if (!mUtils->Get_File_Fat_Entries(dir_entry.start, mFat_entries)) {
 			// TODO Handle error
 		}
 	}
 
+
 	kiv_os::NOS_Error CFile::Write(const char *buffer, size_t buffer_size, size_t position,size_t &written) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		written = 0;
 
@@ -768,7 +789,7 @@ namespace kiv_fs_fat {
 	}
 
 	kiv_os::NOS_Error CFile::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		read = 0;
 
@@ -826,7 +847,7 @@ namespace kiv_fs_fat {
 	}
 
 	kiv_os::NOS_Error CFile::Resize(size_t size) {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		// Nothing to do
 		if (size == mSize) {
@@ -900,13 +921,13 @@ namespace kiv_fs_fat {
 	}
 
 	bool CFile::Is_Available_For_Write() {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		return (mWrite_count == 0);
 	}
 
 	size_t CFile::Get_Size() {
-		std::unique_lock<std::recursive_mutex> lock(mFile_lock);
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		return mSize;
 	}
@@ -916,7 +937,9 @@ namespace kiv_fs_fat {
 	CMount::CMount(std::string label, kiv_vfs::TDisk_Number disk_number) {
 		mLabel = label;
 		mDisk_Number = disk_number;
-		mUtils = new CFAT_Utils(disk_number);
+		mFs_lock = new std::recursive_mutex();
+
+		mUtils = new CFAT_Utils(disk_number, mFs_lock);
 
 		kiv_hal::TDrive_Parameters disk_params;
 		if (!Load_Disk_Params(disk_params)) {
@@ -941,7 +964,7 @@ namespace kiv_fs_fat {
 			}
 		}
 
-		root = std::make_shared<CRoot>(mUtils); // TODO Handle error
+		root = std::make_shared<CRoot>(mUtils, mFs_lock);
 
 		mUtils->Set_Superblock(mSuperblock);
 		mUtils->Set_Root(root);
@@ -949,9 +972,12 @@ namespace kiv_fs_fat {
 
 	CMount::~CMount() {
 		delete mUtils;
+		delete mFs_lock;
 	}
 
 	kiv_os::NOS_Error CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		std::vector<TFAT_Dir_Entry> entries_from_root{ root_dir_entry };
 		TFAT_Dir_Entry entry;
 		std::shared_ptr<IDirectory> directory;
@@ -993,6 +1019,7 @@ namespace kiv_fs_fat {
 	}
 	
 	kiv_os::NOS_Error CMount::Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		// TODO check filename?
 		if (path.file.length() == 0) {
@@ -1039,6 +1066,8 @@ namespace kiv_fs_fat {
 	}
 
 	kiv_os::NOS_Error CMount::Delete_File(const kiv_vfs::TPath &path) {
+		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
+
 		kiv_vfs::TPath parent_path;
 
 		// Get path of file's parent
