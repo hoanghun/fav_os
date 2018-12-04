@@ -1,0 +1,1 @@
+xcopy /Y "drive_d - kopie.bin" "drive_d.bin"
