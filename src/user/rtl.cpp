@@ -152,7 +152,7 @@ bool kiv_os_rtl::Get_Working_Dir(char* const buffer, const size_t buffer_size, s
 }
 
 bool kiv_os_rtl::Create_Pipe(kiv_os::THandle &in, kiv_os::THandle &out) {
-	kiv_os::THandle pipes[2];
+	kiv_os::THandle pipes[2] = { 0 };
 	kiv_hal::TRegisters regs = Prepare_SysCall_Context(kiv_os::NOS_Service_Major::File_System, static_cast<uint8_t>(kiv_os::NOS_File_System::Create_Pipe));
 	regs.rdx.r = reinterpret_cast<decltype(regs.rdx.r)>(pipes);
 
@@ -187,5 +187,4 @@ void kiv_os_rtl::Shutdown() {
 	regs.rax.l = static_cast<uint8_t>(kiv_os::NOS_Process::Shutdown);
 
 	kiv_os::Sys_Call(regs);
-
 }

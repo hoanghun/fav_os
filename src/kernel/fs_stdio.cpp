@@ -12,6 +12,10 @@ size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 		registers.rax.h = static_cast<decltype(registers.rax.l)>(kiv_hal::NKeyboard::Read_Char);
 		kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::Keyboard, registers);
 
+		if (!registers.flags.non_zero) break;	//nic jsme neprecetli, 
+												//pokud je rax.l EOT, pak byl zrejme vstup korektne ukoncen
+												//jinak zrejme doslo k chybe zarizeni
+
 		char ch = registers.rax.l;
 
 		//osetrime zname kody
@@ -24,7 +28,7 @@ size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 			registers.rdx.l = ch;
 			kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
 		}
-											break;
+										  break;
 
 		case kiv_hal::NControl_Codes::LF:  break;	//jenom pohltime, ale necteme
 		case kiv_hal::NControl_Codes::NUL:			//chyba cteni?
@@ -42,6 +46,7 @@ size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 	}
 
 	return pos;
+
 }
 #pragma endregion
 
