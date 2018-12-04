@@ -294,7 +294,7 @@ namespace kiv_vfs {
 		if (!file_desc) {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
-
+		Free_File_Descriptor(fd_index);
 		if (file_desc->file) {
 			file_desc->file->Close(file_desc->attributes);
 
@@ -305,9 +305,9 @@ namespace kiv_vfs {
 		else {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
-
-		Free_File_Descriptor(fd_index);
 		
+		file_desc->file = nullptr;
+
 		return kiv_os::NOS_Error::Success;
 	}
 
@@ -520,7 +520,6 @@ namespace kiv_vfs {
 		}
 
 		file_desc.attributes = FD_ATTR_FREE;
-		file_desc.file = nullptr;
 	}
 
 	kiv_os::THandle CVirtual_File_System::Get_Free_Fd_Index() {
