@@ -8,20 +8,20 @@ namespace kiv_vfs {
 #pragma region File
 
 	// Default implementations (concrete filesystem can override those methods)
-	size_t IFile::Write(const char *buffer, size_t buffer_size, size_t position) {
-		return 0;
+	kiv_os::NOS_Error IFile::Write(const char *buffer, size_t buffer_size, size_t position, size_t &written) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
-	size_t IFile::Read(char *buffer, size_t buffer_size, size_t position) {
-		return 0;
+	kiv_os::NOS_Error IFile::Read(char *buffer, size_t buffer_size, size_t position, size_t &read) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
-	bool IFile::Resize(size_t size) {
-		return false;
-	}
-	bool IFile::Is_Available_For_Write() {
-		return true;
+	kiv_os::NOS_Error IFile::Resize(size_t size) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
 	size_t IFile::Get_Size() {
 		return 0;
+	}
+	bool IFile::Is_Available_For_Write() {
+		return true;
 	}
 	bool IFile::Is_Empty() {
 		return false;
@@ -105,14 +105,14 @@ namespace kiv_vfs {
 	}
 
 	// Default implementations (concrete filesystem can override those methods)
-	std::shared_ptr<IFile> IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
-		return nullptr;
+	kiv_os::NOS_Error IMounted_File_System::Open_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
-	std::shared_ptr<IFile> IMounted_File_System::Create_File(const TPath &path, kiv_os::NFile_Attributes attributes) {
-		return nullptr;
+	kiv_os::NOS_Error IMounted_File_System::Create_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
-	bool IMounted_File_System::Delete_File(const TPath &path) {
-		return false;
+	kiv_os::NOS_Error IMounted_File_System::Delete_File(const TPath &path) {
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
 
 #pragma endregion
@@ -224,10 +224,10 @@ namespace kiv_vfs {
 				return kiv_os::NOS_Error::File_Not_Found;
 			}
 
-			file = mount->Open_File(normalized_path, attributes);
-			if (!file) {
+			kiv_os::NOS_Error open_result = mount->Open_File(normalized_path, attributes, file);
+			if (open_result != kiv_os::NOS_Error::Success) {
 				Free_File_Descriptor(free_fd);
-				return kiv_os::NOS_Error::File_Not_Found;
+				return open_result;
 			}
 			else if ((file->Get_Attributes() == kiv_os::NFile_Attributes::Read_Only) && attributes != kiv_os::NFile_Attributes::Read_Only) {
 				Free_File_Descriptor(free_fd);
@@ -277,10 +277,11 @@ namespace kiv_vfs {
 			}
 		}
 
-		auto file = mount->Create_File(normalized_path, attributes);
-		if (!file) {
+		std::shared_ptr<IFile> file;
+		kiv_os::NOS_Error open_result = mount->Create_File(normalized_path, attributes, file);
+		if (open_result != kiv_os::NOS_Error::Success) {
 			Free_File_Descriptor(fd_index);
-			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+			return open_result;
 		}
 
 		Put_File_Descriptor(fd_index, file, attributes);
@@ -337,9 +338,10 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		auto file = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0);
-		if (!file) {
-			return kiv_os::NOS_Error::File_Not_Found;
+		std::shared_ptr<IFile> file;
+		kiv_os::NOS_Error open_result = mount->Open_File(normalized_path, (kiv_os::NFile_Attributes)0, file);
+		if (open_result != kiv_os::NOS_Error::Success) {
+			return open_result;
 		}
 
 		// Cannot delete a non-empty directory
@@ -347,11 +349,7 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::Directory_Not_Empty;
 		}
 
-		if (!mount->Delete_File(normalized_path)) {
-			return kiv_os::NOS_Error::File_Not_Found;
-		}
-
-		return kiv_os::NOS_Error::Success;
+		return mount->Delete_File(normalized_path);
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Write_File(kiv_os::THandle fd_index, char *buffer, size_t buffer_size, size_t &written) {
@@ -365,9 +363,13 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		size_t bytes_written = file_desc->file->Write(buffer, buffer_size, file_desc->position);
-		file_desc->position += bytes_written;
+		size_t bytes_written;
+		kiv_os::NOS_Error result = file_desc->file->Write(buffer, buffer_size, file_desc->position, bytes_written);
+		if (result != kiv_os::NOS_Error::Success) {
+			return result;
+		}
 
+		file_desc->position += bytes_written;
 		written = bytes_written;
 
 		return kiv_os::NOS_Error::Success;
@@ -384,9 +386,13 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::Permission_Denied;
 		}
 
-		size_t bytes_read = file_desc->file->Read(buffer, buffer_size, file_desc->position);
-		file_desc->position += bytes_read;
+		size_t bytes_read;
+		kiv_os::NOS_Error result = file_desc->file->Read(buffer, buffer_size, file_desc->position, bytes_read);
+		if (result != kiv_os::NOS_Error::Success) {
+			return result;
+		}
 
+		file_desc->position += bytes_read;
 		read = bytes_read;
 
 		return kiv_os::NOS_Error::Success;
@@ -417,9 +423,9 @@ namespace kiv_vfs {
 		}
 
 		size_t actual_position = Calculate_Position(*file_desc, position, type);
-
-		if (!file_desc->file->Resize(actual_position)) {
-			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+		kiv_os::NOS_Error result = file_desc->file->Resize(actual_position);
+		if (result != kiv_os::NOS_Error::Success) {
+			return result;
 		}
 
 		file_desc->position = actual_position;
@@ -466,9 +472,11 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		if (!mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory)) { // TODO correct attrs?
+		std::shared_ptr<IFile> file;
+		kiv_os::NOS_Error result = mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory, file);
+		if (result != kiv_os::NOS_Error::Success) {
 			// TODO prevent from deleting working directory?
-			return kiv_os::NOS_Error::File_Not_Found;
+			return result;
 		}
 	
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);

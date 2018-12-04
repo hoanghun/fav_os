@@ -9,8 +9,8 @@
 class CPipe : public kiv_vfs::IFile {
 public:
 	CPipe();
-	virtual size_t Write(const char *buffer, size_t buffer_size, size_t position = 0) final override;
-	virtual size_t Read(char *buffer, size_t buffer_size, size_t position = 0) final override;
+	virtual kiv_os::NOS_Error Write(const char *buffer, size_t buffer_size, size_t position, size_t &written) final override;
+	virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read) final override;
 	void Close(const kiv_vfs::TFD_Attributes attrs) override;
 
 private:
