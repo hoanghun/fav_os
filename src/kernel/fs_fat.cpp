@@ -1024,8 +1024,8 @@ namespace kiv_fs_fat {
 		parent_path.mount = path.mount;
 		parent_path.path = path.path;
 
+		// File is not in the root
 		if (parent_path.path.size() != 0) {
-			// File is not in the root
 			parent_path.file = parent_path.path.back();
 			parent_path.path.pop_back();
 		}
@@ -1033,7 +1033,7 @@ namespace kiv_fs_fat {
 		// Open file's parent
 		std::shared_ptr<kiv_vfs::IFile> parent_file;
 		kiv_os::NOS_Error open_result = Open_File(parent_path, (kiv_os::NFile_Attributes)(0), parent_file);
-		if (!(open_result != kiv_os::NOS_Error::Success) || !parent_file->Is_Directory()) {
+		if (open_result != kiv_os::NOS_Error::Success || !parent_file->Is_Directory()) {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
