@@ -31,7 +31,7 @@ namespace kiv_os_rtl {
 
 	bool Open_File(const char * file_name, const kiv_os::NOpen_File flags, const kiv_os::NFile_Attributes attributes, kiv_os::THandle &handle);
 
-	bool Seek(const kiv_os::THandle handle, const size_t new_position, kiv_os::NFile_Seek pos_type, size_t &position);
+	bool Seek(const kiv_os::THandle handle, const size_t new_position, kiv_os::NFile_Seek pos_type, kiv_os::NFile_Seek seek_type, size_t &position);
 
 	bool Close_Handle(const kiv_os::THandle handle);
 

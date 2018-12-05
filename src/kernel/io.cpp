@@ -32,8 +32,8 @@ kiv_os::NOS_Error Set_Size(kiv_os::THandle vfs_handle, int position, kiv_os::NFi
 
 void Seek(kiv_hal::TRegisters &regs) {
 	kiv_os::THandle proc_handle = static_cast<kiv_os::THandle>(regs.rdx.x);
-	kiv_os::NFile_Seek seek_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.l);
-	kiv_os::NFile_Seek seek_offset_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.h);
+	kiv_os::NFile_Seek seek_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.h);
+	kiv_os::NFile_Seek seek_offset_type = static_cast<kiv_os::NFile_Seek>(regs.rcx.l);
 	int position = static_cast<int>(regs.rdi.r);
 
 	kiv_os::THandle vfs_handle;

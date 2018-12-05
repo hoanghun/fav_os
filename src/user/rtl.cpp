@@ -90,7 +90,7 @@ bool kiv_os_rtl::Read_Exit_Code(const size_t handler, int &exit_code) {
 
 	bool result = kiv_os::Sys_Call(regs);
 	exit_code = regs.rcx.x;
-	return  result;
+	return result;
 }
 
 bool kiv_os_rtl::Open_File(const char * file_name, const kiv_os::NOpen_File flags, const kiv_os::NFile_Attributes attributes, kiv_os::THandle &handle) {
@@ -104,11 +104,12 @@ bool kiv_os_rtl::Open_File(const char * file_name, const kiv_os::NOpen_File flag
 	return result;
 }
 
-bool kiv_os_rtl::Seek(const kiv_os::THandle handle, const size_t new_position, kiv_os::NFile_Seek pos_type, size_t &position) {
+bool kiv_os_rtl::Seek(const kiv_os::THandle handle, const size_t new_position, kiv_os::NFile_Seek pos_type, kiv_os::NFile_Seek seek_type, size_t &position) {
 	kiv_hal::TRegisters regs = Prepare_SysCall_Context(kiv_os::NOS_Service_Major::File_System, static_cast<uint8_t>(kiv_os::NOS_File_System::Seek));
 	regs.rdx.x = handle;
 	regs.rdi.r = new_position;
-	regs.rcx.l = static_cast<uint8_t>(pos_type);
+	regs.rcx.l = static_cast<decltype(regs.rcx.l)>(pos_type);
+	regs.rcx.h = static_cast<decltype(regs.rcx.h)>(seek_type);
 
 	bool result = kiv_os::Sys_Call(regs);
 	position = regs.rax.x;

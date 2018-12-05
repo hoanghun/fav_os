@@ -604,7 +604,7 @@ namespace kiv_vfs {
 				break;
 
 			case kiv_os::NFile_Seek::End:
-				tmp_pos = file_desc.file->Get_Size() - 1; // TODO check if correct
+				tmp_pos = file_desc.file->Get_Size();
 				break;
 		}
 
