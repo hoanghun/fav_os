@@ -10,7 +10,7 @@ namespace kiv_fs_linked_entries {
 	const uint32_t ENTRY_EOF = static_cast<uint32_t>(-4);
 
 	const size_t MAX_DIR_ENTRIES = 21;
-	const size_t MAX_FILESIZE = 11;
+	const size_t MAX_FILENAME_SIZE = 11;
 	const char *LE_NAME = "le";
 	const TLE_Dir_Entry root_dir_entry{ "\\" };
 
@@ -1015,11 +1015,11 @@ namespace kiv_fs_linked_entries {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		// Checking filenames
-		if (path.file.length() == 0 || path.file.length() > MAX_FILESIZE) {
+		if (path.file.length() == 0 || path.file.length() > MAX_FILENAME_SIZE) {
 			return kiv_os::NOS_Error::Invalid_Argument;
 		}
 		for (std::string dir : path.path) {
-			if (dir.length() > MAX_FILESIZE) {
+			if (dir.length() > MAX_FILENAME_SIZE) {
 				return kiv_os::NOS_Error::Invalid_Argument;
 			}
 		}
