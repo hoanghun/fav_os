@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include <fstream>
+
 bool shell_run = true;
 
 size_t __stdcall shell_terminate_handler(const kiv_hal::TRegisters &regs) {
@@ -46,6 +48,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 
 		if (counter > 0) {
+
 			if (counter == buffer_size) counter--;
 			buffer[counter] = 0;	//udelame z precteneho vstup null-terminated retezec
 
@@ -53,7 +56,7 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 				break;
 			}
 
-			std::vector<TExecutable> items = Parse(buffer, strlen(buffer));
+			std::vector<TExecutable> items = Parse(buffer, counter);
 			if (Check(items) == false) {
 				const char *error = "\nCommand is not valid.";
 				kiv_os_rtl::Stdout_Print(regs, error, strlen(error));
@@ -63,10 +66,12 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 				Execute(items, regs);
 			}
 		}
-		else
+		else {
 			break;	//EOF
+		}
 
 		kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+
 	} while (strcmp(buffer, "exit") != 0 && shell_run);
 
 	kiv_os_rtl::Exit(0);
@@ -167,8 +172,7 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 	kiv_os::THandle last_pipe = 0;
 
 	for (TExecutable &exe : exes) {
-
-		
+	
 			//Pripravime argumenty programu
 			std::stringstream args;
 			args.str("");
@@ -217,7 +221,7 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
 	if (handles.size() != 0) {
 		do {
-			kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
+			bool result = kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
 			//TODO kontrolovat chyby
 			handles.erase(std::remove(handles.begin(), handles.end(), signaled), handles.end());
 			kiv_os_rtl::Read_Exit_Code(signaled, exit_code);

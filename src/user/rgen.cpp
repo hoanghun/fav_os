@@ -34,10 +34,11 @@ size_t _stdcall generate_floats(const kiv_hal::TRegisters &context) {
 
 
 extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) {
-	char buffer[size];
+
+	char buffer[1];
 	size_t read, handle, signaled;
 	run = true;
-	
+
 	if (!kiv_os_rtl::Register_Terminate_Signal_Handler(sigterm_handler)) {
 		
 	}
@@ -45,7 +46,10 @@ extern "C" size_t __stdcall rgen(const kiv_hal::TRegisters &regs) {
 	kiv_os_rtl::Thread(generate_floats, NULL, handle);
 
 	do {
-		read = kiv_os_rtl::Stdin_Read(regs, buffer, size);
+		read = kiv_os_rtl::Stdin_Read(regs, buffer, 1);
+		if (buffer[0] == kiv_hal::NControl_Codes::EOT) {
+			break;
+		}
 	} while (read != 0 && run);
 
 	run = false;

@@ -90,6 +90,7 @@ namespace kiv_process {
 				}
 
 			private:
+				Semaphore * system_semaphore;
 				bool system_shutdown;
 				bool system_kill;
 				static std::mutex ptable;

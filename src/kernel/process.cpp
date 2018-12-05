@@ -12,13 +12,16 @@ namespace kiv_process {
 
 #pragma region "SYSTEM VARIABLES"
 
-	std::mutex reap_mutex;
-	std::condition_variable reap_cv;
+	/*std::mutex reap_mutex;
+	std::condition_variable reap_cv;*/
+
 
 #pragma endregion
 
 
 	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
+
+		
 		switch (static_cast<kiv_os::NClone>(regs.rcx.r)) {
 		case kiv_os::NClone::Create_Process:
 		{
@@ -127,12 +130,14 @@ namespace kiv_process {
 	CProcess_Manager::CProcess_Manager() {
 		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
 		//Create_Sys_Process();
+		system_semaphore = new Semaphore(0);
 		system_kill = false;
 		pid_manager = new CPid_Manager();
 		system_shutdown = false;
 	}
 
 	void CProcess_Manager::Destroy() {
+		delete CProcess_Manager::Get_Instance().system_semaphore;
 		delete instance->pid_manager;
 		delete instance;
 	}
@@ -281,7 +286,7 @@ namespace kiv_process {
 				if ((*itr)->state == kiv_thread::NThread_State::TERMINATED) {
 
 					(*itr)->pcb = nullptr;
-					(*itr)->thread.detach(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
+					(*itr)->thread.join(); // musime pouzit join() nebo detach() predtim nez znicime objekt std::thread
 					itr = pcb->thread_table.erase(itr);
 
 				}
@@ -309,7 +314,7 @@ namespace kiv_process {
 						process_table[pcb->ppid]->cpids.push_back(cpid);
 						process_table[cpid]->ppid = pcb->ppid;
 						//SIGNALIZE SYSTEM PROCESS
-						reap_cv.notify_all();
+						system_semaphore->Signal();
 					}
 				}
 
@@ -341,8 +346,8 @@ namespace kiv_process {
 		}*/
 		
 		system_shutdown = true;
-		reap_cv.notify_all();
-		
+		//reap_cv.notify_all();
+		system_semaphore->Signal();
 	}
 
 	void CProcess_Manager::Shutdown_Wait() {
@@ -397,17 +402,22 @@ namespace kiv_process {
 					if (tcb->terminate_handler != nullptr) {
 						tcb->terminate_handler(regs);
 					}
+				//kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
+				//tcb->pcb = nullptr;
 				}
 				ordered_p.pop();
 			}
 		}
 		lock.unlock();
 		
+
+		
+
 		//stdin and stdout closing
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
 
-		std::this_thread::sleep_for(std::chrono::seconds(2));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		
 		if (process_table.size() > 1) {
 			Killing_Routine();
@@ -438,6 +448,8 @@ namespace kiv_process {
 						}
 					}
 					tcb->pcb = nullptr;
+
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
 					kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
 				}
 				ordered_p.pop();
@@ -633,9 +645,10 @@ namespace kiv_process {
 
 		while (!system_shutdown) {
 
-			std::unique_lock<std::mutex> lock(reap_mutex);
+			/*std::unique_lock<std::mutex> lock(reap_mutex);
 			reap_cv.wait(lock);
-			lock.unlock();
+			lock.unlock();*/
+			system_semaphore->Wait();
 
 			if (ptable.try_lock()) {
 				
