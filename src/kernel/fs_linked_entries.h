@@ -29,7 +29,7 @@ namespace kiv_fs_linked_entries {
 	using TLE_Entry = uint32_t;
 
 	struct TLE_Dir_Entry {
-		char name[8 + 1 + 3]; // filename.ext
+		char name[12]; 
 		char fill[3]; // Fill to 24 bytes
 		kiv_os::NFile_Attributes attributes;
 		TLE_Entry start; 

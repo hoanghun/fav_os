@@ -10,6 +10,7 @@ namespace kiv_fs_linked_entries {
 	const uint32_t ENTRY_EOF = static_cast<uint32_t>(-4);
 
 	const size_t MAX_DIR_ENTRIES = 21;
+	const size_t MAX_FILESIZE = 11;
 	const char *LE_NAME = "le";
 	const TLE_Dir_Entry root_dir_entry{ "\\" };
 
@@ -943,14 +944,14 @@ namespace kiv_fs_linked_entries {
 			return;
 		}
 
-		if (!Load_Superblock(disk_params)) { 
+		if (!Load_Superblock(disk_params)) {
 			mMounted = false;
 			return;
 		}
 
 		// Check if disk is formatted
-		if (!Chech_Superblock()) { 
-			if (!Format_Disk(disk_params)) { 
+		if (!Chech_Superblock()) {
+			if (!Format_Disk(disk_params)) {
 				mMounted = false;
 				return;
 			}
@@ -1009,14 +1010,20 @@ namespace kiv_fs_linked_entries {
 		file = directory->Make_File(path, entry);
 		return kiv_os::NOS_Error::Success;
 	}
-	
+
 	kiv_os::NOS_Error CMount::Create_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		// TODO check filename?
-		if (path.file.length() == 0) {
-			return kiv_os::NOS_Error::File_Not_Found;
+		// Checking filenames
+		if (path.file.length() == 0 || path.file.length() > MAX_FILESIZE) {
+			return kiv_os::NOS_Error::Invalid_Argument;
 		}
+		for (std::string dir : path.path) {
+			if (dir.length() > MAX_FILESIZE) {
+				return kiv_os::NOS_Error::Invalid_Argument;
+			}
+		}
+
 
 		// Create file directly in the root
 		if (path.path.empty()) {

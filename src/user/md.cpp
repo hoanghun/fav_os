@@ -23,7 +23,7 @@ bool Create_Directory(const std::string dir_name, const kiv_hal::TRegisters &reg
 		return true;
 	}
 	else {
-		std::string err_msg = "Access Denied.\nDirectory " + dir_name + " couldn't be created\n";
+		std::string err_msg = "Directory " + dir_name + " couldn't be created\n";
 		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.length());
 		return false;
 	}
