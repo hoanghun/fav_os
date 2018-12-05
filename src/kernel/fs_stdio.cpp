@@ -1,7 +1,5 @@
 #include "fs_stdio.h"
 
-#include <iostream>
-
 #pragma region Util
 size_t Read_Line_From_Console(char *buffer, const size_t buffer_size) {
 	kiv_hal::TRegisters registers;

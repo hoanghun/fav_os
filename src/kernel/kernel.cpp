@@ -4,7 +4,6 @@
 #include "io.h"
 #include <Windows.h>
 
-#include <iostream>
 #include <thread>
 #include "common.h"
 #include "process.h"
@@ -12,10 +11,6 @@
 #include "fs_stdio.h"
 #include "fs_fat.h"
 #include "fs_proc.h"
-
-#include <iostream>
-
-//#include "vld.h"
 
 HMODULE User_Programs;
 

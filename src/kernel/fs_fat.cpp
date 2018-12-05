@@ -1,11 +1,7 @@
 #include "fs_fat.h"
 #include "../api/api.h"
 
-// TODO Smazat
-#include <iostream>
 #include <string.h>
-using namespace std;
-///////////////
 
 namespace kiv_fs_fat {
 	// FAT entry status
@@ -262,7 +258,7 @@ namespace kiv_fs_fat {
 			kiv_vfs::TPath path;
 			path.file = dir_entry.name;
 			dirs_from_root.pop_back();
-			directory = make_shared<CDirectory>(path, dir_entry, dirs_from_root, this, mFs_lock);
+			directory = std::make_shared<CDirectory>(path, dir_entry, dirs_from_root, this, mFs_lock);
 		}
 
 		return true;
@@ -943,24 +939,17 @@ namespace kiv_fs_fat {
 
 		kiv_hal::TDrive_Parameters disk_params;
 		if (!Load_Disk_Params(disk_params)) {
-			cout << "FAT - Couldn't load disk params" << endl;
 			return;
-			// TODO Handle error
 		}
 
 		if (!Load_Superblock(disk_params)) { 
-			cout << "FAT - LOAD SUPERBLOCK ERR" << endl;
 			return;
-			// TODO Handle error
 		}
 
 		// Check if disk is formatted
 		if (!Chech_Superblock()) { 
-			cout << "FAT - NOT FORMATTED" << endl;
 			if (!Format_Disk(disk_params)) { 
-				cout << "FAT - FORMAT ERR" << endl;
 				return;
-				// TODO Handle error
 			}
 		}
 
@@ -1112,8 +1101,6 @@ namespace kiv_fs_fat {
 	}
 
 	bool CMount::Format_Disk(kiv_hal::TDrive_Parameters &params) {
-		cout << "FAT - Formating" << endl;
-
 		size_t sectors_per_cluster = 1;
 		size_t cluster_size = sectors_per_cluster * params.bytes_per_sector;
 		size_t disk_size = params.absolute_number_of_sectors * params.bytes_per_sector;
@@ -1141,16 +1128,12 @@ namespace kiv_fs_fat {
 
 		// Init FAT table
 		if (!Init_Fat_Table()) {
-			cout << "FAT - INIT FAT TABLE ERROR" << endl;
 			return false;
 		}
 
 		if (!Init_Root()) {
-			cout << "FAT - INIT ROOT" << endl;
 			return false;
 		}
-
-		cout << "FAT - Formating DONE" << endl;
 
 		return true;
 	}

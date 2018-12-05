@@ -1,5 +1,4 @@
 #include "pipe.h"
-#include <iostream>
 
 CPipe::CPipe() : mRead_Index(0), mWrite_Index(0), mReader_Closed(false), mWriter_Closed(false)
 	,mEmptyCount(BUFFER_SIZE), mFillCount(0) {

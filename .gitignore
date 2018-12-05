@@ -12,3 +12,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+compiled/*
+*.ini
+*.bin
+compiled/drive_d.bin
