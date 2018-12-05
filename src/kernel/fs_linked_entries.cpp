@@ -4,7 +4,7 @@
 #include <string.h>
 
 namespace kiv_fs_linked_entries {
-	// FAT entry status
+	// LE entry status
 	const uint32_t ENTRY_FREE = static_cast<uint32_t>(-2);
 	const uint32_t ENTRY_RESERVED = static_cast<uint32_t>(-3);
 	const uint32_t ENTRY_EOF = static_cast<uint32_t>(-4);
@@ -71,12 +71,12 @@ namespace kiv_fs_linked_entries {
 		return Read_From_Disk(buffer, first_cluster * mSb.sectors_per_cluster, num_of_clusters * mSb.sectors_per_cluster);
 	}
 
-	bool CLE_Utils::Write_Data_Cluster(char *clusters, TLE_Entry fat_entry) {
-		return Write_Clusters(clusters, mSb.data_first_cluster + fat_entry, 1);
+	bool CLE_Utils::Write_Data_Cluster(char *clusters, TLE_Entry le_entry) {
+		return Write_Clusters(clusters, mSb.data_first_cluster + le_entry, 1);
 	}
 
-	bool CLE_Utils::Read_Data_Cluster(char *buffer, TLE_Entry fat_entry) {
-		return Read_Clusters(buffer, mSb.data_first_cluster + fat_entry, 1);
+	bool CLE_Utils::Read_Data_Cluster(char *buffer, TLE_Entry le_entry) {
+		return Read_Clusters(buffer, mSb.data_first_cluster + le_entry, 1);
 	}
 
 	bool CLE_Utils::Set_Le_Entries_Value(std::vector<TLE_Entry> &entries, TLE_Entry value) {
@@ -118,7 +118,7 @@ namespace kiv_fs_linked_entries {
 				curr_cluster++;
 			}
 
-			// Load current FAT entry
+			// Load current LE entry
 			memcpy(&entry, cluster_buffer + (curr_entry % entries_per_cluster) * sizeof(TLE_Entry), sizeof(TLE_Entry));
 
 			// Free entry found
@@ -156,7 +156,7 @@ namespace kiv_fs_linked_entries {
 
 			cluster_needed = (order / entries_per_cluster) + mSb.le_table_first_cluster;
 
-			// This FAT entry is not located in currently loaded cluster
+			// This LE entry is not located in currently loaded cluster
 			if (cluster_needed != cluster_loaded) {
 
 				// Store current cluster
@@ -178,7 +178,7 @@ namespace kiv_fs_linked_entries {
 
 			order_in_cluster = order % entries_per_cluster;
 
-			// Store new FAT entry into a buffer
+			// Store new LE entry into a buffer
 			memcpy(cluster_buffer + order_in_cluster * sizeof(TLE_Entry), &value, sizeof(TLE_Entry));
 		}
 
@@ -213,7 +213,7 @@ namespace kiv_fs_linked_entries {
 
 			cluster_needed = (value / entries_per_cluster) + mSb.le_table_first_cluster;
 
-			// FAT entry is not located in currently loaded cluster -> Load needed cluster
+			// LE entry is not located in currently loaded cluster -> Load needed cluster
 			if (cluster_needed != cluster_loaded) {
 				if (!Read_Clusters(cluster_buffer, cluster_needed, 1)) {
 					delete[] cluster_buffer;
@@ -313,22 +313,22 @@ namespace kiv_fs_linked_entries {
 		}
 
 		kiv_os::TDir_Entry os_dir_entry;
-		TLE_Dir_Entry fat_dir_entry;
+		TLE_Dir_Entry le_dir_entry;
 
-		size_t fat_entry_index;
+		size_t le_entry_index;
 		for (size_t i = 0; i < buffer_size; i += sizeof(kiv_os::TDir_Entry)) {
-			fat_entry_index = (i + position) / sizeof(kiv_os::TDir_Entry);
+			le_entry_index = (i + position) / sizeof(kiv_os::TDir_Entry);
 
 			// All entries have been read
-			if (fat_entry_index >= mEntries.size()) {
+			if (le_entry_index >= mEntries.size()) {
 				break;
 			}
 
-			fat_dir_entry = mEntries.at(fat_entry_index);
+			le_dir_entry = mEntries.at(le_entry_index);
 
-			// Fat dir entry -> os dir entry
-			strcpy_s(os_dir_entry.file_name, fat_dir_entry.name);
-			os_dir_entry.file_attributes = static_cast<decltype(os_dir_entry.file_attributes)>(fat_dir_entry.attributes);
+			// Le dir entry -> os dir entry
+			strcpy_s(os_dir_entry.file_name, le_dir_entry.name);
+			os_dir_entry.file_attributes = static_cast<decltype(os_dir_entry.file_attributes)>(le_dir_entry.attributes);
 
 			// Store direntry into a buffer
 			memcpy(buffer + i, &os_dir_entry, sizeof(kiv_os::TDir_Entry));
@@ -1108,17 +1108,17 @@ namespace kiv_fs_linked_entries {
 		size_t cluster_size = sectors_per_cluster * params.bytes_per_sector;
 		size_t disk_size = params.absolute_number_of_sectors * params.bytes_per_sector;
 		size_t available_space = disk_size - (2 * cluster_size); // Disk size - superblock cluster - root cluster
-		size_t num_of_fat_entries = available_space / (sizeof(TLE_Dir_Entry) + cluster_size);
-		num_of_fat_entries -= ((num_of_fat_entries * sizeof(TLE_Entry)) % (cluster_size)) / sizeof(TLE_Entry);
-		size_t num_of_fat_entries_clusters = (num_of_fat_entries * sizeof(TLE_Entry)) / cluster_size;
+		size_t num_of_le_entries = available_space / (sizeof(TLE_Dir_Entry) + cluster_size);
+		num_of_le_entries -= ((num_of_le_entries * sizeof(TLE_Entry)) % (cluster_size)) / sizeof(TLE_Entry);
+		size_t num_of_le_entries_clusters = (num_of_le_entries * sizeof(TLE_Entry)) / cluster_size;
 
 		// Set up superblock
 		strcpy_s(mSuperblock.name, LE_NAME);
 		mSuperblock.disk_params = params;
 		mSuperblock.le_table_first_cluster = 1;
 		mSuperblock.sectors_per_cluster = sectors_per_cluster;
-		mSuperblock.le_table_number_of_entries = num_of_fat_entries;
-		mSuperblock.root_cluster = 1 + num_of_fat_entries_clusters;
+		mSuperblock.le_table_number_of_entries = num_of_le_entries;
+		mSuperblock.root_cluster = 1 + num_of_le_entries_clusters;
 		mSuperblock.data_first_cluster = mSuperblock.root_cluster + 1; 
 
 		mUtils->Set_Superblock(mSuperblock);
@@ -1129,7 +1129,6 @@ namespace kiv_fs_linked_entries {
 			return false;
 		}
 
-		// Init FAT table
 		if (!Init_Le_Table()) {
 			return false;
 		}
@@ -1167,7 +1166,7 @@ namespace kiv_fs_linked_entries {
 
 		char *buffer = new char[buf_size];
 
-		// Init FAT entries (ensure that one entry isn't spreaded over two clusters)
+		// Init LE entries (ensure that one entry isn't spreaded over two clusters)
 		TLE_Entry entry = ENTRY_FREE;
 		char *free_entry_casted = reinterpret_cast<char *>(&entry);
 
@@ -1186,7 +1185,7 @@ namespace kiv_fs_linked_entries {
 			memcpy(buffer + address, free_entry_casted, entry_size);
 		}
 
-		// Write FAT table
+		// Write LE table
 		bool write_result = mUtils->Write_Clusters(buffer, mSuperblock.le_table_first_cluster, clusters_needed);
 
 		delete[] buffer;
