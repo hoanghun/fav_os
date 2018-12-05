@@ -939,16 +939,19 @@ namespace kiv_fs_fat {
 
 		kiv_hal::TDrive_Parameters disk_params;
 		if (!Load_Disk_Params(disk_params)) {
+			mMounted = false;
 			return;
 		}
 
 		if (!Load_Superblock(disk_params)) { 
+			mMounted = false;
 			return;
 		}
 
 		// Check if disk is formatted
 		if (!Chech_Superblock()) { 
 			if (!Format_Disk(disk_params)) { 
+				mMounted = false;
 				return;
 			}
 		}

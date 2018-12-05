@@ -96,12 +96,15 @@ namespace kiv_vfs {
 
 
 #pragma region Mounted file system
+	IMounted_File_System::~IMounted_File_System() {
+	}
+
 	std::string IMounted_File_System::Get_Label() {
 		return mLabel;
 	}
 
-	IMounted_File_System::~IMounted_File_System() {
-
+	bool IMounted_File_System::Is_Mounted() {
+		return mMounted;
 	}
 
 	// Default implementations (concrete filesystem can override those methods)
@@ -175,6 +178,10 @@ namespace kiv_vfs {
 		for (auto fs : mRegistered_file_systems) {
 			if (fs->Get_Name() == fs_name) {
 				IMounted_File_System *mount = fs->Create_Mount(label, disk);
+				if (!mount->Is_Mounted()) {
+					delete mount;
+					return false;
+				}
 				mMounted_file_systems.insert(std::make_pair(label, mount));
 				mMounted_fs_count++;
 				return true;

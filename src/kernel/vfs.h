@@ -50,6 +50,8 @@ namespace kiv_vfs {
 	// Instances of inherited classes represent one file
 	class IFile {
 		public:
+			virtual ~IFile();
+
 			virtual kiv_os::NOS_Error Write(const char *buffer, size_t buffer_size, size_t position, size_t &written);
 			virtual kiv_os::NOS_Error Read(char *buffer, size_t buffer_size, size_t position, size_t &read);
 			virtual kiv_os::NOS_Error Resize(size_t size);
@@ -69,8 +71,6 @@ namespace kiv_vfs {
 			bool Is_Opened();
 			bool Is_Directory();
 			kiv_os::NFile_Attributes Get_Attributes();
-
-			virtual ~IFile();
 
 		protected:
 			TPath mPath;
@@ -95,13 +95,15 @@ namespace kiv_vfs {
 	// Class representing one mounted file system (file system's 'Create_Mount' returns instance of class that inherits from this class)
 	class IMounted_File_System {
 		public:
+			virtual ~IMounted_File_System();
 			virtual kiv_os::NOS_Error Open_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file);
 			virtual kiv_os::NOS_Error Create_File(const TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<IFile> &file);
 			virtual kiv_os::NOS_Error Delete_File(const TPath &path);
 			std::string Get_Label();
-
-			virtual ~IMounted_File_System();
+			bool Is_Mounted();
+		
 		protected:
+			bool mMounted = true;
 			std::string mLabel;
 	};
 

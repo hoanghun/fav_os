@@ -34,12 +34,22 @@ int Get_Disk_Number() {
 	}
 }
 
+void Print_Error(char *message, size_t message_length) {
+	kiv_hal::TRegisters registers;
+	registers.rax.h = static_cast<decltype(registers.rax.h)>(kiv_hal::NVGA_BIOS::Write_String);
+	registers.rdx.r = reinterpret_cast<decltype(registers.rdx.r)>(message);
+	registers.rcx.r = message_length;
+
+	kiv_hal::Call_Interrupt_Handler(kiv_hal::NInterrupt::VGA_BIOS, registers);
+}
+
 void Initialize_Kernel() {
 	User_Programs = LoadLibraryW(L"user.dll");
 
 	int disk_number = Get_Disk_Number();
 	if (disk_number == NO_DISK) {
-		// TODO handle error (send message to vga and shutdown kernel?)
+		char *err_msg = "No disk found.\n";
+		Print_Error(err_msg, strlen(err_msg));
 	}
 	
 	/*
@@ -50,11 +60,14 @@ void Initialize_Kernel() {
 	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_proc::CFile_System());
 
 	/*
-	 * Mounting registered
+	 * Mounting registered file systems
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("stdio", "stdio");
-	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fat", "C", disk_number);
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fs_proc", "proc");
+	if (!kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fat", "C", disk_number)) {
+		char *err_msg = "Couldn't mount file system.\n";
+		Print_Error(err_msg, strlen(err_msg));
+	}
 }
 
 void Shutdown_Kernel() {
