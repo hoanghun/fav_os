@@ -1,31 +1,31 @@
-#include "fs_fat.h"
+#include "fs_linked_entries.h"
 #include "../api/api.h"
 
 #include <string.h>
 
-namespace kiv_fs_fat {
+namespace kiv_fs_linked_entries {
 	// FAT entry status
-	const uint32_t FAT_FREE = static_cast<uint32_t>(-2);
-	const uint32_t FAT_RESERVED = static_cast<uint32_t>(-3);
-	const uint32_t FAT_EOF = static_cast<uint32_t>(-4);
+	const uint32_t ENTRY_FREE = static_cast<uint32_t>(-2);
+	const uint32_t ENTRY_RESERVED = static_cast<uint32_t>(-3);
+	const uint32_t ENTRY_EOF = static_cast<uint32_t>(-4);
 
 	const size_t MAX_DIR_ENTRIES = 21;
-	const char *FAT_NAME = "fat";
-	const TFAT_Dir_Entry root_dir_entry{ "\\" };
+	const char *LE_NAME = "le";
+	const TLE_Dir_Entry root_dir_entry{ "\\" };
 
 
 #pragma region IO Utils
-	CFAT_Utils::CFAT_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
+	CLE_Utils::CLE_Utils(TSuperblock &sb, kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
 		: mSb(sb), mDisk_number(disk_number), mFs_lock(fs_lock)
 	{
 	}
 
-	CFAT_Utils::CFAT_Utils(kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
+	CLE_Utils::CLE_Utils(kiv_vfs::TDisk_Number disk_number, std::recursive_mutex *fs_lock)
 		: mSb(TSuperblock{}), mDisk_number(disk_number), mFs_lock(fs_lock)
 	{
 	}
 
-	bool CFAT_Utils::Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors) {
+	bool CLE_Utils::Write_To_Disk(char *sectors, uint64_t first_sector, uint64_t num_of_sectors) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		kiv_hal::TRegisters regs;
@@ -44,7 +44,7 @@ namespace kiv_fs_fat {
 		return (regs.flags.carry == 0);
 	}
 
-	bool CFAT_Utils::Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors) {
+	bool CLE_Utils::Read_From_Disk(char *buffer, uint64_t first_sector, uint64_t num_of_sectors) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		kiv_hal::TRegisters regs;
@@ -63,30 +63,30 @@ namespace kiv_fs_fat {
 		return (regs.flags.carry == 0);
 	}
 
-	bool CFAT_Utils::Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters) {
+	bool CLE_Utils::Write_Clusters(char *clusters, uint64_t first_cluster, uint64_t num_of_clusters) {
 		return Write_To_Disk(clusters, first_cluster * mSb.sectors_per_cluster, num_of_clusters * mSb.sectors_per_cluster);
 	}
 
-	bool CFAT_Utils::Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters) {
+	bool CLE_Utils::Read_Clusters(char *buffer, uint64_t first_cluster, uint64_t num_of_clusters) {
 		return Read_From_Disk(buffer, first_cluster * mSb.sectors_per_cluster, num_of_clusters * mSb.sectors_per_cluster);
 	}
 
-	bool CFAT_Utils::Write_Data_Cluster(char *clusters, TFAT_Entry fat_entry) {
+	bool CLE_Utils::Write_Data_Cluster(char *clusters, TLE_Entry fat_entry) {
 		return Write_Clusters(clusters, mSb.data_first_cluster + fat_entry, 1);
 	}
 
-	bool CFAT_Utils::Read_Data_Cluster(char *buffer, TFAT_Entry fat_entry) {
+	bool CLE_Utils::Read_Data_Cluster(char *buffer, TLE_Entry fat_entry) {
 		return Read_Clusters(buffer, mSb.data_first_cluster + fat_entry, 1);
 	}
 
-	bool CFAT_Utils::Set_Fat_Entries_Value(std::vector<TFAT_Entry> &entries, TFAT_Entry value) {
+	bool CLE_Utils::Set_Le_Entries_Value(std::vector<TLE_Entry> &entries, TLE_Entry value) {
 		if (!entries.empty()) {
-			std::map<TFAT_Entry, TFAT_Entry> map;
+			std::map<TLE_Entry, TLE_Entry> map;
 			for (auto it = entries.begin(); it != entries.end(); ++it) {
-				map.insert(std::pair<TFAT_Entry, TFAT_Entry>(*it, value));
+				map.insert(std::pair<TLE_Entry, TLE_Entry>(*it, value));
 			}
 
-			if (!Write_Fat_Entries(map)) {
+			if (!Write_Le_Entries(map)) {
 				return false;
 			}
 		}
@@ -94,23 +94,23 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	bool CFAT_Utils::Get_Free_Fat_Entries(std::vector<TFAT_Entry> &entries, size_t number_of_entries) {
+	bool CLE_Utils::Get_Free_Le_Entries(std::vector<TLE_Entry> &entries, size_t number_of_entries) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
-		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
+		size_t entries_per_cluster = cluster_size / sizeof(TLE_Entry);
 
-		if (cluster_size < sizeof(TFAT_Entry)) {
+		if (cluster_size < sizeof(TLE_Entry)) {
 			return false;
 		}
 		
 		char *cluster_buffer = new char[cluster_size];
 
-		size_t curr_cluster = mSb.fat_table_first_cluster;
-		TFAT_Entry curr_entry = 0;
+		size_t curr_cluster = mSb.le_table_first_cluster;
+		TLE_Entry curr_entry = 0;
 
-		TFAT_Entry entry;
-		while (curr_entry < mSb.fat_table_number_of_entries) {
+		TLE_Entry entry;
+		while (curr_entry < mSb.le_table_number_of_entries) {
 
 			// Read new cluster if needed
 			if (curr_entry % entries_per_cluster == 0) {
@@ -119,15 +119,15 @@ namespace kiv_fs_fat {
 			}
 
 			// Load current FAT entry
-			memcpy(&entry, cluster_buffer + (curr_entry % entries_per_cluster) * sizeof(TFAT_Entry), sizeof(TFAT_Entry));
+			memcpy(&entry, cluster_buffer + (curr_entry % entries_per_cluster) * sizeof(TLE_Entry), sizeof(TLE_Entry));
 
 			// Free entry found
-			if (entry == FAT_FREE) {
+			if (entry == ENTRY_FREE) {
 				entries.push_back(curr_entry);
 
 				// All requested entries found
 				if (entries.size() == number_of_entries) {
-					return Set_Fat_Entries_Value(entries, FAT_RESERVED);
+					return Set_Le_Entries_Value(entries, ENTRY_RESERVED);
 				}
 
 			}
@@ -138,23 +138,23 @@ namespace kiv_fs_fat {
 		return false;
 	}
 
-	bool CFAT_Utils::Write_Fat_Entries(std::map<TFAT_Entry, TFAT_Entry> &entries) {
+	bool CLE_Utils::Write_Le_Entries(std::map<TLE_Entry, TLE_Entry> &entries) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
 		char *cluster_buffer = new char[cluster_size];
-		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
+		size_t entries_per_cluster = cluster_size / sizeof(TLE_Entry);
 
 		size_t cluster_loaded = static_cast<size_t>(-1);
 		size_t cluster_needed;
 
 		size_t order, order_in_cluster;
-		TFAT_Entry value;
+		TLE_Entry value;
 		for (auto it = entries.begin(); it != entries.end(); it++) {
 			order = it->first;
 			value = it->second;
 
-			cluster_needed = (order / entries_per_cluster) + mSb.fat_table_first_cluster;
+			cluster_needed = (order / entries_per_cluster) + mSb.le_table_first_cluster;
 
 			// This FAT entry is not located in currently loaded cluster
 			if (cluster_needed != cluster_loaded) {
@@ -179,7 +179,7 @@ namespace kiv_fs_fat {
 			order_in_cluster = order % entries_per_cluster;
 
 			// Store new FAT entry into a buffer
-			memcpy(cluster_buffer + order_in_cluster * sizeof(TFAT_Entry), &value, sizeof(TFAT_Entry));
+			memcpy(cluster_buffer + order_in_cluster * sizeof(TLE_Entry), &value, sizeof(TLE_Entry));
 		}
 
 		// Store current cluster
@@ -194,11 +194,11 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	bool CFAT_Utils::Get_File_Fat_Entries(TFAT_Entry first_entry, std::vector<TFAT_Entry> &entries) {
+	bool CLE_Utils::Get_File_Le_Entries(TLE_Entry first_entry, std::vector<TLE_Entry> &entries) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		size_t cluster_size = mSb.sectors_per_cluster * mSb.disk_params.bytes_per_sector;
-		size_t entries_per_cluster = cluster_size / sizeof(TFAT_Entry);
+		size_t entries_per_cluster = cluster_size / sizeof(TLE_Entry);
 
 		char *cluster_buffer = new char[cluster_size];
 
@@ -207,11 +207,11 @@ namespace kiv_fs_fat {
 
 		size_t order_in_cluster;
 
-		TFAT_Entry value = first_entry;
-		while (value != FAT_EOF) {
+		TLE_Entry value = first_entry;
+		while (value != ENTRY_EOF) {
 			entries.push_back(value);
 
-			cluster_needed = (value / entries_per_cluster) + mSb.fat_table_first_cluster;
+			cluster_needed = (value / entries_per_cluster) + mSb.le_table_first_cluster;
 
 			// FAT entry is not located in currently loaded cluster -> Load needed cluster
 			if (cluster_needed != cluster_loaded) {
@@ -225,7 +225,7 @@ namespace kiv_fs_fat {
 			order_in_cluster = value % entries_per_cluster;
 
 			// Load value
-			memcpy(&value, cluster_buffer + order_in_cluster * sizeof(TFAT_Entry), sizeof(TFAT_Entry));
+			memcpy(&value, cluster_buffer + order_in_cluster * sizeof(TLE_Entry), sizeof(TLE_Entry));
 		}
 
 		delete[] cluster_buffer;
@@ -233,22 +233,22 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	bool CFAT_Utils::Free_File_Fat_Entries(TFAT_Dir_Entry &entry) {
+	bool CLE_Utils::Free_File_Le_Entries(TLE_Dir_Entry &entry) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		std::vector<TFAT_Entry> entries;
+		std::vector<TLE_Entry> entries;
 
-		if (!Get_File_Fat_Entries(entry.start, entries)) {
+		if (!Get_File_Le_Entries(entry.start, entries)) {
 			return false;
 		}
 
-		return Set_Fat_Entries_Value(entries, FAT_FREE);;
+		return Set_Le_Entries_Value(entries, ENTRY_FREE);;
 	}
 
-	bool CFAT_Utils::Load_Directory(std::vector<TFAT_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory) {
+	bool CLE_Utils::Load_Directory(std::vector<TLE_Dir_Entry> dirs_from_root, std::shared_ptr<IDirectory> &directory) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		TFAT_Dir_Entry dir_entry = dirs_from_root.back();
+		TLE_Dir_Entry dir_entry = dirs_from_root.back();
 
 		// Dir is root
 		if (strcmp(dir_entry.name, root_dir_entry.name) == 0) {
@@ -264,26 +264,26 @@ namespace kiv_fs_fat {
 		return true;
 	}
 
-	void CFAT_Utils::Set_Superblock(TSuperblock sb) {
+	void CLE_Utils::Set_Superblock(TSuperblock sb) {
 		mSb = sb;
 	}
 
-	void CFAT_Utils::Set_Root(std::shared_ptr<CRoot> &root) {
+	void CLE_Utils::Set_Root(std::shared_ptr<CRoot> &root) {
 		mRoot = root;
 	}
 
-	TSuperblock &CFAT_Utils::Get_Superblock() {
+	TSuperblock &CLE_Utils::Get_Superblock() {
 		return mSb;
 	}
 
-	std::map<TFAT_Entry, TFAT_Entry> CFAT_Utils::Create_Fat_Entries_Chain(std::vector<TFAT_Entry> &entries) {
-		std::map<TFAT_Entry, TFAT_Entry> entry_map;
+	std::map<TLE_Entry, TLE_Entry> CLE_Utils::Create_Le_Entries_Chain(std::vector<TLE_Entry> &entries) {
+		std::map<TLE_Entry, TLE_Entry> entry_map;
 
 		if (entries.size() != 0) {
 			for (size_t i = 0; i < entries.size() - 1; i++) {
-				entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(entries.at(i), entries.at(i + 1)));
+				entry_map.insert(std::pair<TLE_Entry, TLE_Entry>(entries.at(i), entries.at(i + 1)));
 			}
-			entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(entries.back(), FAT_EOF));
+			entry_map.insert(std::pair<TLE_Entry, TLE_Entry>(entries.back(), ENTRY_EOF));
 		}
 
 		return entry_map;
@@ -293,7 +293,7 @@ namespace kiv_fs_fat {
 
 #pragma region Abstract directory
 
-	IDirectory::IDirectory(CFAT_Utils *utils, std::recursive_mutex *fs_lock) 
+	IDirectory::IDirectory(CLE_Utils *utils, std::recursive_mutex *fs_lock) 
 		: mUtils(utils), mSize(0)
 	{
 		mFs_lock = fs_lock;
@@ -313,7 +313,7 @@ namespace kiv_fs_fat {
 		}
 
 		kiv_os::TDir_Entry os_dir_entry;
-		TFAT_Dir_Entry fat_dir_entry;
+		TLE_Dir_Entry fat_dir_entry;
 
 		size_t fat_entry_index;
 		for (size_t i = 0; i < buffer_size; i += sizeof(kiv_os::TDir_Entry)) {
@@ -361,13 +361,13 @@ namespace kiv_fs_fat {
 			return nullptr;
 		}
 
-		std::vector<TFAT_Entry> entry;
-		if (!mUtils->Get_Free_Fat_Entries(entry, 1)) {
+		std::vector<TLE_Entry> entry;
+		if (!mUtils->Get_Free_Le_Entries(entry, 1)) {
 			return nullptr;
 		}
 
 		// Create directory entry
-		TFAT_Dir_Entry dir_entry;
+		TLE_Dir_Entry dir_entry;
 
 		dir_entry.attributes = attributes;
 		dir_entry.filesize = 0;
@@ -377,24 +377,24 @@ namespace kiv_fs_fat {
 		mEntries.push_back(dir_entry);
 
 		// Write directory entry to disk
-		std::map<TFAT_Entry, TFAT_Entry> entry_map;
-		entry_map.insert(std::pair<TFAT_Entry, TFAT_Entry>(entry[0], FAT_EOF));
+		std::map<TLE_Entry, TLE_Entry> entry_map;
+		entry_map.insert(std::pair<TLE_Entry, TLE_Entry>(entry[0], ENTRY_EOF));
 
-		if (!mUtils->Write_Fat_Entries(entry_map)) {
-			mUtils->Set_Fat_Entries_Value(entry, FAT_FREE);
+		if (!mUtils->Write_Le_Entries(entry_map)) {
+			mUtils->Set_Le_Entries_Value(entry, ENTRY_FREE);
 			return nullptr;
 		}
 
-		mSize += sizeof(TFAT_Dir_Entry);
+		mSize += sizeof(TLE_Dir_Entry);
 
 		if (!Save()) {
-			mUtils->Set_Fat_Entries_Value(entry, FAT_FREE);
+			mUtils->Set_Le_Entries_Value(entry, ENTRY_FREE);
 			return nullptr;
 		}
 
 		auto result = Make_File(path, dir_entry);
 		if (!result) {
-			mUtils->Set_Fat_Entries_Value(entry, FAT_FREE);
+			mUtils->Set_Le_Entries_Value(entry, ENTRY_FREE);
 		}
 
 		return result;
@@ -411,7 +411,7 @@ namespace kiv_fs_fat {
 			// File found
 			if (it->name == path.file) {
 
-				if (!mUtils->Free_File_Fat_Entries(*it)) {
+				if (!mUtils->Free_File_Le_Entries(*it)) {
 					return false;
 				}
 
@@ -426,7 +426,7 @@ namespace kiv_fs_fat {
 					mEntries.pop_back();
 				}
 
-				mSize -= sizeof(TFAT_Dir_Entry);
+				mSize -= sizeof(TLE_Dir_Entry);
 
 				if (!Save()) {
 					return false;
@@ -438,7 +438,7 @@ namespace kiv_fs_fat {
 		return false;
 	}
 
-	bool IDirectory::Find(std::string filename, TFAT_Dir_Entry &entry) {
+	bool IDirectory::Find(std::string filename, TLE_Dir_Entry &entry) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
@@ -493,7 +493,7 @@ namespace kiv_fs_fat {
 #pragma endregion
 
 #pragma region Subdirectory
-	CDirectory::CDirectory(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+	CDirectory::CDirectory(const kiv_vfs::TPath path, TLE_Dir_Entry &dir_entry, std::vector<TLE_Dir_Entry> dirs_to_parent, CLE_Utils *utils, std::recursive_mutex *fs_lock)
 		: IDirectory(utils, fs_lock), mDir_entry(dir_entry), mDirs_to_parent(dirs_to_parent)
 	{
 		mPath = path;
@@ -501,17 +501,17 @@ namespace kiv_fs_fat {
 		mSize = dir_entry.filesize;
 	}
 
-	CDirectory::CDirectory(TFAT_Dir_Entry &dir_entry, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
-		: IDirectory(utils, fs_lock), mDir_entry(dir_entry), mDirs_to_parent(std::vector<TFAT_Dir_Entry>{})
+	CDirectory::CDirectory(TLE_Dir_Entry &dir_entry, CLE_Utils *utils, std::recursive_mutex *fs_lock)
+		: IDirectory(utils, fs_lock), mDir_entry(dir_entry), mDirs_to_parent(std::vector<TLE_Dir_Entry>{})
 	{
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CDirectory::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
+	std::shared_ptr<kiv_vfs::IFile> CDirectory::Make_File(kiv_vfs::TPath path, TLE_Dir_Entry entry) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		std::vector<TFAT_Dir_Entry> dirs_to_this = { mDirs_to_parent };
+		std::vector<TLE_Dir_Entry> dirs_to_this = { mDirs_to_parent };
 		dirs_to_this.push_back(mDir_entry);
 
 		if (entry.attributes == kiv_os::NFile_Attributes::Directory) {
@@ -535,7 +535,7 @@ namespace kiv_fs_fat {
 		parent->Get_Entry_Size(mPath.file, mSize);
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
-		if (cluster_size < sizeof(TFAT_Dir_Entry)) {
+		if (cluster_size < sizeof(TLE_Dir_Entry)) {
 			return false;
 		}
 
@@ -547,11 +547,11 @@ namespace kiv_fs_fat {
 		}
 
 		// Parse entries
-		TFAT_Dir_Entry entry;
-		size_t number_of_entries = mSize / sizeof(TFAT_Dir_Entry);
+		TLE_Dir_Entry entry;
+		size_t number_of_entries = mSize / sizeof(TLE_Dir_Entry);
 
 		for (size_t i = 0; i < number_of_entries; i++) {
-			memcpy(&entry, buffer + i * sizeof(TFAT_Dir_Entry), sizeof(TFAT_Dir_Entry));
+			memcpy(&entry, buffer + i * sizeof(TLE_Dir_Entry), sizeof(TLE_Dir_Entry));
 			mEntries.push_back(entry);
 		}
 
@@ -564,7 +564,7 @@ namespace kiv_fs_fat {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
-		if (cluster_size < sizeof(TFAT_Dir_Entry)) {
+		if (cluster_size < sizeof(TLE_Dir_Entry)) {
 			return false;
 		}
 
@@ -573,8 +573,8 @@ namespace kiv_fs_fat {
 		// Save entries
 		size_t address = 0;
 		for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
-			memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
-			address += sizeof(TFAT_Dir_Entry);
+			memcpy(buffer + address, &(*it), sizeof(TLE_Dir_Entry));
+			address += sizeof(TLE_Dir_Entry);
 		}
 
 		bool res = mUtils->Write_Data_Cluster(buffer, mDir_entry.start);
@@ -585,7 +585,7 @@ namespace kiv_fs_fat {
 		if (!mUtils->Load_Directory(mDirs_to_parent, parent)) {
 			return nullptr;
 		}
-		parent->Change_Entry_Size(mPath.file, static_cast<uint32_t>(mEntries.size() * sizeof(TFAT_Dir_Entry)));
+		parent->Change_Entry_Size(mPath.file, static_cast<uint32_t>(mEntries.size() * sizeof(TLE_Dir_Entry)));
 
 		return res;
 	}
@@ -593,7 +593,7 @@ namespace kiv_fs_fat {
 #pragma endregion
 
 #pragma region Root
-	CRoot::CRoot(CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+	CRoot::CRoot(CLE_Utils *utils, std::recursive_mutex *fs_lock)
 		: IDirectory(utils, fs_lock)
 	{
 		mAttributes = kiv_os::NFile_Attributes::Directory;
@@ -605,7 +605,7 @@ namespace kiv_fs_fat {
 		mEntries.clear();
 
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
-		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TFAT_Dir_Entry)) {
+		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TLE_Dir_Entry)) {
 			return false;
 		}
 
@@ -619,11 +619,11 @@ namespace kiv_fs_fat {
 		memcpy(&mSize, buffer, sizeof(mSize));
 
 		// Parse content of root
-		TFAT_Dir_Entry entry;
-		size_t number_of_entries = mSize / sizeof(TFAT_Dir_Entry);
+		TLE_Dir_Entry entry;
+		size_t number_of_entries = mSize / sizeof(TLE_Dir_Entry);
 
 		for (size_t i = 0; i < number_of_entries; i++) {
-			memcpy(&entry, buffer + sizeof(mSize) + i * sizeof(TFAT_Dir_Entry), sizeof(TFAT_Dir_Entry));
+			memcpy(&entry, buffer + sizeof(mSize) + i * sizeof(TLE_Dir_Entry), sizeof(TLE_Dir_Entry));
 			mEntries.push_back(entry);
 		}
 
@@ -633,7 +633,7 @@ namespace kiv_fs_fat {
 
 	bool CRoot::Save() {
 		size_t cluster_size = mUtils->Get_Superblock().sectors_per_cluster * mUtils->Get_Superblock().disk_params.bytes_per_sector;
-		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TFAT_Dir_Entry)) {
+		if (cluster_size < sizeof(mSize) || cluster_size < sizeof(TLE_Dir_Entry)) {
 			return false;
 		}
 
@@ -650,8 +650,8 @@ namespace kiv_fs_fat {
 			// Save entries (start after size of the root)
 			size_t address = sizeof(mSize);
 			for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
-				memcpy(buffer + address, &(*it), sizeof(TFAT_Dir_Entry));
-				address += sizeof(TFAT_Dir_Entry);
+				memcpy(buffer + address, &(*it), sizeof(TLE_Dir_Entry));
+				address += sizeof(TLE_Dir_Entry);
 			}
 
 			result = mUtils->Write_Clusters(buffer, mUtils->Get_Superblock().root_cluster, 1);
@@ -662,10 +662,10 @@ namespace kiv_fs_fat {
 		return result;
 	}
 
-	std::shared_ptr<kiv_vfs::IFile> CRoot::Make_File(kiv_vfs::TPath path, TFAT_Dir_Entry entry) {
+	std::shared_ptr<kiv_vfs::IFile> CRoot::Make_File(kiv_vfs::TPath path, TLE_Dir_Entry entry) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		std::vector<TFAT_Dir_Entry> dirs_to_this = { root_dir_entry };
+		std::vector<TLE_Dir_Entry> dirs_to_this = { root_dir_entry };
 
 		if (entry.attributes == kiv_os::NFile_Attributes::Directory) {
 			return std::make_shared<CDirectory>(path, entry, dirs_to_this, mUtils, mFs_lock);
@@ -677,14 +677,14 @@ namespace kiv_fs_fat {
 #pragma endregion
 
 #pragma region File
-	CFile::CFile(const kiv_vfs::TPath path, TFAT_Dir_Entry &dir_entry, std::vector<TFAT_Dir_Entry> dirs_to_parent, CFAT_Utils *utils, std::recursive_mutex *fs_lock)
+	CFile::CFile(const kiv_vfs::TPath path, TLE_Dir_Entry &dir_entry, std::vector<TLE_Dir_Entry> dirs_to_parent, CLE_Utils *utils, std::recursive_mutex *fs_lock)
 		: mUtils(utils), mDirs_to_parent(dirs_to_parent)
 	{
 		mPath = path;
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
 		mFs_lock = fs_lock;
-		if (!mUtils->Get_File_Fat_Entries(dir_entry.start, mFat_entries)) {
+		if (!mUtils->Get_File_Le_Entries(dir_entry.start, mLe_entries)) {
 			// TODO Handle error
 		}
 	}
@@ -716,33 +716,33 @@ namespace kiv_fs_fat {
 		size_t clusters_needed = last_cluster + 1;
 
 		// Need new clusters
-		std::vector<TFAT_Entry> new_entries;
-		if (mFat_entries.size() < clusters_needed) {
+		std::vector<TLE_Entry> new_entries;
+		if (mLe_entries.size() < clusters_needed) {
 			// Get free entries
-			size_t num_of_new_entries = clusters_needed - mFat_entries.size();
-			if (!mUtils->Get_Free_Fat_Entries(new_entries, num_of_new_entries)) {
+			size_t num_of_new_entries = clusters_needed - mLe_entries.size();
+			if (!mUtils->Get_Free_Le_Entries(new_entries, num_of_new_entries)) {
 				return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 			}
 
 			// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
-			std::vector<TFAT_Entry> tmp_entries = mFat_entries;
+			std::vector<TLE_Entry> tmp_entries = mLe_entries;
 			tmp_entries.insert(tmp_entries.end(), new_entries.begin(), new_entries.end());
 
 			// Write new entries
-			auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
-			if (!mUtils->Write_Fat_Entries(entry_map)) {
-				mUtils->Set_Fat_Entries_Value(new_entries, FAT_FREE);
+			auto entry_map = mUtils->Create_Le_Entries_Chain(tmp_entries);
+			if (!mUtils->Write_Le_Entries(entry_map)) {
+				mUtils->Set_Le_Entries_Value(new_entries, ENTRY_FREE);
 				return kiv_os::NOS_Error::IO_Error;
 			}
 
-			mFat_entries = tmp_entries;
+			mLe_entries = tmp_entries;
 		}
 
 		// Write to clusters
 		char *cluster = new char[cluster_size];
 		size_t bytes_to_write_in_cluster;
 		for (size_t i = first_cluster; i <= last_cluster; i++) {
-			if (!mUtils->Read_Data_Cluster(cluster, mFat_entries.at(i))) {
+			if (!mUtils->Read_Data_Cluster(cluster, mLe_entries.at(i))) {
 				delete[] cluster;
 				return kiv_os::NOS_Error::IO_Error;
 			}
@@ -761,7 +761,7 @@ namespace kiv_fs_fat {
 				memcpy(cluster, buffer + written, bytes_to_write_in_cluster);
 			}
 
-			if (!mUtils->Write_Data_Cluster(cluster, mFat_entries.at(i))) {
+			if (!mUtils->Write_Data_Cluster(cluster, mLe_entries.at(i))) {
 				delete[] cluster;
 				written = 0;
 				return kiv_os::NOS_Error::IO_Error;
@@ -815,7 +815,7 @@ namespace kiv_fs_fat {
 		char *cluster = new char[cluster_size];
 		size_t bytes_to_read_in_cluster;
 		for (size_t i = first_cluster; i <= last_cluster; i++) {
-			if (!mUtils->Read_Data_Cluster(cluster, mFat_entries.at(i))) {
+			if (!mUtils->Read_Data_Cluster(cluster, mLe_entries.at(i))) {
 				delete[] cluster;
 				read = 0;
 				return kiv_os::NOS_Error::IO_Error;
@@ -855,7 +855,7 @@ namespace kiv_fs_fat {
 		size_t clusters_needed = ((size % bytes_per_cluster) == 0)
 			? (size / bytes_per_cluster)
 			: ((size / bytes_per_cluster) + 1);
-		size_t clusters_allocated = mFat_entries.size();
+		size_t clusters_allocated = mLe_entries.size();
 
 		// Downsize
 		if (size < mSize) {
@@ -865,15 +865,15 @@ namespace kiv_fs_fat {
 				size_t clusters_to_free = clusters_allocated - clusters_needed;
 
 				// Remove last N entries and free them
-				std::vector<TFAT_Entry> entries_to_free;
+				std::vector<TLE_Entry> entries_to_free;
 				for (int i = 0; i < clusters_to_free; i++) {
-					entries_to_free.push_back(mFat_entries.back());
-					mFat_entries.pop_back();
+					entries_to_free.push_back(mLe_entries.back());
+					mLe_entries.pop_back();
 				}
-				mUtils->Set_Fat_Entries_Value(entries_to_free, FAT_FREE);
+				mUtils->Set_Le_Entries_Value(entries_to_free, ENTRY_FREE);
 
 				// Modify last entry
-				mUtils->Set_Fat_Entries_Value(std::vector<TFAT_Entry>{mFat_entries.back()}, FAT_EOF);
+				mUtils->Set_Le_Entries_Value(std::vector<TLE_Entry>{mLe_entries.back()}, ENTRY_EOF);
 			}
 
 		}
@@ -885,22 +885,22 @@ namespace kiv_fs_fat {
 			if (clusters_needed != clusters_allocated) {
 				size_t clusters_to_allocate = clusters_needed - clusters_allocated;
 
-				std::vector<TFAT_Entry> allocated_entries;
-				if (!mUtils->Get_Free_Fat_Entries(allocated_entries, clusters_to_allocate)) {
+				std::vector<TLE_Entry> allocated_entries;
+				if (!mUtils->Get_Free_Le_Entries(allocated_entries, clusters_to_allocate)) {
 					return kiv_os::NOS_Error::Not_Enough_Disk_Space;
 				}
 
 				// Create new vector of entries (current entries + new entries). Current entries will be set to vector this later.
-				std::vector<TFAT_Entry> tmp_entries = mFat_entries;
+				std::vector<TLE_Entry> tmp_entries = mLe_entries;
 				tmp_entries.insert(tmp_entries.end(), allocated_entries.begin(), allocated_entries.end());
 
-				auto entry_map = mUtils->Create_Fat_Entries_Chain(tmp_entries);
-				if (!mUtils->Write_Fat_Entries(entry_map)) {
-					mUtils->Set_Fat_Entries_Value(allocated_entries, FAT_FREE);
+				auto entry_map = mUtils->Create_Le_Entries_Chain(tmp_entries);
+				if (!mUtils->Write_Le_Entries(entry_map)) {
+					mUtils->Set_Le_Entries_Value(allocated_entries, ENTRY_FREE);
 					return kiv_os::NOS_Error::IO_Error;
 				}
 
-				mFat_entries = tmp_entries;
+				mLe_entries = tmp_entries;
 			}
 
 		}
@@ -935,7 +935,7 @@ namespace kiv_fs_fat {
 		mDisk_Number = disk_number;
 		mFs_lock = new std::recursive_mutex();
 
-		mUtils = new CFAT_Utils(disk_number, mFs_lock);
+		mUtils = new CLE_Utils(disk_number, mFs_lock);
 
 		kiv_hal::TDrive_Parameters disk_params;
 		if (!Load_Disk_Params(disk_params)) {
@@ -970,8 +970,8 @@ namespace kiv_fs_fat {
 	kiv_os::NOS_Error CMount::Open_File(const kiv_vfs::TPath &path, kiv_os::NFile_Attributes attributes, std::shared_ptr<kiv_vfs::IFile> &file) {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
-		std::vector<TFAT_Dir_Entry> entries_from_root{ root_dir_entry };
-		TFAT_Dir_Entry entry;
+		std::vector<TLE_Dir_Entry> entries_from_root{ root_dir_entry };
+		TLE_Dir_Entry entry;
 		std::shared_ptr<IDirectory> directory;
 
 		// Open root
@@ -1020,15 +1020,15 @@ namespace kiv_fs_fat {
 
 		// Create file directly in the root
 		if (path.path.empty()) {
-			if (root->Find(path.file, TFAT_Dir_Entry{})) {
+			if (root->Find(path.file, TLE_Dir_Entry{})) {
 				Delete_File(path);
 			}
 			file = root->Create_File(path, attributes);
 			return kiv_os::NOS_Error::Success;
 		}
 
-		std::vector<TFAT_Dir_Entry> entries_from_root { root_dir_entry };
-		TFAT_Dir_Entry entry;
+		std::vector<TLE_Dir_Entry> entries_from_root { root_dir_entry };
+		TLE_Dir_Entry entry;
 		std::shared_ptr<IDirectory> directory;
 		kiv_vfs::TPath tmp_path;
 
@@ -1100,7 +1100,7 @@ namespace kiv_fs_fat {
 	}
 
 	bool CMount::Chech_Superblock() {
-		return (strcmp(FAT_NAME, mSuperblock.name) == 0);
+		return (strcmp(LE_NAME, mSuperblock.name) == 0);
 	}
 
 	bool CMount::Format_Disk(kiv_hal::TDrive_Parameters &params) {
@@ -1108,16 +1108,16 @@ namespace kiv_fs_fat {
 		size_t cluster_size = sectors_per_cluster * params.bytes_per_sector;
 		size_t disk_size = params.absolute_number_of_sectors * params.bytes_per_sector;
 		size_t available_space = disk_size - (2 * cluster_size); // Disk size - superblock cluster - root cluster
-		size_t num_of_fat_entries = available_space / (sizeof(TFAT_Dir_Entry) + cluster_size);
-		num_of_fat_entries -= ((num_of_fat_entries * sizeof(TFAT_Entry)) % (cluster_size)) / sizeof(TFAT_Entry);
-		size_t num_of_fat_entries_clusters = (num_of_fat_entries * sizeof(TFAT_Entry)) / cluster_size;
+		size_t num_of_fat_entries = available_space / (sizeof(TLE_Dir_Entry) + cluster_size);
+		num_of_fat_entries -= ((num_of_fat_entries * sizeof(TLE_Entry)) % (cluster_size)) / sizeof(TLE_Entry);
+		size_t num_of_fat_entries_clusters = (num_of_fat_entries * sizeof(TLE_Entry)) / cluster_size;
 
 		// Set up superblock
-		strcpy_s(mSuperblock.name, FAT_NAME);
+		strcpy_s(mSuperblock.name, LE_NAME);
 		mSuperblock.disk_params = params;
-		mSuperblock.fat_table_first_cluster = 1;
+		mSuperblock.le_table_first_cluster = 1;
 		mSuperblock.sectors_per_cluster = sectors_per_cluster;
-		mSuperblock.fat_table_number_of_entries = num_of_fat_entries;
+		mSuperblock.le_table_number_of_entries = num_of_fat_entries;
 		mSuperblock.root_cluster = 1 + num_of_fat_entries_clusters;
 		mSuperblock.data_first_cluster = mSuperblock.root_cluster + 1; 
 
@@ -1130,7 +1130,7 @@ namespace kiv_fs_fat {
 		}
 
 		// Init FAT table
-		if (!Init_Fat_Table()) {
+		if (!Init_Le_Table()) {
 			return false;
 		}
 
@@ -1152,13 +1152,13 @@ namespace kiv_fs_fat {
 		return (regs.flags.carry == 0);
 	}
 
-	bool CMount::Init_Fat_Table() {
-		size_t entry_size = sizeof(TFAT_Entry);
+	bool CMount::Init_Le_Table() {
+		size_t entry_size = sizeof(TLE_Entry);
 		size_t cluster_size = mSuperblock.sectors_per_cluster * mSuperblock.disk_params.bytes_per_sector;
 		size_t entries_per_cluster = cluster_size / entry_size;
-		size_t clusters_needed = ((mSuperblock.fat_table_number_of_entries % entries_per_cluster) == 0)
-			? (mSuperblock.fat_table_number_of_entries / entries_per_cluster)
-			: ((mSuperblock.fat_table_number_of_entries / entries_per_cluster) + 1);
+		size_t clusters_needed = ((mSuperblock.le_table_number_of_entries % entries_per_cluster) == 0)
+			? (mSuperblock.le_table_number_of_entries / entries_per_cluster)
+			: ((mSuperblock.le_table_number_of_entries / entries_per_cluster) + 1);
 
 		size_t buf_size = clusters_needed * cluster_size;
 		if (buf_size < entry_size) {
@@ -1168,13 +1168,13 @@ namespace kiv_fs_fat {
 		char *buffer = new char[buf_size];
 
 		// Init FAT entries (ensure that one entry isn't spreaded over two clusters)
-		TFAT_Entry entry = FAT_FREE;
+		TLE_Entry entry = ENTRY_FREE;
 		char *free_entry_casted = reinterpret_cast<char *>(&entry);
 
 		size_t curr_cluster = 0;
 		size_t cluster_address, cluster_offset, address;
 
-		for (size_t i = 0; i < mSuperblock.fat_table_number_of_entries; i++) {
+		for (size_t i = 0; i < mSuperblock.le_table_number_of_entries; i++) {
 			if ((i / entries_per_cluster != 0) && (i % entries_per_cluster == 0)) {
 				curr_cluster++;
 			}
@@ -1187,7 +1187,7 @@ namespace kiv_fs_fat {
 		}
 
 		// Write FAT table
-		bool write_result = mUtils->Write_Clusters(buffer, mSuperblock.fat_table_first_cluster, clusters_needed);
+		bool write_result = mUtils->Write_Clusters(buffer, mSuperblock.le_table_first_cluster, clusters_needed);
 
 		delete[] buffer;
 
@@ -1215,7 +1215,7 @@ namespace kiv_fs_fat {
 
 #pragma region Filesystem
 	CFile_System::CFile_System() {
-		mName = FAT_NAME;
+		mName = LE_NAME;
 	}
 
 	kiv_vfs::IMounted_File_System *CFile_System::Create_Mount(const std::string label, const kiv_vfs::TDisk_Number disk_number) {

@@ -9,7 +9,7 @@
 #include "process.h"
 #include "vfs.h"
 #include "fs_stdio.h"
-#include "fs_fat.h"
+#include "fs_linked_entries.h"
 #include "fs_proc.h"
 
 HMODULE User_Programs;
@@ -56,7 +56,7 @@ void Initialize_Kernel() {
 	 * Registering all known file systems crucial for kernel
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_stdio::CFile_System());
-	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_fat::CFile_System());
+	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_linked_entries::CFile_System());
 	kiv_vfs::CVirtual_File_System::Get_Instance().Register_File_System(new kiv_fs_proc::CFile_System());
 
 	/*
@@ -64,8 +64,8 @@ void Initialize_Kernel() {
 	 */
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("stdio", "stdio");
 	kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fs_proc", "proc");
-	if (!kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("fat", "C", disk_number)) {
-		char *err_msg = "Couldn't mount file system.\n";
+	if (!kiv_vfs::CVirtual_File_System::Get_Instance().Mount_File_System("le", "C", disk_number)) {
+		char *err_msg = "Couldn't mount 'Linked Entries' file system.\n";
 		Print_Error(err_msg, strlen(err_msg));
 	}
 }
