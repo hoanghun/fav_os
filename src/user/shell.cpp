@@ -81,8 +81,6 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 bool Check(std::vector<TExecutable> &exes) {
 
-	//if command is cd check validity
-
 	//kontrola zda jsou exes validni
 	bool previous_pipe = false;
 	for (const TExecutable &exe : exes) {
@@ -156,9 +154,6 @@ bool Prepare_For_Execution(TExecutable &exe, const kiv_hal::TRegisters &regs, ki
 
 void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 
-	//const kiv_os::THandle sin = regs.rax.x;
-	//const kiv_os::THandle sout = regs.rbx.x;
-
 	std::vector<size_t> handles;
 	size_t handle = 0;
 	bool result = true;
@@ -222,7 +217,11 @@ void Execute(std::vector<TExecutable> &exes, const kiv_hal::TRegisters &regs) {
 	if (handles.size() != 0) {
 		do {
 			bool result = kiv_os_rtl::Wait_For(&handles[0], handles.size(), signaled);
-			//TODO kontrolovat chyby
+		
+			if (result == false) {
+				break;
+			}
+
 			handles.erase(std::remove(handles.begin(), handles.end(), signaled), handles.end());
 			kiv_os_rtl::Read_Exit_Code(signaled, exit_code);
 

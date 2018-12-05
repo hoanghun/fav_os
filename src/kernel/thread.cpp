@@ -139,12 +139,12 @@ namespace kiv_thread {
 
 		bool CThread_Manager::Thread_Exit(size_t tid) {
 
-			std::shared_ptr<TThread_Control_Block> tcb;
+			std::shared_ptr<TThread_Control_Block> mtcb;
 			
-				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &tcb) == true) {
-					tcb->state = NThread_State::TERMINATED;
+				if (Get_Thread_Control_Block(Hash_Thread_Id(std::this_thread::get_id()), &mtcb) == true) {
+					mtcb->state = NThread_State::TERMINATED;
 					//Signalizace ukonceni procesu tem kdo na to cekaji
-					for (auto const & tid : tcb->waiting_threads) {
+					for (auto const & tid : mtcb->waiting_threads) {
 
 						std::shared_ptr<TThread_Control_Block> tcb;
 						if (Get_Thread_Control_Block(tid, &tcb) == true) {
@@ -153,7 +153,7 @@ namespace kiv_thread {
 							}
 						}
 					}
-					tcb->waiting_threads.clear();
+					mtcb->waiting_threads.clear();
 				}
 				else {
 					/*plock.unlock();*/
@@ -193,7 +193,6 @@ namespace kiv_thread {
 					auto result = thread_map.find(tids[i]);
 
 					if (result == thread_map.end()) {
-						//TODO raise some error??
 						context.rax.r = static_cast<uint64_t>(kiv_os::NOS_Error::Invalid_Argument);
 						context.flags.carry = 1;
 						lock.unlock();
@@ -217,7 +216,6 @@ namespace kiv_thread {
 			const size_t my_tid = Hash_Thread_Id(std::this_thread::get_id());
 			std::shared_ptr<TThread_Control_Block> tcb;
 
-			//TODO potencial error
 			if (Get_Thread_Control_Block(my_tid, &tcb) == false) {
 				return 0;
 			}

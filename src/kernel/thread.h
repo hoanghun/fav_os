@@ -43,8 +43,7 @@ namespace kiv_thread {
 		}
 
 		inline void Kiv_Os_Default_Terminate_Handler(std::shared_ptr<TThread_Control_Block> tcb) {
-			//TODO change -1 to some exit code
-			TerminateThread(tcb->thread.native_handle(), 0);
+			TerminateThread(tcb->thread.native_handle(), -1);
 			tcb->thread.join();
 		}
 

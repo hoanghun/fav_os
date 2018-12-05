@@ -10,15 +10,6 @@
 
 namespace kiv_process {
 
-#pragma region "SYSTEM VARIABLES"
-
-	/*std::mutex reap_mutex;
-	std::condition_variable reap_cv;*/
-
-
-#pragma endregion
-
-
 	void Handle_Clone_Call(kiv_hal::TRegisters &regs) {
 
 		
@@ -128,8 +119,6 @@ namespace kiv_process {
 	CProcess_Manager *CProcess_Manager::instance = new CProcess_Manager();
 
 	CProcess_Manager::CProcess_Manager() {
-		// Musíme spustit systémový proces, který je rodiè všech ostatních procesù
-		//Create_Sys_Process();
 		system_semaphore = new Semaphore(0);
 		system_kill = false;
 		pid_manager = new CPid_Manager();
@@ -143,11 +132,6 @@ namespace kiv_process {
 	}
 
 	CProcess_Manager& CProcess_Manager::Get_Instance() {
-
-		//if (instance == nullptr) {
-		//	instance = new CProcess_Manager();
-		//}
-
 		return *instance;
 	}
 
@@ -220,9 +204,6 @@ namespace kiv_process {
 
 	void CProcess_Manager::Check_Stdin_Stdout(kiv_hal::TRegisters &regs) {
 
-		//std::shared_ptr<TProcess_Control_Block> ppcb;
-		//if (!Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &ppcb));
-
 		kiv_os::THandle sin = regs.rbx.e >> 16;
 		kiv_os::THandle sout = regs.rbx.e & 0xFFFF;
 
@@ -248,33 +229,10 @@ namespace kiv_process {
 
 	}
 
-	//bool CProcess_Manager::Get_Tcb(size_t tid, std::shared_ptr<kiv_thread::TThread_Control_Block> tcb) {
-	//	for (auto tpcb : process_table) {
-	//		for (std::shared_ptr<kiv_thread::TThread_Control_Block> ttcb : tpcb.second->thread_table) {
-	//			if (ttcb->tid == tid) {
-
-	//				if (tcb != nullptr) {
-	//					tcb = ttcb;
-	//				}
-
-	//				return true;
-	//			}
-	//		}
-	//	}
-
-	//	return false;
-
-	//}
-
 	//Zkontroluje zda process skoncil tzn. vsechny vlakna jsou ve stavu terminated
 	//a provede potrebne akce
 	void CProcess_Manager::Check_Process_State(std::shared_ptr<TProcess_Control_Block> pcb) {
 		
-		//Pokud se systém vypíná, tak už øeší ukonèení procesù podle sebe
-		/*if (system_shutdown == true) {
-			return;
-		}*/
-
 		std::unique_lock<std::mutex> lock(ptable);
 		{
 
@@ -300,7 +258,6 @@ namespace kiv_process {
 			if (terminated) {
 				//Uzavirani vsech otevrenych souboru
 				for (auto &item : pcb->fd_table) {
-					//TODO zavreni stdin a stdout?
 					if (item.second != 0 && item.second != 1) {
 						kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(item.second);
 					}
@@ -318,7 +275,6 @@ namespace kiv_process {
 					}
 				}
 
-				//
 				std::vector<size_t> &vec = process_table[pcb->ppid]->cpids;
 				vec.erase(std::remove(vec.begin(), vec.end(), pcb->pid), vec.end());
 
@@ -332,21 +288,8 @@ namespace kiv_process {
 
 	}
 
-	void CProcess_Manager::Shutdown() {
-	
-	/*	std::shared_ptr<TProcess_Control_Block> pcb;
-		Get_Pcb(kiv_thread::Hash_Thread_Id(std::this_thread::get_id()), &pcb);
-
-		if (pcb->fd_table[0] != 0) {
-			kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(pcb->fd_table[0]);
-		}
-
-		if (pcb->fd_table[1] != 1) {
-			kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(pcb->fd_table[1]);
-		}*/
-		
+	void CProcess_Manager::Shutdown() {		
 		system_shutdown = true;
-		//reap_cv.notify_all();
 		system_semaphore->Signal();
 	}
 
@@ -402,8 +345,6 @@ namespace kiv_process {
 					if (tcb->terminate_handler != nullptr) {
 						tcb->terminate_handler(regs);
 					}
-				//kiv_thread::Kiv_Os_Default_Terminate_Handler(tcb);
-				//tcb->pcb = nullptr;
 				}
 				ordered_p.pop();
 			}
@@ -411,13 +352,10 @@ namespace kiv_process {
 		lock.unlock();
 		
 
-		
-
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		//stdin and stdout closing
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		
 		if (process_table.size() > 1) {
 			Killing_Routine();
@@ -440,10 +378,10 @@ namespace kiv_process {
 
 					for (auto const & tid : tcb->waiting_threads) {
 
-						std::shared_ptr<kiv_thread::TThread_Control_Block> tcb;
-						if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &tcb) == true) {
-							if (tcb->wait_semaphore != nullptr) {
-								tcb->wait_semaphore->Signal();
+						std::shared_ptr<kiv_thread::TThread_Control_Block> wtcb;
+						if (kiv_thread::CThread_Manager::Get_Instance().Get_Thread_Control_Block(tid, &wtcb) == true) {
+							if (wtcb->wait_semaphore != nullptr) {
+								wtcb->wait_semaphore->Signal();
 							}
 						}
 					}
@@ -598,7 +536,7 @@ namespace kiv_process {
 			std::shared_ptr<TProcess_Control_Block> pcb = std::make_shared<TProcess_Control_Block>();
 			pcb->name = "system";
 			pcb->pid = 0;
-			pcb->ppid = 0; //CHECK negative value could be better, but size_t ....
+			pcb->ppid = 0; 
 			pcb->state = NProcess_State::RUNNING;
 			pcb->working_directory = kiv_vfs::DEFAULT_WORKING_DIRECTORY;
 
@@ -610,16 +548,10 @@ namespace kiv_process {
 			
 			std::unique_lock<std::mutex> tm_lock(kiv_thread::CThread_Manager::Get_Instance().maps_lock);
 			{
-				//CHECK pri nacitani dll se zasekne pokud ihned inicializujeme instanci
-				tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);
-			
+				tcb->thread = std::thread(&CProcess_Manager::Reap_Process, this);			
 				tcb->tid = kiv_thread::Hash_Thread_Id(std::this_thread::get_id());
-
-				//std::shared_ptr<kiv_thread::TThread_Control_Block> ptr = tcb;
 				kiv_thread::CThread_Manager::Get_Instance().thread_map.emplace(tcb->tid, tcb);
 				kiv_thread::CThread_Manager::Get_Instance().thread_map.emplace(kiv_thread::Hash_Thread_Id(tcb->thread.get_id()), tcb);
-
-				// Otevre stdin a stdout
 			}
 			tm_lock.unlock();
 
@@ -645,9 +577,6 @@ namespace kiv_process {
 
 		while (!system_shutdown) {
 
-			/*std::unique_lock<std::mutex> lock(reap_mutex);
-			reap_cv.wait(lock);
-			lock.unlock();*/
 			system_semaphore->Wait();
 
 			if (ptable.try_lock()) {
@@ -664,19 +593,12 @@ namespace kiv_process {
 				}
 				ptable.unlock();
 			}
-			//else {
-			//	//Pokud nedostaneme zamek nad process_table nema cenu pokracovat, ale chceme se dostat k praci co nejdrive
-			//	//TODO lock with semaphore
-			//	std::this_thread::yield();
-			//}
-			
 
 			uint16_t exit_code;
 			for (const size_t handle : handles) {
 				kiv_thread::CThread_Manager::Get_Instance().Read_Exit_Code(handle, exit_code);
 			}
 
-			/*std::this_thread::yield();*/
 		}
 
 		Execute_Shutdown();
