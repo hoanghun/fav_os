@@ -1,6 +1,5 @@
 #include "common.h"
 
-
 namespace kiv_common {
 	void Parse_Arguments(const kiv_hal::TRegisters &regs, std::string prog_name, std::vector<std::string> &args) {
 		std::string args_line = reinterpret_cast<char *>(regs.rdi.r);
@@ -37,5 +36,19 @@ namespace kiv_common {
 			}
 			args.push_back(args_line.substr(start, arglen));
 		}
+	}
+
+	bool Get_Position(const kiv_os::THandle handle, size_t &position) {
+		return kiv_os_rtl::Seek(handle, 0, kiv_os::NFile_Seek::Beginning, kiv_os::NFile_Seek::Get_Position, position);
+	}
+
+	bool Set_Position(const kiv_os::THandle handle, size_t new_position, kiv_os::NFile_Seek pos_type) {
+		size_t position;
+		return kiv_os_rtl::Seek(handle, new_position, pos_type, kiv_os::NFile_Seek::Set_Position, position);
+	}
+
+	bool Set_Size(const kiv_os::THandle handle, size_t new_position, kiv_os::NFile_Seek pos_type) {
+		size_t position;
+		return kiv_os_rtl::Seek(handle, new_position, pos_type, kiv_os::NFile_Seek::Set_Size, position);
 	}
 }
