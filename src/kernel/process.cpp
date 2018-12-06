@@ -192,6 +192,8 @@ namespace kiv_process {
 			pcb->working_directory = ppcb->working_directory;
 			ppcb->cpids.push_back(pid);
 			
+			kiv_vfs::CVirtual_File_System::Get_Instance().Set_Initial_Working_Directory(pcb->working_directory);
+
 			process_table.emplace(pcb->pid, pcb);
 
 		}
@@ -278,6 +280,7 @@ namespace kiv_process {
 				std::vector<size_t> &vec = process_table[pcb->ppid]->cpids;
 				vec.erase(std::remove(vec.begin(), vec.end(), pcb->pid), vec.end());
 
+				kiv_vfs::CVirtual_File_System::Get_Instance().Unset_Working_Directory(pcb->working_directory);
 				process_table.erase(pcb->pid);
 				pid_manager->Release_Pid(pcb->pid);
 
