@@ -136,6 +136,8 @@ namespace kiv_vfs {
 
 			kiv_os::NOS_Error Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
+			kiv_os::NOS_Error Set_Working_Directory(const TPath &path);
+
 			kiv_os::NOS_Error Set_Working_Directory(char *path);
 
 			void Unset_Working_Directory();

@@ -467,12 +467,8 @@ namespace kiv_vfs {
 		return kiv_os::NOS_Error::Success;
 	}
 
-	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(char *path) {
-		TPath normalized_path;
-		if (!Create_Normalized_Path(path, normalized_path)) {
-			return kiv_os::NOS_Error::File_Not_Found;
-		}
 
+	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(const TPath &normalized_path) {
 		auto mount = Resolve_Mount(normalized_path);
 		if (!mount) {
 			return kiv_os::NOS_Error::File_Not_Found;
@@ -492,6 +488,15 @@ namespace kiv_vfs {
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
 
 		return kiv_os::NOS_Error::Success;
+	}
+
+	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(char *path) {
+		TPath normalized_path;
+		if (!Create_Normalized_Path(path, normalized_path)) {
+			return kiv_os::NOS_Error::File_Not_Found;
+		}
+
+		return Set_Working_Directory(normalized_path);
 	}
 
 	void CVirtual_File_System::Unset_Working_Directory() {
