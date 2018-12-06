@@ -355,7 +355,7 @@ namespace kiv_process {
 		lock.unlock();
 		
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		//stdin and stdout closing
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(0);
 		kiv_vfs::CVirtual_File_System::Get_Instance().Close_File(1);
