@@ -372,7 +372,7 @@ namespace kiv_fs_linked_entries {
 
 		dir_entry.attributes = attributes;
 		dir_entry.filesize = 0;
-		strcpy_s(dir_entry.name, path.file.c_str()); // TODO unsafe maybe? (c_str() appends '\0')
+		strcpy_s(dir_entry.name, MAX_FILENAME_SIZE + 1, path.file.c_str());
 		dir_entry.start = entry[0];
 
 		mEntries.push_back(dir_entry);
