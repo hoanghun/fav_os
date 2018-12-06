@@ -75,7 +75,6 @@ namespace kiv_vfs {
 		return mAttributes;
 	}
 
-
 	IFile::~IFile() {
 
 	}
@@ -468,27 +467,67 @@ namespace kiv_vfs {
 		return kiv_os::NOS_Error::Success;
 	}
 
-	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(char *path) {
+	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(const TPath &normalized_path) {
+		std::shared_ptr<IFile> working_dir;
+
+		if (Is_File_Cached(normalized_path)) {
+			working_dir = Get_Cached_File(normalized_path);
+		}
+		else {
+			auto mount = Resolve_Mount(normalized_path);
+			if (!mount) {
+				return kiv_os::NOS_Error::File_Not_Found;
+			}
+
+			kiv_os::NOS_Error result = mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory, working_dir);
+			if (result != kiv_os::NOS_Error::Success) {
+				return result;
+			}
+
+			Cache_File(working_dir);
+		}
+
+		working_dir->Increase_Read_Count();
+		return kiv_os::NOS_Error::Success;
+	}
+
+	kiv_os::NOS_Error CVirtual_File_System::Set_New_Working_Directory(char *path) {
 		TPath normalized_path;
 		if (!Create_Normalized_Path(path, normalized_path)) {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		auto mount = Resolve_Mount(normalized_path);
-		if (!mount) {
-			return kiv_os::NOS_Error::File_Not_Found;
-		}
-
-		std::shared_ptr<IFile> file;
-		kiv_os::NOS_Error result = mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory, file);
+		kiv_os::NOS_Error result = Set_Working_Directory(normalized_path);
 		if (result != kiv_os::NOS_Error::Success) {
-			// TODO prevent from deleting working directory?
 			return result;
 		}
-	
+
+		// Close previous working directory
+		TPath prev_wd;
+		kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&prev_wd);
+		Unset_Working_Directory(prev_wd);
+
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
 
 		return kiv_os::NOS_Error::Success;
+	}
+
+	kiv_os::NOS_Error CVirtual_File_System::Set_Initial_Working_Directory(const TPath &normalized_path) {
+		return Set_Working_Directory(normalized_path);
+	}
+
+	kiv_os::NOS_Error CVirtual_File_System::Unset_Working_Directory(const TPath &path) {
+		if (Is_File_Cached(path)) {
+			auto working_dir = Get_Cached_File(path);
+			working_dir->Decrease_Read_Count();
+			if (!working_dir->Is_Opened()) {
+				Decache_File(working_dir);
+			}
+			return kiv_os::NOS_Error::Success;
+		}
+		else {
+			return kiv_os::NOS_Error::Unknown_Error;
+		}
 	}
 
 	// ====================
