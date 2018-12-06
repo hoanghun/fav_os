@@ -85,7 +85,7 @@ namespace kiv_fs_stdio {
 
 		if (registers.flags.carry == 1) {
 			written = 0;
-			return kiv_os::NOS_Error::Unknown_Error; // TODO Spravnej error?
+			return kiv_os::NOS_Error::Unknown_Error;
 		}
 
 		written = buffer_size;

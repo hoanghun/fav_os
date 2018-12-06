@@ -49,7 +49,6 @@ extern "C" size_t __stdcall rd(const kiv_hal::TRegisters &regs) {
 
 	int exit_code = EXIT_SUCCESS;
 
-	// TODO Wrong nuber of parameters
 	if (args.size() == 1) {
 		std::string err_msg = "\nThe syntax of the command is incorrect.\n";
 		kiv_os_rtl::Stdout_Print(regs, err_msg.c_str(), err_msg.length());

@@ -10,7 +10,7 @@ kiv_os::NOS_Error CPipe::Write(const char *buffer, size_t buffer_size, size_t po
 	written = 0;
 	
 	if (mReader_Closed) {
-		return kiv_os::NOS_Error::Unknown_Error; // TODO spravnej error?
+		return kiv_os::NOS_Error::Unknown_Error;
 	}
 
 	for (size_t i = 0; i < buffer_size; i++) {

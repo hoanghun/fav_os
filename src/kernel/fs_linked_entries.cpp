@@ -685,9 +685,7 @@ namespace kiv_fs_linked_entries {
 		mAttributes = dir_entry.attributes;
 		mSize = dir_entry.filesize;
 		mFs_lock = fs_lock;
-		if (!mUtils->Get_File_Le_Entries(dir_entry.start, mLe_entries)) {
-			// TODO Handle error
-		}
+		mUtils->Get_File_Le_Entries(dir_entry.start, mLe_entries);
 	}
 
 

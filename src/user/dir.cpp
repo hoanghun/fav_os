@@ -5,9 +5,6 @@
 #include <string>
 #include <iostream>
 bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs) {
-
-	// TODO Otestovat výpis souborù (ne složek)
-
 	kiv_os::THandle handle;
 
 	// Check if directory exists

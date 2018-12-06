@@ -119,7 +119,7 @@ namespace kiv_fs_proc {
 		iss >> pid;
 
 		if (iss.fail()) {
-			return kiv_os::NOS_Error::Unknown_Error; // TODO Spravnej error?
+			return kiv_os::NOS_Error::Unknown_Error;
 		}
 		if (kiv_process::CProcess_Manager::Get_Instance().Get_Name(pid, name)) {
 			file = std::make_shared<CFile>(path, pid, name);
