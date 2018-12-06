@@ -14,7 +14,7 @@ public:
 	void Close(const kiv_vfs::TFD_Attributes attrs) override;
 
 private:
-	static const size_t BUFFER_SIZE = 0xF;
+	static const size_t BUFFER_SIZE = 0xFFFF;
 	/*
 	 * ring buffer
 	 */
