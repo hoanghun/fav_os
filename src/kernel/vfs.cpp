@@ -75,7 +75,6 @@ namespace kiv_vfs {
 		return mAttributes;
 	}
 
-
 	IFile::~IFile() {
 
 	}
@@ -479,16 +478,34 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		std::shared_ptr<IFile> file;
-		kiv_os::NOS_Error result = mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory, file);
+		// Get new working directory
+		std::shared_ptr<IFile> working_dir;
+		kiv_os::NOS_Error result = mount->Open_File(normalized_path, kiv_os::NFile_Attributes::Directory, working_dir);
 		if (result != kiv_os::NOS_Error::Success) {
-			// TODO prevent from deleting working directory?
 			return result;
 		}
 	
+		// Close previous working directory
+		Unset_Working_Directory();
+
+		working_dir->Increase_Read_Count();
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
 
 		return kiv_os::NOS_Error::Success;
+	}
+
+	void CVirtual_File_System::Unset_Working_Directory() {
+		TPath prev_wd_path;
+		kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&prev_wd_path);
+
+		// Unset working directory if process have one (isn't setting his initial working directory)
+		if (!Is_Path_Empty(prev_wd_path)) {
+			auto prew_wd = Get_Cached_File(prev_wd_path);
+			prew_wd->Decrease_Read_Count();
+			if (!prew_wd->Is_Opened()) {
+				Decache_File(prew_wd);
+			}
+		}
 	}
 
 	// ====================
@@ -609,6 +626,13 @@ namespace kiv_vfs {
 		}
 
 		return (tmp_pos + position);
+	}
+
+	bool CVirtual_File_System::Is_Path_Empty(const TPath &path) {
+		return
+			(path.mount == "") &&
+			(path.path.empty()) &&
+			(path.file == "");
 	}
 
 	void CVirtual_File_System::Increase_File_References(TFile_Descriptor &file_desc) {

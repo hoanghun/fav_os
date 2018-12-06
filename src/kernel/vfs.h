@@ -137,6 +137,8 @@ namespace kiv_vfs {
 			kiv_os::NOS_Error Create_Pipe(kiv_os::THandle &write_end, kiv_os::THandle &read_end);
 
 			kiv_os::NOS_Error Set_Working_Directory(char *path);
+
+			void Unset_Working_Directory();
 			 
 			/*
 			 * mounting systems
@@ -176,6 +178,7 @@ namespace kiv_vfs {
 			void Decache_File(std::shared_ptr<IFile> &file);
 			std::shared_ptr<IFile> Get_Cached_File(const TPath &path);
 			size_t Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type);
+			bool Is_Path_Empty(const TPath &path);
 
 			void Unmount_All();
 			void Unregister_All();
