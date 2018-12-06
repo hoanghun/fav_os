@@ -35,6 +35,10 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 	const char* new_line = "\n";
 	const char prompt_char = '>';
+	const char *echo_on = "@echo on";
+	const char *echo_off = "@echo off";
+
+	bool print_prompt = true;
 
 	const size_t prompt_size = 512;
 	char prompt[prompt_size];
@@ -43,7 +47,9 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 	do {
 		kiv_os_rtl::Get_Working_Dir(prompt, prompt_size, prompt_read_count);
 		prompt[prompt_read_count] = prompt_char;
-		kiv_os_rtl::Stdout_Print(regs, prompt, prompt_read_count + 1);
+		
+		if (print_prompt)
+			kiv_os_rtl::Stdout_Print(regs, prompt, prompt_read_count + 1);
 
 		counter = kiv_os_rtl::Stdin_Read(regs, buffer, buffer_size);
 
@@ -54,6 +60,16 @@ size_t __stdcall shell(const kiv_hal::TRegisters &regs) {
 
 			if (strcmp(buffer, "exit") == 0) {
 				break;
+			}
+			if (strcmp(buffer, echo_on) == 0) {
+				print_prompt = true;
+				kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+				continue;
+			}
+			if (strcmp(buffer, echo_off) == 0) {
+				print_prompt = false;
+				kiv_os_rtl::Stdout_Print(regs, new_line, strlen(new_line));
+				continue;
 			}
 
 			std::vector<TExecutable> items = Parse(buffer, counter);
