@@ -150,7 +150,7 @@ void Read_File(kiv_hal::TRegisters &regs) {
 void Set_Working_Dir(kiv_hal::TRegisters &regs) {
 	char *path = reinterpret_cast<char *>(regs.rdx.r); // null terminated
 
-	kiv_os::NOS_Error result = vfs.Set_Working_Directory(path);
+	kiv_os::NOS_Error result = vfs.Set_New_Working_Directory(path);
 
 	Set_Result(regs, result);
 }
