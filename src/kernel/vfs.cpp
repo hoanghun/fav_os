@@ -503,7 +503,10 @@ namespace kiv_vfs {
 		}
 
 		// Close previous working directory
-		Unset_Working_Directory();
+		TPath prev_wd;
+		kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&prev_wd);
+		Unset_Working_Directory(prev_wd);
+
 		kiv_process::CProcess_Manager::Get_Instance().Set_Working_Directory(normalized_path);
 
 		return kiv_os::NOS_Error::Success;
@@ -513,14 +516,17 @@ namespace kiv_vfs {
 		return Set_Working_Directory(normalized_path);
 	}
 
-	void CVirtual_File_System::Unset_Working_Directory() {
-		TPath prev_wd_path;
-		kiv_process::CProcess_Manager::Get_Instance().Get_Working_Directory(&prev_wd_path);
-
-		auto prew_wd = Get_Cached_File(prev_wd_path);
-		prew_wd->Decrease_Read_Count();
-		if (!prew_wd->Is_Opened()) {
-			Decache_File(prew_wd);
+	kiv_os::NOS_Error CVirtual_File_System::Unset_Working_Directory(const TPath &path) {
+		if (Is_File_Cached(path)) {
+			auto working_dir = Get_Cached_File(path);
+			working_dir->Decrease_Read_Count();
+			if (!working_dir->Is_Opened()) {
+				Decache_File(working_dir);
+			}
+			return kiv_os::NOS_Error::Success;
+		}
+		else {
+			return kiv_os::NOS_Error::Unknown_Error;
 		}
 	}
 

@@ -140,7 +140,7 @@ namespace kiv_vfs {
 
 			kiv_os::NOS_Error Set_Initial_Working_Directory(const TPath &path);
 
-			void Unset_Working_Directory();
+			kiv_os::NOS_Error Unset_Working_Directory(const TPath &path);
 			 
 			/*
 			 * mounting systems
