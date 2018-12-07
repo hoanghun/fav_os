@@ -217,12 +217,12 @@ namespace kiv_vfs {
 
 		std::shared_ptr<IFile> file;
 
-		// File is cached
-		if (Is_File_Cached(normalized_path)) {
-			file = Get_Cached_File(normalized_path);
+		// File is stored
+		if (Is_File_Stored(normalized_path)) {
+			file = Get_Stored_File(normalized_path);
 		}
 
-		// File is not cached -> resolve file and cache file
+		// File is not stored -> resolve file and store file
 		else {
 			auto mount = Resolve_Mount(normalized_path);
 			if (!mount) {
@@ -243,7 +243,7 @@ namespace kiv_vfs {
 				Free_File_Descriptor(free_fd);
 				return kiv_os::NOS_Error::File_Not_Found;
 			}
-			Cache_File(file);
+			Store_File(file);
 		}
 
 		fd_index = free_fd;
@@ -267,9 +267,9 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		// File is cached
-		if (Is_File_Cached(normalized_path)) {
-			auto file = Get_Cached_File(normalized_path);
+		// File is stored
+		if (Is_File_Stored(normalized_path)) {
+			auto file = Get_Stored_File(normalized_path);
 
 			// File is opened -> cannot override this file
 			if (file->Is_Opened()) {
@@ -279,7 +279,7 @@ namespace kiv_vfs {
 
 			// File is not opened -> can override this file
 			else {
-				Decache_File(file);
+				Remove_From_Stored_Files(file);
 			}
 		}
 
@@ -306,7 +306,7 @@ namespace kiv_vfs {
 			file_desc->file->Close(file_desc->attributes);
 
 			if (file_desc->file->Get_Read_Count() == 0 && file_desc->file->Get_Write_Count() == 0) {
-				Decache_File(file_desc->file);
+				Remove_From_Stored_Files(file_desc->file);
 			}
 		}
 		else {
@@ -324,9 +324,9 @@ namespace kiv_vfs {
 			return kiv_os::NOS_Error::File_Not_Found;
 		}
 
-		// File is cached
-		if (Is_File_Cached(normalized_path)) {
-			auto file = Get_Cached_File(normalized_path);
+		// File is stored
+		if (Is_File_Stored(normalized_path)) {
+			auto file = Get_Stored_File(normalized_path);
 
 			// File is opened
 			if (file->Is_Opened()) {
@@ -335,7 +335,7 @@ namespace kiv_vfs {
 
 			// File is not opened
 			else {
-				Decache_File(file);
+				Remove_From_Stored_Files(file);
 			}
 		}
 
@@ -470,8 +470,8 @@ namespace kiv_vfs {
 	kiv_os::NOS_Error CVirtual_File_System::Set_Working_Directory(const TPath &normalized_path) {
 		std::shared_ptr<IFile> working_dir;
 
-		if (Is_File_Cached(normalized_path)) {
-			working_dir = Get_Cached_File(normalized_path);
+		if (Is_File_Stored(normalized_path)) {
+			working_dir = Get_Stored_File(normalized_path);
 		}
 		else {
 			auto mount = Resolve_Mount(normalized_path);
@@ -484,7 +484,7 @@ namespace kiv_vfs {
 				return result;
 			}
 
-			Cache_File(working_dir);
+			Store_File(working_dir);
 		}
 
 		working_dir->Increase_Read_Count();
@@ -517,11 +517,11 @@ namespace kiv_vfs {
 	}
 
 	kiv_os::NOS_Error CVirtual_File_System::Unset_Working_Directory(const TPath &path) {
-		if (Is_File_Cached(path)) {
-			auto working_dir = Get_Cached_File(path);
+		if (Is_File_Stored(path)) {
+			auto working_dir = Get_Stored_File(path);
 			working_dir->Decrease_Read_Count();
 			if (!working_dir->Is_Opened()) {
-				Decache_File(working_dir);
+				Remove_From_Stored_Files(working_dir);
 			}
 			return kiv_os::NOS_Error::Success;
 		}
@@ -602,33 +602,33 @@ namespace kiv_vfs {
 		return mMounted_file_systems.at(normalized_path.mount);
 	}
 
-	bool CVirtual_File_System::Is_File_Cached(const TPath& path) {
+	bool CVirtual_File_System::Is_File_Stored(const TPath& path) {
 		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
-		return (mCached_files.find(path.absolute_path) != mCached_files.end());
+		return (mFiles.find(path.absolute_path) != mFiles.end());
 	}
 
-	void CVirtual_File_System::Cache_File(std::shared_ptr<IFile> &file) {
+	void CVirtual_File_System::Store_File(std::shared_ptr<IFile> &file) {
 		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
-		mCached_files.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path().absolute_path, file));
+		mFiles.insert(std::pair<std::string, std::shared_ptr<IFile>>(file->Get_Path().absolute_path, file));
 	}
 
-	void CVirtual_File_System::Decache_File(std::shared_ptr<IFile> &file) {
+	void CVirtual_File_System::Remove_From_Stored_Files(std::shared_ptr<IFile> &file) {
 		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
 		auto path = file->Get_Path();
-		if (!Is_File_Cached(file->Get_Path())) {
+		if (!Is_File_Stored(file->Get_Path())) {
 			return;
 		}
 
-		mCached_files.erase(mCached_files.find(file->Get_Path().absolute_path));
+		mFiles.erase(mFiles.find(file->Get_Path().absolute_path));
 	}
 
-	std::shared_ptr<IFile> CVirtual_File_System::Get_Cached_File(const TPath &path) {
+	std::shared_ptr<IFile> CVirtual_File_System::Get_Stored_File(const TPath &path) {
 		std::unique_lock<std::recursive_mutex> lock(mFiles_lock);
 
-		return mCached_files.find(path.absolute_path)->second;
+		return mFiles.find(path.absolute_path)->second;
 	}
 
 	size_t CVirtual_File_System::Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type) {
