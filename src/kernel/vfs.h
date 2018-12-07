@@ -25,7 +25,6 @@ namespace kiv_vfs {
 	const TFD_Attributes FD_ATTR_RW = FD_ATTR_READ | FD_ATTR_WRITE;
 
 	static const size_t MAX_FILE_DESCRIPTORS = 2048;
-	static const size_t MAX_FILES_CACHED = 1024;
 	static const size_t MAX_FS_REGISTERED = 4;
 	static const size_t MAX_FS_MOUNTED = 10;
 
@@ -157,10 +156,9 @@ namespace kiv_vfs {
 			unsigned int mFd_count = 0;
 			unsigned int mRegistered_fs_count = 0;
 			unsigned int mMounted_fs_count = 0;
-			unsigned int mCached_files_count = 0;
 
 			std::array<TFile_Descriptor, MAX_FILE_DESCRIPTORS> mFile_descriptors;
-			std::map<std::string, std::shared_ptr<IFile>> mCached_files; // absolute_path -> IFile
+			std::map<std::string, std::shared_ptr<IFile>> mFiles; // absolute_path -> IFile
 			std::vector<IFile_System*> mRegistered_file_systems;
 			std::map<std::string, IMounted_File_System*> mMounted_file_systems;
 
@@ -175,10 +173,10 @@ namespace kiv_vfs {
 			bool Create_Normalized_Path(std::string path, TPath &normalized_path);
 			void Increase_File_References(TFile_Descriptor &file_desc);
 			void Decrease_File_References(const TFile_Descriptor &file_desc);
-			bool Is_File_Cached(const TPath &path);
-			void Cache_File(std::shared_ptr<IFile> &file);
-			void Decache_File(std::shared_ptr<IFile> &file);
-			std::shared_ptr<IFile> Get_Cached_File(const TPath &path);
+			bool Is_File_Stored(const TPath &path);
+			void Store_File(std::shared_ptr<IFile> &file);
+			void Remove_From_Stored_Files(std::shared_ptr<IFile> &file);
+			std::shared_ptr<IFile> Get_Stored_File(const TPath &path);
 			size_t Calculate_Position(const TFile_Descriptor &file_desc, int position, kiv_os::NFile_Seek type);
 			kiv_os::NOS_Error Set_Working_Directory(const TPath &normalized_path);
 

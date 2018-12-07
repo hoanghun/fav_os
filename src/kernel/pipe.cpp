@@ -42,7 +42,7 @@ kiv_os::NOS_Error CPipe::Read(char *buffer, size_t buffer_size, size_t position,
 
 		if (mWriter_Closed) { // writer end closed need to check if there is anything to read
 			if (mRead_Index == mWrite_Index) { // nothing to read
-				buffer[i] = EOF; // mozna chyba
+				buffer[i] = EOF;
 				return kiv_os::NOS_Error::Success;
 			}
 		}
