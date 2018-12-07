@@ -354,7 +354,7 @@ namespace kiv_fs_linked_entries {
 		std::unique_lock<std::recursive_mutex> lock(*mFs_lock);
 
 		if (!Load()) {
-			return false;
+			return nullptr;
 		}
 
 		// Directory is full
@@ -1022,13 +1022,15 @@ namespace kiv_fs_linked_entries {
 			}
 		}
 
-
 		// Create file directly in the root
 		if (path.path.empty()) {
 			if (root->Find(path.file, TLE_Dir_Entry{})) {
 				Delete_File(path);
 			}
 			file = root->Create_File(path, attributes);
+			if (!file) {
+				return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+			}
 			return kiv_os::NOS_Error::Success;
 		}
 
@@ -1059,6 +1061,9 @@ namespace kiv_fs_linked_entries {
 			Delete_File(path);
 		}
 		file = directory->Create_File(path, attributes);
+		if (!file) {
+			return kiv_os::NOS_Error::Not_Enough_Disk_Space;
+		}
 		return kiv_os::NOS_Error::Success;
 	}
 
