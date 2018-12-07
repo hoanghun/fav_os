@@ -3,7 +3,6 @@
 #include "common.h"
 #include <vector>
 #include <string>
-#include <iostream>
 bool Print_Directory(const std::string dir_name, const kiv_hal::TRegisters &regs) {
 	kiv_os::THandle handle;
 

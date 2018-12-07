@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "vfs.h"
 #include "pipe.h"
 #include "process.h"

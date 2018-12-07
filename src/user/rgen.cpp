@@ -1,7 +1,6 @@
 #include "..\api\api.h"
 #include "rtl.h"
 
-#include <iostream>
 #include <string>
 #include <cstdlib>
 

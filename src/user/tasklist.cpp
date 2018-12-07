@@ -2,7 +2,6 @@
 #include "rtl.h"
 
 #include <string>
-#include <iostream>
 
 const std::string proc_root = "proc:\\";
 const size_t buffer_size = 0xFF;

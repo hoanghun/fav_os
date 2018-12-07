@@ -1,7 +1,5 @@
 #include "semaphore.h"
 
-#include <iostream>
-
 Semaphore::Semaphore(int semaphore_value) : mSem_Value(semaphore_value), mQueueSize(0) {
 
 }
